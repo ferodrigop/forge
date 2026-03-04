@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import path from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SessionManager } from "./core/session-manager.js";
@@ -19,7 +21,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
-    version: "0.6.0",
+    version: "0.7.0",
   });
 
   const subscriptions = new Map<string, Subscription>();
@@ -186,7 +188,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
   // --- spawn_claude ---
   server.tool(
     "spawn_claude",
-    "Spawn a Claude Code agent in a new terminal session. Runs 'claude --print -p <prompt>' with optional model, tools, and budget.",
+    "Spawn a Claude Code agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous --print mode. Use worktree + branch to run in an isolated git worktree.",
     {
       prompt: z.string().describe("The prompt to send to Claude"),
       cwd: z.string().optional().describe("Working directory for Claude"),
@@ -196,23 +198,99 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
       tags: z.array(z.string()).max(10).optional().describe("Additional tags (claude-agent is always included)"),
       maxBudget: z.number().positive().optional().describe("Max budget in USD"),
       bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
+      worktree: z.boolean().optional().describe("Create a git worktree for this agent (isolates file changes on a separate branch)"),
+      branch: z.string().optional().describe("Branch name for the worktree (required when worktree: true, e.g., 'feature/budgets')"),
+      oneShot: z.boolean().optional().describe("Run in --print mode (one-shot: process prompt and exit). Default: false (interactive, session stays alive)"),
     },
     async (params) => {
       try {
-        const args = ["--print", "-p", params.prompt];
+        let effectiveCwd = params.cwd;
+        let worktreePath: string | undefined;
+
+        // Create git worktree if requested
+        if (params.worktree) {
+          if (!params.branch) {
+            return {
+              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
+              isError: true,
+            };
+          }
+
+          const baseCwd = params.cwd ?? process.cwd();
+
+          // Get the git repo root
+          let repoRoot: string;
+          try {
+            repoRoot = execSync("git rev-parse --show-toplevel", { cwd: baseCwd, encoding: "utf-8" }).trim();
+          } catch {
+            return {
+              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
+              isError: true,
+            };
+          }
+
+          // Derive worktree path from branch name (e.g., feature/budgets → repo-budgets)
+          const repoName = path.basename(repoRoot);
+          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
+          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
+
+          try {
+            execSync(`git worktree add "${worktreePath}" -b "${params.branch}"`, {
+              cwd: repoRoot,
+              encoding: "utf-8",
+              stdio: "pipe",
+            });
+          } catch (err) {
+            const msg = (err as Error).message;
+            // Branch might already exist — try without -b
+            if (msg.includes("already exists")) {
+              try {
+                execSync(`git worktree add "${worktreePath}" "${params.branch}"`, {
+                  cwd: repoRoot,
+                  encoding: "utf-8",
+                  stdio: "pipe",
+                });
+              } catch (err2) {
+                return {
+                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
+                  isError: true,
+                };
+              }
+            } else {
+              return {
+                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
+                isError: true,
+              };
+            }
+          }
+
+          effectiveCwd = worktreePath;
+        }
+
+        const isOneShot = params.oneShot === true;
+        const args: string[] = [];
+
+        if (isOneShot) {
+          args.push("--print", "--output-format", "stream-json", "--verbose", params.prompt);
+        }
+        // Interactive mode: prompt is sent to stdin after launch
 
         if (params.model) {
           args.push("--model", params.model);
         }
-        if (params.allowedTools && params.allowedTools.length > 0) {
-          args.push("--allowedTools", params.allowedTools.join(","));
-        }
+        // Default allowed tools so spawned agents can work without permission prompts
+        const defaultTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Agent", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "WebFetch", "WebSearch"];
+        const tools = (params.allowedTools && params.allowedTools.length > 0) ? params.allowedTools : defaultTools;
+        args.push("--allowedTools", tools.join(","));
         if (params.maxBudget) {
           args.push("--max-budget-usd", String(params.maxBudget));
         }
 
         const autoName = params.name ?? `claude: ${params.prompt.slice(0, 60)}`;
         const baseTags = ["claude-agent"];
+        if (params.worktree && params.branch) {
+          baseTags.push("worktree", `branch:${params.branch}`);
+        }
         const mergedTags = params.tags
           ? [...new Set([...baseTags, ...params.tags])]
           : baseTags;
@@ -220,17 +298,38 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
         const session = manager.create({
           command: config.claudePath,
           args,
-          cwd: params.cwd,
+          cwd: effectiveCwd,
           name: autoName,
           tags: mergedTags,
           bufferSize: params.bufferSize,
         });
 
+        // Keep session data readable after exit so orchestrator can diagnose failures
+        session.preserveAfterExit();
+
+        // Interactive mode: send the prompt to stdin after Claude starts up
+        if (!isOneShot) {
+          setTimeout(() => {
+            try {
+              session.write(params.prompt + "\n");
+            } catch {
+              // Session may have exited before we could write
+            }
+          }, 2000); // Wait for Claude to initialize and show the prompt
+        }
+
+        const info = session.getInfo();
+        const result: Record<string, unknown> = { ...info };
+        if (worktreePath) {
+          result.worktreePath = worktreePath;
+          result.branch = params.branch;
+        }
+
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(session.getInfo(), null, 2),
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };
@@ -832,7 +931,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
         content: [{
           type: "text" as const,
           text: JSON.stringify({
-            version: "0.6.0",
+            version: "0.7.0",
             uptime: Math.floor((Date.now() - serverStartTime) / 1000),
             sessions: {
               active: manager.count,

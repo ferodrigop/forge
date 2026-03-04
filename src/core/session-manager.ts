@@ -15,18 +15,42 @@ export class SessionManager {
   private config: ForgeConfig;
   private emitter = new EventEmitter();
   private staleEntries: SessionInfo[] = [];
+  private sweepTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: ForgeConfig) {
     this.config = config;
   }
 
-  /** Load persisted session metadata (marks all as exited) */
+  /** Load persisted session metadata, kill orphan PIDs, start exited-TTL sweep */
   async init(): Promise<void> {
     const persisted = await loadState();
-    this.staleEntries = persisted.map((s) => ({ ...s, status: "exited" as const }));
+    this.staleEntries = persisted.map((s) => ({
+      ...s,
+      status: "exited" as const,
+      exitedAt: s.exitedAt ?? new Date().toISOString(),
+    }));
+
+    // Kill orphan processes from previous run
+    for (const stale of this.staleEntries) {
+      if (stale.pid && stale.status === "exited") {
+        try {
+          process.kill(stale.pid, 0); // Check if alive
+          process.kill(stale.pid, "SIGTERM"); // Kill orphan
+          logger.warn("Killed orphan process", { pid: stale.pid, session: stale.id });
+        } catch {
+          // Already dead — expected
+        }
+      }
+    }
+
     if (this.staleEntries.length > 0) {
       logger.info("Loaded stale session entries", { count: this.staleEntries.length });
     }
+
+    // Start periodic sweep for exited sessions past TTL
+    this.sweepTimer = setInterval(() => this.sweepExited(), 60_000);
+    // Don't keep process alive just for sweep
+    if (this.sweepTimer.unref) this.sweepTimer.unref();
   }
 
   on(event: SessionManagerEvent, listener: (info: SessionInfo) => void): void {
@@ -99,6 +123,10 @@ export class SessionManager {
 
   /** Close all sessions — for graceful shutdown */
   closeAll(): void {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = null;
+    }
     for (const [id, session] of this.sessions) {
       try {
         session.close();
@@ -140,6 +168,49 @@ export class SessionManager {
 
   get count(): number {
     return this.sessions.size;
+  }
+
+  /** Get summary stats for all sessions */
+  getStats(): { totalMemoryMB: number; sessions: Array<{ id: string; memoryMB: number | null }> } {
+    const sessionStats: Array<{ id: string; memoryMB: number | null }> = [];
+    let totalMemoryMB = 0;
+
+    for (const session of this.sessions.values()) {
+      const mb = session.getMemoryMB();
+      sessionStats.push({ id: session.id, memoryMB: mb });
+      if (mb !== null) totalMemoryMB += mb;
+    }
+
+    return { totalMemoryMB, sessions: sessionStats };
+  }
+
+  /** Remove exited sessions past their TTL */
+  private sweepExited(): void {
+    const now = Date.now();
+    const ttl = this.config.exitedTtl;
+
+    // Sweep stale entries
+    const before = this.staleEntries.length;
+    this.staleEntries = this.staleEntries.filter((s) => {
+      if (!s.exitedAt) return false;
+      return now - new Date(s.exitedAt).getTime() < ttl;
+    });
+    if (this.staleEntries.length < before) {
+      logger.info("Swept stale entries", { removed: before - this.staleEntries.length });
+    }
+
+    // Sweep exited active sessions (kept around for inspection)
+    for (const [id, session] of this.sessions) {
+      const info = session.getInfo();
+      if (info.status === "exited" && info.exitedAt) {
+        if (now - new Date(info.exitedAt).getTime() >= ttl) {
+          session.close();
+          this.sessions.delete(id);
+          this.emitter.emit("sessionClosed", { ...info, status: "exited" });
+          logger.info("Auto-removed exited session past TTL", { id });
+        }
+      }
+    }
   }
 
   /** Fire-and-forget persist of active session infos */

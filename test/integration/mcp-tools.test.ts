@@ -394,7 +394,7 @@ describe("MCP Tools E2E", () => {
   it("health_check returns version, uptime, sessions, memory", async () => {
     const result = await client.callTool({ name: "health_check", arguments: {} });
     const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
-    expect(parsed.version).toBe("0.6.0");
+    expect(parsed.version).toBe("0.7.0");
     expect(parsed.uptime).toBeGreaterThanOrEqual(0);
     expect(parsed.sessions).toHaveProperty("active");
     expect(parsed.sessions).toHaveProperty("max");

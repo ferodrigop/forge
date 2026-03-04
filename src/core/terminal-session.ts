@@ -1,4 +1,5 @@
 import * as pty from "node-pty";
+import { execSync } from "node:child_process";
 import { Terminal } from "@xterm/headless";
 import { RingBuffer } from "./ring-buffer.js";
 import { logger } from "../utils/logger.js";
@@ -32,6 +33,7 @@ export class TerminalSession {
   private ringBuffer: RingBuffer;
   private _status: SessionStatus = "running";
   private _exitCode: number | undefined;
+  private _exitedAt: Date | undefined;
   private lastActivityAt: Date;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private idleTimeout: number;
@@ -77,6 +79,7 @@ export class TerminalSession {
     this.ptyProcess.onExit(({ exitCode }) => {
       this._status = "exited";
       this._exitCode = exitCode;
+      this._exitedAt = new Date();
       this.clearIdleTimer();
       logger.info("Session exited", { id: this.id, exitCode });
       this.onExitCallback?.(this.id, exitCode);
@@ -203,7 +206,19 @@ export class TerminalSession {
     }
     this.xterm.dispose();
     this._status = "exited";
+    if (!this._exitedAt) this._exitedAt = new Date();
     logger.info("Session closed", { id: this.id });
+  }
+
+  /** Get per-process RSS memory in MB (null if exited or unavailable) */
+  getMemoryMB(): number | null {
+    if (this._status !== "running") return null;
+    try {
+      const out = execSync(`ps -o rss= -p ${this.pid}`, { encoding: "utf-8", timeout: 1000 });
+      return Math.round(parseInt(out.trim(), 10) / 1024);
+    } catch {
+      return null;
+    }
   }
 
   /** Get session info for list/status responses */
@@ -220,6 +235,8 @@ export class TerminalSession {
       lastActivityAt: this.lastActivityAt.toISOString(),
       ...(this.name && { name: this.name }),
       ...(this.tags && this.tags.length > 0 && { tags: this.tags }),
+      ...(this._exitedAt && { exitedAt: this._exitedAt.toISOString() }),
+      memoryMB: this.getMemoryMB(),
       tokenUsage: this.getStats(),
     };
   }
@@ -232,6 +249,12 @@ export class TerminalSession {
         this.close();
       }, this.idleTimeout);
     }
+  }
+
+  /** Keep session data accessible after exit (disable idle cleanup for exited sessions) */
+  preserveAfterExit(): void {
+    this.clearIdleTimer();
+    this.idleTimeout = 0;
   }
 
   private clearIdleTimer(): void {

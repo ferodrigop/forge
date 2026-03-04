@@ -13,6 +13,7 @@ interface ClientState {
 export class WsHandler {
   private clients = new Set<ClientState>();
   private manager: SessionManager;
+  private statsTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(manager: SessionManager) {
     this.manager = manager;
@@ -28,6 +29,10 @@ export class WsHandler {
     manager.on("sessionUpdated", (info) => {
       this.broadcast({ type: "sessionUpdated", session: info });
     });
+
+    // Broadcast stats every 5 seconds
+    this.statsTimer = setInterval(() => this.broadcastStats(), 5_000);
+    if (this.statsTimer.unref) this.statsTimer.unref();
   }
 
   handleConnection(ws: WebSocket): void {
@@ -97,6 +102,17 @@ export class WsHandler {
         break;
       }
 
+      case "close": {
+        const sessionId = String(msg.sessionId);
+        try {
+          this.manager.close(sessionId);
+          logger.info("Session closed via dashboard", { id: sessionId });
+        } catch (err) {
+          this.send(client.ws, { type: "error", message: `Failed to close session: ${(err as Error).message}` });
+        }
+        break;
+      }
+
       default:
         this.send(client.ws, { type: "error", message: `Unknown message type: ${msg.type}` });
     }
@@ -160,7 +176,21 @@ export class WsHandler {
     }
   }
 
+  private broadcastStats(): void {
+    if (this.clients.size === 0) return;
+    const stats = this.manager.getStats();
+    this.broadcast({
+      type: "stats",
+      totalMemoryMB: stats.totalMemoryMB,
+      sessions: stats.sessions,
+    });
+  }
+
   closeAll(): void {
+    if (this.statsTimer) {
+      clearInterval(this.statsTimer);
+      this.statsTimer = null;
+    }
     for (const client of this.clients) {
       client.ws.close();
     }
