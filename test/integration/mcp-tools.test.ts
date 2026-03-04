@@ -394,7 +394,7 @@ describe("MCP Tools E2E", () => {
   it("health_check returns version, uptime, sessions, memory", async () => {
     const result = await client.callTool({ name: "health_check", arguments: {} });
     const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
-    expect(parsed.version).toBe("0.5.1");
+    expect(parsed.version).toBe("0.6.0");
     expect(parsed.uptime).toBeGreaterThanOrEqual(0);
     expect(parsed.sessions).toHaveProperty("active");
     expect(parsed.sessions).toHaveProperty("max");
@@ -583,6 +583,156 @@ describe("MCP Tools E2E", () => {
       arguments: { subscriptionId },
     });
     expect(unsubResult2.isError).toBe(true);
+  });
+
+  // --- V0.6.0: run_command tool ---
+
+  it("run_command runs echo and returns output", async () => {
+    const result = await client.callTool({
+      name: "run_command",
+      arguments: { command: "/bin/sh", args: ["-c", "echo run_cmd_test"] },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.exitCode).toBe(0);
+    expect(parsed.output).toContain("run_cmd_test");
+    expect(parsed.duration).toBeGreaterThanOrEqual(0);
+    expect(parsed.sessionId).toBeDefined();
+  });
+
+  it("run_command returns non-zero exit code", async () => {
+    const result = await client.callTool({
+      name: "run_command",
+      arguments: { command: "/bin/sh", args: ["-c", "exit 42"] },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.exitCode).toBe(42);
+  });
+
+  it("run_command respects cwd", async () => {
+    const result = await client.callTool({
+      name: "run_command",
+      arguments: { command: "/bin/sh", args: ["-c", "pwd"], cwd: "/tmp" },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.output).toContain("/tmp");
+    expect(parsed.exitCode).toBe(0);
+  });
+
+  it("run_command passes env vars", async () => {
+    const result = await client.callTool({
+      name: "run_command",
+      arguments: {
+        command: "/bin/sh",
+        args: ["-c", "echo $MY_TEST_VAR"],
+        env: { MY_TEST_VAR: "forge_env_test" },
+      },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.output).toContain("forge_env_test");
+  });
+
+  it("run_command times out and keeps session alive", async () => {
+    const result = await client.callTool({
+      name: "run_command",
+      arguments: { command: "/bin/sh", args: ["-c", "sleep 60"], timeout: 1000 },
+    });
+    expect(result.isError).toBe(true);
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.timeout).toBe(true);
+    expect(parsed.sessionId).toBeDefined();
+    // Session should still be accessible
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: parsed.sessionId },
+    });
+    expect(readResult.isError).toBeUndefined();
+  }, 10_000);
+
+  it("run_command auto-cleans up session on success", async () => {
+    const result = await client.callTool({
+      name: "run_command",
+      arguments: { command: "/bin/sh", args: ["-c", "echo cleanup_test"] },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.exitCode).toBe(0);
+
+    // Session should be cleaned up — reading it should fail
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: parsed.sessionId },
+    });
+    expect(readResult.isError).toBe(true);
+    expect((readResult.content as Array<{ type: string; text: string }>)[0].text).toContain("not found");
+  });
+
+  // --- V0.6.0: wait_for + waitForExit ---
+
+  it("wait_for with waitForExit detects process exit", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", args: ["-c", "sleep 0.5 && exit 0"] },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 5000 },
+    });
+    const parsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.matched).toBe(true);
+    expect(parsed.exitCode).toBe(0);
+    expect(parsed.elapsed).toBeGreaterThan(0);
+  }, 10_000);
+
+  it("wait_for with waitForExit on already-exited session returns immediately", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", args: ["-c", "exit 7"] },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    // Give it a moment to exit
+    await new Promise((r) => setTimeout(r, 500));
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 5000 },
+    });
+    const parsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.matched).toBe(true);
+    expect(parsed.exitCode).toBe(7);
+    expect(parsed.elapsed).toBe(0);
+  });
+
+  it("wait_for with waitForExit times out", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 500 },
+    });
+    const parsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.matched).toBe(false);
+    expect(parsed.reason).toBe("timeout");
+  });
+
+  it("wait_for without pattern or waitForExit returns error", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id },
+    });
+    expect(waitResult.isError).toBe(true);
+    expect((waitResult.content as Array<{ type: string; text: string }>)[0].text).toContain("Either");
   });
 
   // --- V0.5.0: Session Templates (#25) ---

@@ -19,7 +19,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
-    version: "0.5.1",
+    version: "0.6.0",
   });
 
   const subscriptions = new Map<string, Subscription>();
@@ -391,28 +391,79 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
   // --- wait_for ---
   server.tool(
     "wait_for",
-    "Wait for a regex pattern to appear in terminal output. Checks existing buffer first, then watches new output.",
+    "Wait for a regex pattern to appear in terminal output, OR wait for the process to exit. Checks existing buffer/status first, then watches live. Use waitForExit: true for commands that terminate (builds, tests, installs).",
     {
       id: z.string().describe("Session ID"),
-      pattern: z.string().describe("Regex pattern to wait for"),
+      pattern: z.string().optional().describe("Regex pattern to wait for (required unless waitForExit is true)"),
+      waitForExit: z.boolean().optional().describe("Wait for the process to exit instead of matching a pattern"),
       timeout: z.number().int().min(100).max(300_000).optional().describe("Timeout in ms (default: 30000)"),
     },
     async (params) => {
       try {
-        const session = manager.getOrThrow(params.id);
+        if (!params.pattern && !params.waitForExit) {
+          return {
+            content: [{ type: "text" as const, text: "Error: Either 'pattern' or 'waitForExit: true' must be provided" }],
+            isError: true,
+          };
+        }
 
+        const session = manager.getOrThrow(params.id);
+        const timeoutMs = params.timeout ?? 30_000;
+        const start = Date.now();
+
+        // --- waitForExit mode ---
+        if (params.waitForExit) {
+          // Check if already exited
+          if (session.status === "exited") {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ matched: true, exitCode: session.exitCode, elapsed: 0 }, null, 2),
+              }],
+            };
+          }
+
+          const result = await new Promise<{ matched: boolean; exitCode?: number; reason?: string; elapsed: number }>((resolve) => {
+            let settled = false;
+
+            const cleanup = () => {
+              if (settled) return;
+              settled = true;
+              unsubExit();
+              clearTimeout(timer);
+            };
+
+            const unsubExit = session.onExit((_id, exitCode) => {
+              if (settled) return;
+              cleanup();
+              resolve({ matched: true, exitCode, elapsed: Date.now() - start });
+            });
+
+            const timer = setTimeout(() => {
+              if (settled) return;
+              cleanup();
+              resolve({ matched: false, reason: "timeout", elapsed: Date.now() - start });
+            }, timeoutMs);
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            }],
+          };
+        }
+
+        // --- pattern mode ---
         let regex: RegExp;
         try {
-          regex = new RegExp(params.pattern);
+          regex = new RegExp(params.pattern!);
         } catch {
           return {
             content: [{ type: "text" as const, text: `Invalid regex: "${params.pattern}"` }],
             isError: true,
           };
         }
-
-        const timeoutMs = params.timeout ?? 30_000;
-        const start = Date.now();
 
         // Check backlog first
         const backlog = session.readFullBuffer();
@@ -781,7 +832,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
         content: [{
           type: "text" as const,
           text: JSON.stringify({
-            version: "0.5.1",
+            version: "0.6.0",
             uptime: Math.floor((Date.now() - serverStartTime) / 1000),
             sessions: {
               active: manager.count,
@@ -808,6 +859,120 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
       return {
         content: [{ type: "text" as const, text: "Session history cleared" }],
       };
+    }
+  );
+
+  // --- run_command ---
+  server.tool(
+    "run_command",
+    "Run a command to completion and return its output. Creates a terminal, waits for exit, returns output, and auto-cleans up. Ideal for build/test/install commands. Tip: chain commands with && (e.g., 'npm install && npm run build').",
+    {
+      command: z.string().describe("Command to run (e.g., 'npm', 'git', 'sh')"),
+      args: z.array(z.string()).optional().describe("Command arguments (e.g., ['run', 'build'])"),
+      cwd: z.string().optional().describe("Working directory"),
+      env: z.record(z.string()).optional().describe("Additional environment variables"),
+      name: z.string().max(100).optional().describe("Human-readable session name"),
+      timeout: z.number().int().min(1000).max(300_000).optional().describe("Timeout in ms (default: 60000, max: 300000)"),
+    },
+    async (params) => {
+      const timeoutMs = params.timeout ?? 60_000;
+      const start = Date.now();
+      let session: ReturnType<typeof manager.create> | undefined;
+
+      try {
+        session = manager.create({
+          command: params.command,
+          args: params.args,
+          cwd: params.cwd,
+          env: params.env,
+          name: params.name ?? `run: ${params.command}${params.args ? " " + params.args.join(" ") : ""}`.slice(0, 100),
+          tags: ["run-command"],
+        });
+
+        const sessionId = session.id;
+
+        // Wait for exit or timeout
+        const exitResult = await new Promise<{ exited: boolean; exitCode?: number }>((resolve) => {
+          let settled = false;
+
+          const cleanup = () => {
+            if (settled) return;
+            settled = true;
+            unsubExit();
+            clearTimeout(timer);
+          };
+
+          // Check if already exited (fast commands)
+          if (session!.status === "exited") {
+            resolve({ exited: true, exitCode: session!.exitCode });
+            return;
+          }
+
+          const unsubExit = session!.onExit((_id, exitCode) => {
+            if (settled) return;
+            cleanup();
+            resolve({ exited: true, exitCode });
+          });
+
+          const timer = setTimeout(() => {
+            if (settled) return;
+            cleanup();
+            resolve({ exited: false });
+          }, timeoutMs);
+        });
+
+        const output = session.readFullBuffer();
+        const duration = Date.now() - start;
+
+        // Truncate output at ~100KB to save tokens
+        const MAX_OUTPUT = 102_400;
+        const truncated = output.length > MAX_OUTPUT;
+        const finalOutput = truncated
+          ? output.slice(0, MAX_OUTPUT) + `\n\n--- OUTPUT TRUNCATED (${output.length} bytes total, showing first ${MAX_OUTPUT}) ---`
+          : output;
+
+        if (!exitResult.exited) {
+          // Timeout — keep session alive for inspection
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                exitCode: null,
+                output: finalOutput,
+                duration,
+                sessionId,
+                timeout: true,
+                message: `Command did not exit within ${timeoutMs}ms. Session kept alive for inspection — use read_terminal/close_terminal with sessionId.`,
+              }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+
+        // Success — auto-cleanup
+        try {
+          manager.close(sessionId);
+        } catch {
+          // Already closed/cleaned up
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              exitCode: exitResult.exitCode,
+              output: finalOutput,
+              duration,
+              sessionId,
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
     }
   );
 
