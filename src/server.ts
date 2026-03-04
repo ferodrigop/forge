@@ -1,17 +1,28 @@
+import { randomUUID } from "node:crypto";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SessionManager } from "./core/session-manager.js";
 import { resolveControl, listControls } from "./utils/control-chars.js";
+import { getTemplate, listTemplates as listBuiltinTemplates } from "./core/templates.js";
 import type { ForgeConfig } from "./core/types.js";
 import type { Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
+
+interface Subscription {
+  id: string;
+  sessionId: string;
+  events: string[];
+  cleanups: Array<() => void>;
+}
 
 export function createServer(config: ForgeConfig): { server: McpServer; manager: SessionManager } {
   const manager = new SessionManager(config);
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
-    version: "0.4.0",
+    version: "0.5.0",
   });
+
+  const subscriptions = new Map<string, Subscription>();
 
   // --- create_terminal ---
   server.tool(
@@ -56,6 +67,119 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
           isError: true,
         };
       }
+    }
+  );
+
+  // --- create_from_template ---
+  server.tool(
+    "create_from_template",
+    "Create a terminal session from a pre-configured template (e.g., shell, next-dev, vite-dev, npm-test).",
+    {
+      template: z.string().describe("Template name"),
+      cwd: z.string().optional().describe("Working directory override"),
+      env: z.record(z.string()).optional().describe("Additional environment variables"),
+      name: z.string().max(100).optional().describe("Session name override"),
+    },
+    async (params) => {
+      try {
+        const tmpl = getTemplate(params.template);
+        if (!tmpl) {
+          const available = listBuiltinTemplates().map((t) => t.name).join(", ");
+          return {
+            content: [{ type: "text" as const, text: `Unknown template "${params.template}". Available: ${available}` }],
+            isError: true,
+          };
+        }
+
+        const command = tmpl.command === "$SHELL" ? config.shell : tmpl.command;
+
+        const session = manager.create({
+          command,
+          args: tmpl.args,
+          cwd: params.cwd,
+          env: { ...tmpl.env, ...params.env },
+          cols: tmpl.cols,
+          rows: tmpl.rows,
+          name: params.name ?? tmpl.name,
+          tags: tmpl.tags,
+        });
+
+        let waitForResult: { matched: boolean; data?: string; reason?: string; elapsed: number } | undefined;
+
+        if (tmpl.waitFor) {
+          const regex = new RegExp(tmpl.waitFor);
+          const timeoutMs = 30_000;
+          const start = Date.now();
+
+          // Check backlog first
+          const backlog = session.readFullBuffer();
+          const backlogMatch = backlog.match(regex);
+          if (backlogMatch) {
+            waitForResult = { matched: true, data: backlogMatch[0], elapsed: 0 };
+          } else {
+            waitForResult = await new Promise<typeof waitForResult>((resolve) => {
+              let accumulated = "";
+              let settled = false;
+
+              const cleanup = () => {
+                if (settled) return;
+                settled = true;
+                unsubData();
+                unsubExit();
+                clearTimeout(timer);
+              };
+
+              const unsubData = session.onData((chunk) => {
+                if (settled) return;
+                accumulated += chunk;
+                const m = accumulated.match(regex);
+                if (m) {
+                  cleanup();
+                  resolve({ matched: true, data: m[0], elapsed: Date.now() - start });
+                }
+              });
+
+              const unsubExit = session.onExit(() => {
+                if (settled) return;
+                cleanup();
+                resolve({ matched: false, reason: "session_exited", elapsed: Date.now() - start });
+              });
+
+              const timer = setTimeout(() => {
+                if (settled) return;
+                cleanup();
+                resolve({ matched: false, reason: "timeout", elapsed: Date.now() - start });
+              }, timeoutMs);
+            });
+          }
+        }
+
+        const result: Record<string, unknown> = { ...session.getInfo() };
+        if (waitForResult) {
+          result.waitForResult = waitForResult;
+        }
+
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- list_templates ---
+  server.tool(
+    "list_templates",
+    "List all available session templates.",
+    {},
+    async () => {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(listBuiltinTemplates(), null, 2) }],
+      };
     }
   );
 
@@ -353,13 +477,138 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
     }
   );
 
+  // --- subscribe_events ---
+  server.tool(
+    "subscribe_events",
+    "Subscribe to session events (exit, pattern_match). Notifications are sent as MCP logging messages.",
+    {
+      id: z.string().describe("Session ID"),
+      events: z.array(z.enum(["exit", "pattern_match"])).min(1).describe("Events to subscribe to"),
+      pattern: z.string().optional().describe("Regex pattern (required if pattern_match is in events)"),
+    },
+    async (params) => {
+      try {
+        const session = manager.getOrThrow(params.id);
+
+        if (params.events.includes("pattern_match") && !params.pattern) {
+          return {
+            content: [{ type: "text" as const, text: "Error: 'pattern' is required when subscribing to 'pattern_match'" }],
+            isError: true,
+          };
+        }
+
+        let regex: RegExp | undefined;
+        if (params.pattern) {
+          try {
+            regex = new RegExp(params.pattern);
+          } catch {
+            return {
+              content: [{ type: "text" as const, text: `Invalid regex: "${params.pattern}"` }],
+              isError: true,
+            };
+          }
+        }
+
+        const subscriptionId = randomUUID().slice(0, 12);
+        const cleanups: Array<() => void> = [];
+
+        if (params.events.includes("exit")) {
+          const unsub = session.onExit((_id, exitCode) => {
+            server.server.sendLoggingMessage({
+              level: "info",
+              data: JSON.stringify({
+                subscriptionId,
+                event: "exit",
+                sessionId: params.id,
+                exitCode,
+              }),
+            });
+          });
+          cleanups.push(unsub);
+        }
+
+        if (params.events.includes("pattern_match") && regex) {
+          let accumulated = "";
+          const unsub = session.onData((chunk) => {
+            accumulated += chunk;
+            const m = accumulated.match(regex!);
+            if (m) {
+              server.server.sendLoggingMessage({
+                level: "info",
+                data: JSON.stringify({
+                  subscriptionId,
+                  event: "pattern_match",
+                  sessionId: params.id,
+                  data: m[0],
+                }),
+              });
+              // Auto-unsubscribe after first match
+              const sub = subscriptions.get(subscriptionId);
+              if (sub) {
+                sub.cleanups.forEach((fn) => fn());
+                subscriptions.delete(subscriptionId);
+              }
+            }
+          });
+          cleanups.push(unsub);
+        }
+
+        subscriptions.set(subscriptionId, {
+          id: subscriptionId,
+          sessionId: params.id,
+          events: params.events,
+          cleanups,
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ subscriptionId, sessionId: params.id, events: params.events }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- unsubscribe_events ---
+  server.tool(
+    "unsubscribe_events",
+    "Unsubscribe from session events by subscription ID.",
+    {
+      subscriptionId: z.string().describe("Subscription ID to cancel"),
+    },
+    async (params) => {
+      const sub = subscriptions.get(params.subscriptionId);
+      if (!sub) {
+        return {
+          content: [{ type: "text" as const, text: `Subscription "${params.subscriptionId}" not found` }],
+          isError: true,
+        };
+      }
+      sub.cleanups.forEach((fn) => fn());
+      subscriptions.delete(params.subscriptionId);
+      return {
+        content: [{ type: "text" as const, text: `Unsubscribed ${params.subscriptionId}` }],
+      };
+    }
+  );
+
   // --- list_terminals ---
   server.tool(
     "list_terminals",
-    "List all terminal sessions with their status, PID, and activity time.",
-    {},
-    async () => {
-      const sessions = manager.list();
+    "List all terminal sessions with their status, PID, and activity time. Optionally filter by tag.",
+    {
+      tag: z.string().optional().describe("Filter sessions by tag"),
+    },
+    async (params) => {
+      const sessions = params.tag
+        ? manager.listByTag(params.tag)
+        : manager.list();
       return {
         content: [
           {
@@ -392,6 +641,65 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
           isError: true,
         };
       }
+    }
+  );
+
+  // --- close_group ---
+  server.tool(
+    "close_group",
+    "Close all terminal sessions with a matching tag.",
+    {
+      tag: z.string().describe("Tag to match for closing sessions"),
+    },
+    async (params) => {
+      const count = manager.closeByTag(params.tag);
+      return {
+        content: [{ type: "text" as const, text: `Closed ${count} sessions with tag '${params.tag}'` }],
+      };
+    }
+  );
+
+  // --- read_multiple ---
+  server.tool(
+    "read_multiple",
+    "Read output from multiple terminal sessions in a single call. Returns per-session results with inline errors.",
+    {
+      ids: z.array(z.string()).min(1).max(20).describe("Session IDs to read from"),
+      mode: z.enum(["incremental", "screen"]).optional().describe("Read mode (default: incremental)"),
+    },
+    async (params) => {
+      const readMode = params.mode ?? "incremental";
+      const results: Array<Record<string, unknown>> = [];
+
+      for (const id of params.ids) {
+        try {
+          const session = manager.getOrThrow(id);
+          const info = session.getInfo();
+
+          if (readMode === "screen") {
+            const screen = session.readScreen();
+            results.push({ id, status: info.status, data: screen });
+          } else {
+            const { data, droppedBytes } = session.read();
+            const entry: Record<string, unknown> = {
+              id,
+              status: info.status,
+              data,
+              bytes: data.length,
+            };
+            if (droppedBytes > 0) {
+              entry.droppedBytes = droppedBytes;
+            }
+            results.push(entry);
+          }
+        } catch (err) {
+          results.push({ id, error: (err as Error).message });
+        }
+      }
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }],
+      };
     }
   );
 
@@ -473,7 +781,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
         content: [{
           type: "text" as const,
           text: JSON.stringify({
-            version: "0.4.0",
+            version: "0.5.0",
             uptime: Math.floor((Date.now() - serverStartTime) / 1000),
             sessions: {
               active: manager.count,

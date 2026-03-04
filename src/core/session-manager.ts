@@ -109,6 +109,29 @@ export class SessionManager {
     this.sessions.clear();
   }
 
+  /** List sessions filtered by tag */
+  listByTag(tag: string): SessionInfo[] {
+    return this.list().filter((s) => s.tags?.includes(tag));
+  }
+
+  /** Close all active sessions with a matching tag, returns count closed */
+  closeByTag(tag: string): number {
+    let count = 0;
+    for (const [id, session] of this.sessions) {
+      const info = session.getInfo();
+      if (info.tags?.includes(tag)) {
+        session.close();
+        this.sessions.delete(id);
+        this.emitter.emit("sessionClosed", { ...info, status: "exited" });
+        count++;
+      }
+    }
+    if (count > 0) {
+      this.persistState();
+    }
+    return count;
+  }
+
   /** Clear persisted stale entries */
   async clearHistory(): Promise<void> {
     this.staleEntries = [];

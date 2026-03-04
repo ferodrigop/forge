@@ -394,12 +394,229 @@ describe("MCP Tools E2E", () => {
   it("health_check returns version, uptime, sessions, memory", async () => {
     const result = await client.callTool({ name: "health_check", arguments: {} });
     const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
-    expect(parsed.version).toBe("0.4.0");
+    expect(parsed.version).toBe("0.5.0");
     expect(parsed.uptime).toBeGreaterThanOrEqual(0);
     expect(parsed.sessions).toHaveProperty("active");
     expect(parsed.sessions).toHaveProperty("max");
     expect(parsed.memory).toHaveProperty("rss");
     expect(parsed.memory).toHaveProperty("heapUsed");
     expect(parsed.memory).toHaveProperty("heapTotal");
+  });
+
+  // --- V0.5.0: Session Groups (#22) ---
+
+  it("list_terminals with tag filter returns only matching sessions", async () => {
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["group-a"] },
+    });
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["group-b"] },
+    });
+
+    const result = await client.callTool({
+      name: "list_terminals",
+      arguments: { tag: "group-a" },
+    });
+    const sessions = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].tags).toContain("group-a");
+  });
+
+  it("list_terminals with tag filter returns empty when no match", async () => {
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["alpha"] },
+    });
+
+    const result = await client.callTool({
+      name: "list_terminals",
+      arguments: { tag: "nonexistent-tag" },
+    });
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toBe("No active sessions");
+  });
+
+  it("close_group closes sessions with matching tag", async () => {
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["batch-close"] },
+    });
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["batch-close"] },
+    });
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["keep-alive"] },
+    });
+
+    const closeResult = await client.callTool({
+      name: "close_group",
+      arguments: { tag: "batch-close" },
+    });
+    expect((closeResult.content as Array<{ type: string; text: string }>)[0].text).toBe(
+      "Closed 2 sessions with tag 'batch-close'"
+    );
+
+    // The remaining session should still be alive
+    const listResult = await client.callTool({
+      name: "list_terminals",
+      arguments: { tag: "keep-alive" },
+    });
+    const remaining = JSON.parse((listResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(remaining).toHaveLength(1);
+  });
+
+  // --- V0.5.0: Output Multiplexing (#23) ---
+
+  it("read_multiple reads from two sessions", async () => {
+    const r1 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const r2 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const id1 = JSON.parse((r1.content as Array<{ type: string; text: string }>)[0].text).id;
+    const id2 = JSON.parse((r2.content as Array<{ type: string; text: string }>)[0].text).id;
+
+    await client.callTool({ name: "write_terminal", arguments: { id: id1, input: "echo multi-1" } });
+    await client.callTool({ name: "write_terminal", arguments: { id: id2, input: "echo multi-2" } });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const result = await client.callTool({
+      name: "read_multiple",
+      arguments: { ids: [id1, id2] },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].id).toBe(id1);
+    expect(parsed[0].data).toContain("multi-1");
+    expect(parsed[1].id).toBe(id2);
+    expect(parsed[1].data).toContain("multi-2");
+  });
+
+  it("read_multiple with screen mode", async () => {
+    const r1 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const id1 = JSON.parse((r1.content as Array<{ type: string; text: string }>)[0].text).id;
+
+    await client.callTool({ name: "write_terminal", arguments: { id: id1, input: "echo screen-multi" } });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const result = await client.callTool({
+      name: "read_multiple",
+      arguments: { ids: [id1], mode: "screen" },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].data).toContain("screen-multi");
+    expect(parsed[0].status).toBe("running");
+  });
+
+  it("read_multiple includes inline error for bad id", async () => {
+    const r1 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const id1 = JSON.parse((r1.content as Array<{ type: string; text: string }>)[0].text).id;
+
+    const result = await client.callTool({
+      name: "read_multiple",
+      arguments: { ids: [id1, "bad-id-xyz"] },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].id).toBe(id1);
+    expect(parsed[0].status).toBe("running");
+    expect(parsed[1].id).toBe("bad-id-xyz");
+    expect(parsed[1].error).toContain("not found");
+    // Tool-level isError should not be set (partial results are useful)
+    expect(result.isError).toBeUndefined();
+  });
+
+  // --- V0.5.0: Event Notifications (#24) ---
+
+  it("subscribe_events returns subscriptionId", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const subResult = await client.callTool({
+      name: "subscribe_events",
+      arguments: { id: info.id, events: ["exit"] },
+    });
+    const parsed = JSON.parse((subResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.subscriptionId).toBeDefined();
+    expect(parsed.sessionId).toBe(info.id);
+    expect(parsed.events).toEqual(["exit"]);
+  });
+
+  it("unsubscribe_events cleans up", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const subResult = await client.callTool({
+      name: "subscribe_events",
+      arguments: { id: info.id, events: ["exit"] },
+    });
+    const { subscriptionId } = JSON.parse((subResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const unsubResult = await client.callTool({
+      name: "unsubscribe_events",
+      arguments: { subscriptionId },
+    });
+    expect((unsubResult.content as Array<{ type: string; text: string }>)[0].text).toContain("Unsubscribed");
+
+    // Second unsubscribe should fail
+    const unsubResult2 = await client.callTool({
+      name: "unsubscribe_events",
+      arguments: { subscriptionId },
+    });
+    expect(unsubResult2.isError).toBe(true);
+  });
+
+  // --- V0.5.0: Session Templates (#25) ---
+
+  it("create_from_template with shell template", async () => {
+    const result = await client.callTool({
+      name: "create_from_template",
+      arguments: { template: "shell" },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.status).toBe("running");
+    expect(info.name).toBe("Shell");
+    expect(info.tags).toContain("shell");
+  });
+
+  it("create_from_template with unknown template returns error", async () => {
+    const result = await client.callTool({
+      name: "create_from_template",
+      arguments: { template: "nonexistent" },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("Unknown template");
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("Available:");
+  });
+
+  it("list_templates returns available templates", async () => {
+    const result = await client.callTool({
+      name: "list_templates",
+      arguments: {},
+    });
+    const templates = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(templates.length).toBeGreaterThanOrEqual(6);
+    const names = templates.map((t: { name: string }) => t.name);
+    expect(names).toContain("shell");
+    expect(names).toContain("next-dev");
   });
 });
