@@ -16,8 +16,8 @@ interface Subscription {
   cleanups: Array<() => void>;
 }
 
-export function createServer(config: ForgeConfig): { server: McpServer; manager: SessionManager } {
-  const manager = new SessionManager(config);
+export function createServer(config: ForgeConfig, existingManager?: SessionManager): { server: McpServer; manager: SessionManager } {
+  const manager = existingManager ?? new SessionManager(config);
 
   const server = new McpServer({
     name: "forge-terminal-mcp",

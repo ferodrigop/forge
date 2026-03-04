@@ -134,11 +134,11 @@ async function cmdStart(args: string[]): Promise<void> {
     maxSessions: config.maxSessions,
   });
 
-  const { server, manager } = createServer(config);
+  const { manager } = createServer(config);
   await manager.init();
 
   const { DashboardServer } = await import("./dashboard/dashboard-server.js");
-  const ds = new DashboardServer(manager, config.dashboardPort, server);
+  const ds = new DashboardServer(manager, config.dashboardPort, config);
   await ds.start();
 
   // Write PID/lock files
@@ -274,7 +274,7 @@ async function cmdStdioProxy(args: string[]): Promise<void> {
   let dashboardServer: { stop(): void } | undefined;
   if (config.dashboard) {
     const { DashboardServer } = await import("./dashboard/dashboard-server.js");
-    const ds = new DashboardServer(manager, config.dashboardPort, server);
+    const ds = new DashboardServer(manager, config.dashboardPort, config);
     await ds.start();
     dashboardServer = ds;
   }

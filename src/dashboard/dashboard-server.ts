@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
 import { WebSocketServer } from "ws";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { SessionManager } from "../core/session-manager.js";
+import type { ForgeConfig } from "../core/types.js";
+import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML } from "./dashboard-html.js";
 import { logger } from "../utils/logger.js";
@@ -11,27 +14,19 @@ export class DashboardServer {
   private httpServer: HttpServer;
   private wss: WebSocketServer;
   private wsHandler: WsHandler;
-  private mcpTransport: StreamableHTTPServerTransport | null = null;
+  private transports = new Map<string, StreamableHTTPServerTransport>();
 
   constructor(
     private manager: SessionManager,
     private port: number,
-    private mcpServer?: McpServer,
+    private config?: ForgeConfig,
   ) {
     this.wsHandler = new WsHandler(manager);
 
     this.httpServer = createHttpServer(async (req, res) => {
       // MCP endpoint — handle POST, GET, DELETE on /mcp
-      if (req.url === "/mcp" && this.mcpTransport) {
-        try {
-          await this.mcpTransport.handleRequest(req, res);
-        } catch (err) {
-          logger.error("MCP transport error", { error: String(err) });
-          if (!res.headersSent) {
-            res.writeHead(500, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Internal server error" }));
-          }
-        }
+      if (req.url === "/mcp" && this.config) {
+        await this.handleMcp(req, res);
         return;
       }
 
@@ -52,14 +47,106 @@ export class DashboardServer {
     });
   }
 
+  private async handleMcp(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): Promise<void> {
+    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+
+    try {
+      if (req.method === "POST") {
+        // Parse body
+        const body = await new Promise<string>((resolve, reject) => {
+          let data = "";
+          req.on("data", (chunk) => { data += chunk; });
+          req.on("end", () => resolve(data));
+          req.on("error", reject);
+        });
+        let parsedBody: unknown;
+        try {
+          parsedBody = JSON.parse(body);
+        } catch {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null }));
+          return;
+        }
+
+        if (sessionId && this.transports.has(sessionId)) {
+          // Reuse existing transport
+          const transport = this.transports.get(sessionId)!;
+          await transport.handleRequest(req, res, parsedBody);
+          return;
+        }
+
+        if (!sessionId && isInitializeRequest(parsedBody)) {
+          // New MCP session — create transport + server
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (sid) => {
+              logger.info("MCP session initialized", { sessionId: sid });
+              this.transports.set(sid, transport);
+            },
+          });
+
+          transport.onclose = () => {
+            const sid = transport.sessionId;
+            if (sid && this.transports.has(sid)) {
+              this.transports.delete(sid);
+              logger.info("MCP session closed", { sessionId: sid });
+            }
+          };
+
+          // Create a new McpServer sharing our existing SessionManager
+          const { server } = createMcpServer(this.config!, this.manager);
+          await server.connect(transport);
+          await transport.handleRequest(req, res, parsedBody);
+          return;
+        }
+
+        // Bad request — no session ID on a non-init request
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Bad Request: No valid session ID provided" },
+          id: null,
+        }));
+        return;
+      }
+
+      if (req.method === "GET") {
+        // SSE stream for server notifications
+        if (!sessionId || !this.transports.has(sessionId)) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Invalid or missing session ID" }, id: null }));
+          return;
+        }
+        const transport = this.transports.get(sessionId)!;
+        await transport.handleRequest(req, res);
+        return;
+      }
+
+      if (req.method === "DELETE") {
+        if (!sessionId || !this.transports.has(sessionId)) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Invalid or missing session ID" }, id: null }));
+          return;
+        }
+        const transport = this.transports.get(sessionId)!;
+        await transport.handleRequest(req, res);
+        return;
+      }
+
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed" }, id: null }));
+    } catch (err) {
+      logger.error("MCP transport error", { error: String(err) });
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: "Internal server error" }, id: null }));
+      }
+    }
+  }
+
   async start(): Promise<void> {
-    // Set up MCP over HTTP if an McpServer was provided
-    if (this.mcpServer) {
-      this.mcpTransport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // Stateless — any client can call any tool
-      });
-      await this.mcpServer.connect(this.mcpTransport);
-      logger.info("MCP HTTP transport ready at /mcp");
+    if (this.config) {
+      logger.info("MCP HTTP transport ready at /mcp (stateful, per-session)");
     }
 
     return new Promise((resolve, reject) => {
@@ -73,9 +160,12 @@ export class DashboardServer {
 
   stop(): void {
     this.wsHandler.closeAll();
-    if (this.mcpTransport) {
-      this.mcpTransport.close().catch(() => {});
+    // Close all MCP transports
+    for (const [sid, transport] of this.transports) {
+      transport.close().catch(() => {});
+      logger.info("Closed MCP session", { sessionId: sid });
     }
+    this.transports.clear();
     this.wss.close();
     this.httpServer.close();
     logger.info("Dashboard stopped");
