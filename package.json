@@ -1,6 +1,6 @@
 {
   "name": "forge-terminal-mcp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Terminal MCP server — spawn, manage, and monitor PTY sessions from Claude Code",
   "type": "module",
   "bin": {

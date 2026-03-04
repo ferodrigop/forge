@@ -5,6 +5,7 @@ export interface ForgeConfig {
   dashboard: boolean;
   dashboardPort: number;
   shell: string;
+  claudePath: string;
 }
 
 export interface SessionInfo {
@@ -17,6 +18,8 @@ export interface SessionInfo {
   status: SessionStatus;
   createdAt: string;
   lastActivityAt: string;
+  name?: string;
+  tags?: string[];
 }
 
 export type SessionStatus = "running" | "exited";
@@ -33,4 +36,5 @@ export const DEFAULT_CONFIG: ForgeConfig = {
   dashboard: false,
   dashboardPort: 3141,
   shell: process.env.SHELL || "/bin/bash",
+  claudePath: process.env.FORGE_CLAUDE_PATH || "claude",
 };

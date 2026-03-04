@@ -56,5 +56,9 @@ export function parseConfig(argv: string[] = process.argv.slice(2)): ForgeConfig
       strArg(argv, "--shell") ??
       process.env.SHELL ??
       DEFAULT_CONFIG.shell,
+    claudePath:
+      strArg(argv, "--claude-path") ??
+      process.env.FORGE_CLAUDE_PATH ??
+      DEFAULT_CONFIG.claudePath,
   };
 }

@@ -19,7 +19,7 @@ describe("MCP Tools E2E", () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
 
-    client = new Client({ name: "test-client", version: "1.0" });
+    client = new Client({ name: "test-client", version: "1.0" }, { capabilities: { resources: {} } });
     await client.connect(clientTransport);
   });
 
@@ -45,6 +45,27 @@ describe("MCP Tools E2E", () => {
     expect(info.status).toBe("running");
     expect(info.command).toBe("/bin/sh");
     expect(info.id).toBeDefined();
+  });
+
+  it("create_terminal with name and tags", async () => {
+    const result = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", name: "my-shell", tags: ["dev", "test"] },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.name).toBe("my-shell");
+    expect(info.tags).toEqual(["dev", "test"]);
+  });
+
+  it("list_terminals shows names", async () => {
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", name: "named-session" },
+    });
+
+    const listResult = await client.callTool({ name: "list_terminals", arguments: {} });
+    const sessions = JSON.parse((listResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(sessions[0].name).toBe("named-session");
   });
 
   it("write_terminal and read_terminal work end-to-end", async () => {
@@ -162,5 +183,74 @@ describe("MCP Tools E2E", () => {
     });
     expect(result.isError).toBe(true);
     expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("not found");
+  });
+
+  // --- spawn_claude tests ---
+
+  it("spawn_claude creates session with auto-name and claude-agent tag", async () => {
+    const result = await client.callTool({
+      name: "spawn_claude",
+      arguments: { prompt: "say hello world" },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.name).toBe("claude: say hello world");
+    expect(info.tags).toContain("claude-agent");
+    expect(info.command).toMatch(/claude$/);
+  });
+
+  it("spawn_claude accepts name/tags overrides", async () => {
+    const result = await client.callTool({
+      name: "spawn_claude",
+      arguments: {
+        prompt: "test prompt",
+        name: "custom-agent",
+        tags: ["research"],
+        model: "sonnet",
+      },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.name).toBe("custom-agent");
+    expect(info.tags).toContain("claude-agent");
+    expect(info.tags).toContain("research");
+  });
+
+  // --- MCP Resource tests ---
+
+  it("listResources returns sessions", async () => {
+    // Create a named session
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", name: "resource-test" },
+    });
+
+    const resources = await client.listResources();
+    expect(resources.resources.length).toBe(1);
+    expect(resources.resources[0].name).toBe("resource-test");
+    expect(resources.resources[0].uri).toContain("terminal://sessions/");
+    expect(resources.resources[0].mimeType).toBe("application/json");
+  });
+
+  it("readResource returns session info and screen", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", name: "read-resource-test" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const resource = await client.readResource({ uri: `terminal://sessions/${info.id}` });
+    const content = resource.contents[0];
+    expect(content.mimeType).toBe("application/json");
+
+    const data = JSON.parse(content.text as string);
+    expect(data.id).toBe(info.id);
+    expect(data.name).toBe("read-resource-test");
+    expect(data.screen).toBeDefined();
+  });
+
+  it("readResource for nonexistent session returns error text", async () => {
+    const resource = await client.readResource({ uri: "terminal://sessions/nonexistent" });
+    const content = resource.contents[0];
+    expect(content.mimeType).toBe("text/plain");
+    expect(content.text).toContain("not found");
   });
 });

@@ -17,6 +17,7 @@ Options:
   --idle-timeout <ms>  Session idle timeout in ms (default: 1800000)
   --buffer-size <n>    Ring buffer size in bytes (default: 1048576)
   --shell <path>       Default shell (default: $SHELL)
+  --claude-path <path> Path to claude CLI (default: claude)
   --dashboard          Enable web dashboard
   --port <n>           Dashboard port (default: 3141)
   --verbose            Enable debug logging

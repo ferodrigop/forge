@@ -289,7 +289,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
       el.innerHTML =
         '<span class="status-dot ' + s.status + '"></span>' +
         '<div class="session-info">' +
-          '<div class="session-cmd">' + escapeHtml(s.command) + '</div>' +
+          '<div class="session-cmd">' + escapeHtml(s.name || s.command) + '</div>' +
           '<div class="session-id">' + s.id + '</div>' +
         '</div>';
       el.onclick = function() { selectSession(s.id); };
@@ -311,9 +311,11 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   }
 
   function showTerminal() {
+    var activeSession = sessions.find(function(s) { return s.id === activeSessionId; });
+    var headerLabel = activeSession && activeSession.name ? activeSession.name : activeSessionId;
     mainArea.innerHTML =
       '<div id="terminal-header">' +
-        '<span>Session: <span class="session-label">' + activeSessionId + '</span></span>' +
+        '<span>Session: <span class="session-label">' + escapeHtml(headerLabel) + '</span></span>' +
       '</div>' +
       '<div id="terminal-container"></div>';
 

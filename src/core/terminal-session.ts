@@ -15,6 +15,8 @@ export interface TerminalSessionOptions {
   bufferSize?: number;
   idleTimeout?: number;
   onExit?: (id: string, exitCode: number) => void;
+  name?: string;
+  tags?: string[];
 }
 
 export class TerminalSession {
@@ -22,6 +24,8 @@ export class TerminalSession {
   readonly command: string;
   readonly cwd: string;
   readonly createdAt: Date;
+  readonly name?: string;
+  readonly tags?: string[];
 
   private ptyProcess: pty.IPty;
   private xterm: Terminal;
@@ -40,6 +44,8 @@ export class TerminalSession {
     this.command = opts.command;
     this.cwd = opts.cwd || process.cwd();
     this.createdAt = new Date();
+    this.name = opts.name;
+    this.tags = opts.tags;
     this.lastActivityAt = new Date();
     this.idleTimeout = opts.idleTimeout ?? 1_800_000;
     this.onExitCallback = opts.onExit;
@@ -203,6 +209,8 @@ export class TerminalSession {
       status: this._status,
       createdAt: this.createdAt.toISOString(),
       lastActivityAt: this.lastActivityAt.toISOString(),
+      ...(this.name && { name: this.name }),
+      ...(this.tags && this.tags.length > 0 && { tags: this.tags }),
     };
   }
 
