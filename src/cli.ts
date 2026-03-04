@@ -39,6 +39,8 @@ Options:
 
   const { server, manager } = createServer(config);
 
+  await manager.init();
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 

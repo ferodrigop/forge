@@ -1,6 +1,6 @@
 {
   "name": "forge-terminal-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Terminal MCP server — spawn, manage, and monitor PTY sessions from Claude Code",
   "type": "module",
   "bin": {
@@ -27,6 +27,10 @@
     "claude",
     "claude-code"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ferodrigop/forge-terminal-mcp.git"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

@@ -10,7 +10,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
-    version: "0.3.0",
+    version: "0.4.0",
   });
 
   // --- create_terminal ---
@@ -26,6 +26,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
       rows: z.number().int().min(1).max(200).optional().describe("Terminal height (default: 24)"),
       name: z.string().max(100).optional().describe("Human-readable session name"),
       tags: z.array(z.string()).max(10).optional().describe("Tags for filtering/grouping"),
+      bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
     },
     async (params) => {
       try {
@@ -38,6 +39,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
           rows: params.rows,
           name: params.name,
           tags: params.tags,
+          bufferSize: params.bufferSize,
         });
 
         return {
@@ -69,6 +71,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
       name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
       tags: z.array(z.string()).max(10).optional().describe("Additional tags (claude-agent is always included)"),
       maxBudget: z.number().positive().optional().describe("Max budget in USD"),
+      bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
     },
     async (params) => {
       try {
@@ -96,6 +99,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
           cwd: params.cwd,
           name: autoName,
           tags: mergedTags,
+          bufferSize: params.bufferSize,
         });
 
         return {
@@ -191,6 +195,154 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
 
         return {
           content: [{ type: "text" as const, text: screen }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- grep_terminal ---
+  server.tool(
+    "grep_terminal",
+    "Search terminal output buffer with a regex pattern. Returns matching lines with optional context.",
+    {
+      id: z.string().describe("Session ID"),
+      pattern: z.string().describe("Regex pattern to search for"),
+      context: z.number().int().min(0).max(10).optional().describe("Lines of context around each match (default: 0)"),
+    },
+    async (params) => {
+      try {
+        const session = manager.getOrThrow(params.id);
+
+        let regex: RegExp;
+        try {
+          regex = new RegExp(params.pattern, "gm");
+        } catch {
+          return {
+            content: [{ type: "text" as const, text: `Invalid regex: "${params.pattern}"` }],
+            isError: true,
+          };
+        }
+
+        const allOutput = session.readFullBuffer();
+        const lines = allOutput.split("\n");
+        const ctx = params.context ?? 0;
+        const matches: Array<{ lineNumber: number; text: string; context?: string[] }> = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          if (regex.test(lines[i])) {
+            const match: { lineNumber: number; text: string; context?: string[] } = {
+              lineNumber: i + 1,
+              text: lines[i],
+            };
+            if (ctx > 0) {
+              const start = Math.max(0, i - ctx);
+              const end = Math.min(lines.length - 1, i + ctx);
+              match.context = lines.slice(start, end + 1);
+            }
+            matches.push(match);
+          }
+          regex.lastIndex = 0; // reset for next test
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ matches, totalMatches: matches.length }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- wait_for ---
+  server.tool(
+    "wait_for",
+    "Wait for a regex pattern to appear in terminal output. Checks existing buffer first, then watches new output.",
+    {
+      id: z.string().describe("Session ID"),
+      pattern: z.string().describe("Regex pattern to wait for"),
+      timeout: z.number().int().min(100).max(300_000).optional().describe("Timeout in ms (default: 30000)"),
+    },
+    async (params) => {
+      try {
+        const session = manager.getOrThrow(params.id);
+
+        let regex: RegExp;
+        try {
+          regex = new RegExp(params.pattern);
+        } catch {
+          return {
+            content: [{ type: "text" as const, text: `Invalid regex: "${params.pattern}"` }],
+            isError: true,
+          };
+        }
+
+        const timeoutMs = params.timeout ?? 30_000;
+        const start = Date.now();
+
+        // Check backlog first
+        const backlog = session.readFullBuffer();
+        const backlogMatch = backlog.match(regex);
+        if (backlogMatch) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({ matched: true, data: backlogMatch[0], elapsed: 0 }, null, 2),
+            }],
+          };
+        }
+
+        // Watch new output
+        const result = await new Promise<{ matched: boolean; data?: string; reason?: string; elapsed: number }>((resolve) => {
+          let accumulated = "";
+          let settled = false;
+
+          const cleanup = () => {
+            if (settled) return;
+            settled = true;
+            unsubData();
+            unsubExit();
+            clearTimeout(timer);
+          };
+
+          const unsubData = session.onData((chunk) => {
+            if (settled) return;
+            accumulated += chunk;
+            const m = accumulated.match(regex);
+            if (m) {
+              cleanup();
+              resolve({ matched: true, data: m[0], elapsed: Date.now() - start });
+            }
+          });
+
+          const unsubExit = session.onExit(() => {
+            if (settled) return;
+            cleanup();
+            resolve({ matched: false, reason: "session_exited", elapsed: Date.now() - start });
+          });
+
+          const timer = setTimeout(() => {
+            if (settled) return;
+            cleanup();
+            resolve({ matched: false, reason: "timeout", elapsed: Date.now() - start });
+          }, timeoutMs);
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          }],
         };
       } catch (err) {
         return {
@@ -306,6 +458,48 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
           isError: true,
         };
       }
+    }
+  );
+
+  // --- health_check ---
+  const serverStartTime = Date.now();
+  server.tool(
+    "health_check",
+    "Returns server health info: version, uptime, session count, and memory usage.",
+    {},
+    async () => {
+      const mem = process.memoryUsage();
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            version: "0.4.0",
+            uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+            sessions: {
+              active: manager.count,
+              max: config.maxSessions,
+            },
+            memory: {
+              rss: Math.round(mem.rss / 1_048_576),
+              heapUsed: Math.round(mem.heapUsed / 1_048_576),
+              heapTotal: Math.round(mem.heapTotal / 1_048_576),
+            },
+          }, null, 2),
+        }],
+      };
+    }
+  );
+
+  // --- clear_history ---
+  server.tool(
+    "clear_history",
+    "Clear persisted session history (stale entries from previous runs).",
+    {},
+    async () => {
+      await manager.clearHistory();
+      return {
+        content: [{ type: "text" as const, text: "Session history cleared" }],
+      };
     }
   );
 

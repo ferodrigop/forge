@@ -253,4 +253,153 @@ describe("MCP Tools E2E", () => {
     expect(content.mimeType).toBe("text/plain");
     expect(content.text).toContain("not found");
   });
+
+  // --- create_terminal with bufferSize ---
+
+  it("create_terminal accepts custom bufferSize", async () => {
+    const result = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", bufferSize: 2048 },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.status).toBe("running");
+    expect(info.id).toBeDefined();
+  });
+
+  // --- grep_terminal tests ---
+
+  it("grep_terminal finds pattern in output", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    await client.callTool({
+      name: "write_terminal",
+      arguments: { id: info.id, input: "echo GREP_TARGET_123" },
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const grepResult = await client.callTool({
+      name: "grep_terminal",
+      arguments: { id: info.id, pattern: "GREP_TARGET_\\d+" },
+    });
+    const parsed = JSON.parse((grepResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.totalMatches).toBeGreaterThan(0);
+    expect(parsed.matches[0].text).toContain("GREP_TARGET_123");
+  });
+
+  it("grep_terminal with invalid regex returns isError", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const result = await client.callTool({
+      name: "grep_terminal",
+      arguments: { id: info.id, pattern: "[invalid(" },
+    });
+    expect(result.isError).toBe(true);
+  });
+
+  it("grep_terminal no matches returns empty array", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const result = await client.callTool({
+      name: "grep_terminal",
+      arguments: { id: info.id, pattern: "NONEXISTENT_PATTERN_XYZ" },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.totalMatches).toBe(0);
+    expect(parsed.matches).toEqual([]);
+  });
+
+  // --- wait_for tests ---
+
+  it("wait_for matches from backlog", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    // Echo first, then wait — should match from backlog
+    await client.callTool({
+      name: "write_terminal",
+      arguments: { id: info.id, input: "echo BACKLOG_MATCH" },
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, pattern: "BACKLOG_MATCH", timeout: 5000 },
+    });
+    const parsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.matched).toBe(true);
+    expect(parsed.elapsed).toBe(0);
+  });
+
+  it("wait_for matches new output", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    // Start waiting, then echo (using setTimeout to write after wait starts)
+    const waitPromise = client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, pattern: "LIVE_MATCH", timeout: 10000 },
+    });
+
+    // Give the wait tool time to set up its listener
+    await new Promise((r) => setTimeout(r, 200));
+
+    await client.callTool({
+      name: "write_terminal",
+      arguments: { id: info.id, input: "echo LIVE_MATCH" },
+    });
+
+    const waitResult = await waitPromise;
+    const parsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.matched).toBe(true);
+    expect(parsed.data).toBe("LIVE_MATCH");
+  });
+
+  it("wait_for timeout with short timeout", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, pattern: "NEVER_APPEARS", timeout: 500 },
+    });
+    const parsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.matched).toBe(false);
+    expect(parsed.reason).toBe("timeout");
+    expect(waitResult.isError).toBeUndefined();
+  });
+
+  // --- health_check ---
+
+  it("health_check returns version, uptime, sessions, memory", async () => {
+    const result = await client.callTool({ name: "health_check", arguments: {} });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed.version).toBe("0.4.0");
+    expect(parsed.uptime).toBeGreaterThanOrEqual(0);
+    expect(parsed.sessions).toHaveProperty("active");
+    expect(parsed.sessions).toHaveProperty("max");
+    expect(parsed.memory).toHaveProperty("rss");
+    expect(parsed.memory).toHaveProperty("heapUsed");
+    expect(parsed.memory).toHaveProperty("heapTotal");
+  });
 });
