@@ -19,7 +19,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
-    version: "0.5.0",
+    version: "0.5.1",
   });
 
   const subscriptions = new Map<string, Subscription>();
@@ -781,7 +781,7 @@ export function createServer(config: ForgeConfig): { server: McpServer; manager:
         content: [{
           type: "text" as const,
           text: JSON.stringify({
-            version: "0.5.0",
+            version: "0.5.1",
             uptime: Math.floor((Date.now() - serverStartTime) / 1000),
             sessions: {
               active: manager.count,

@@ -15,6 +15,9 @@ export class RingBuffer {
   /** Per-consumer cursors: maps consumer ID → absolute byte offset of next unread byte */
   private cursors = new Map<string, number>();
 
+  /** Per-consumer total bytes read (accumulated across all reads) */
+  private bytesReadCounters = new Map<string, number>();
+
   constructor(capacity: number) {
     if (capacity <= 0) throw new Error("RingBuffer capacity must be > 0");
     this.capacity = capacity;
@@ -51,11 +54,13 @@ export class RingBuffer {
   /** Register a consumer cursor (starts at current write position — no backlog) */
   addConsumer(id: string): void {
     this.cursors.set(id, this.writeOffset);
+    this.bytesReadCounters.set(id, 0);
   }
 
   /** Remove a consumer cursor */
   removeConsumer(id: string): void {
     this.cursors.delete(id);
+    this.bytesReadCounters.delete(id);
   }
 
   /** Read new data for a consumer since their last read */
@@ -97,6 +102,8 @@ export class RingBuffer {
     }
 
     this.cursors.set(consumerId, this.writeOffset);
+    const prev = this.bytesReadCounters.get(consumerId) ?? 0;
+    this.bytesReadCounters.set(consumerId, prev + bytesToRead);
     return { data: result.toString("utf-8"), droppedBytes };
   }
 
@@ -120,6 +127,11 @@ export class RingBuffer {
 
   get totalBytesWritten(): number {
     return this.writeOffset;
+  }
+
+  /** Get total bytes read by a specific consumer */
+  getTotalBytesRead(consumerId: string): number {
+    return this.bytesReadCounters.get(consumerId) ?? 0;
   }
 
   get size(): number {

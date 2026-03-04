@@ -182,6 +182,15 @@ export class TerminalSession {
     return this.ringBuffer.readAll();
   }
 
+  /** Get token usage stats for this session */
+  getStats(): { totalBytesWritten: number; totalBytesRead: number; estimatedTokens: number } {
+    const totalBytesWritten = this.ringBuffer.totalBytesWritten;
+    const totalBytesRead = this.ringBuffer.getTotalBytesRead("mcp");
+    // ~4 chars per token for typical terminal output (English + code)
+    const estimatedTokens = Math.ceil(totalBytesRead / 4);
+    return { totalBytesWritten, totalBytesRead, estimatedTokens };
+  }
+
   /** Kill the PTY process and clean up */
   close(): void {
     this.clearIdleTimer();
@@ -211,6 +220,7 @@ export class TerminalSession {
       lastActivityAt: this.lastActivityAt.toISOString(),
       ...(this.name && { name: this.name }),
       ...(this.tags && this.tags.length > 0 && { tags: this.tags }),
+      tokenUsage: this.getStats(),
     };
   }
 

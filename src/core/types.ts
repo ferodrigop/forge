@@ -20,6 +20,11 @@ export interface SessionInfo {
   lastActivityAt: string;
   name?: string;
   tags?: string[];
+  tokenUsage?: {
+    totalBytesWritten: number;
+    totalBytesRead: number;
+    estimatedTokens: number;
+  };
 }
 
 export type SessionStatus = "running" | "exited";
