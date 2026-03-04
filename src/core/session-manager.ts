@@ -3,6 +3,9 @@ import { EventEmitter } from "node:events";
 import { TerminalSession, type TerminalSessionOptions } from "./terminal-session.js";
 import type { ForgeConfig, SessionInfo } from "./types.js";
 import { loadState, saveState, clearState } from "./state-store.js";
+import { StreamJsonParser } from "./stream-json-parser.js";
+import { CommandHistory } from "./command-history.js";
+import type { HistoryEvent } from "./stream-json-parser.js";
 import { logger } from "../utils/logger.js";
 
 export type SessionManagerEvent =
@@ -16,9 +19,17 @@ export class SessionManager {
   private emitter = new EventEmitter();
   private staleEntries: SessionInfo[] = [];
   private sweepTimer: ReturnType<typeof setInterval> | null = null;
+  public readonly commandHistory = new CommandHistory();
+  private historyEmitter = new EventEmitter();
 
   constructor(config: ForgeConfig) {
     this.config = config;
+  }
+
+  /** Listen for live history events: (sessionId, event) */
+  onHistoryEvent(fn: (sessionId: string, event: HistoryEvent) => void): () => void {
+    this.historyEmitter.on("history", fn);
+    return () => this.historyEmitter.off("history", fn);
   }
 
   /** Load persisted session metadata, kill orphan PIDs, start exited-TTL sweep */
@@ -47,8 +58,11 @@ export class SessionManager {
       logger.info("Loaded stale session entries", { count: this.staleEntries.length });
     }
 
-    // Start periodic sweep for exited sessions past TTL
-    this.sweepTimer = setInterval(() => this.sweepExited(), 60_000);
+    // Start periodic sweep for exited sessions past TTL + old history files
+    this.sweepTimer = setInterval(() => {
+      this.sweepExited();
+      this.commandHistory.sweep(7).catch(() => {});
+    }, 60_000);
     // Don't keep process alive just for sweep
     if (this.sweepTimer.unref) this.sweepTimer.unref();
   }
@@ -82,6 +96,18 @@ export class SessionManager {
     });
 
     this.sessions.set(id, session);
+
+    // Wire up stream-json parsing for claude-agent sessions
+    if (opts.tags?.includes("claude-agent")) {
+      const parser = new StreamJsonParser();
+      session.onData((data) => {
+        const events = parser.feed(data);
+        for (const event of events) {
+          this.commandHistory.append(id, event);
+          this.historyEmitter.emit("history", id, event);
+        }
+      });
+    }
 
     session.onExit(() => {
       this.emitter.emit("sessionUpdated", session.getInfo());

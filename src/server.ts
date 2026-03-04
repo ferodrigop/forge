@@ -948,6 +948,37 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     }
   );
 
+  // --- get_session_history ---
+  server.tool(
+    "get_session_history",
+    "Get the command/tool call history for a Claude agent session. Returns timestamped tool calls.",
+    {
+      id: z.string().describe("Session ID"),
+      limit: z.number().int().min(1).max(500).optional().describe("Max events to return (default: all)"),
+    },
+    async (params) => {
+      try {
+        let events = await manager.commandHistory.getHistory(params.id);
+        if (params.limit) {
+          events = events.slice(-params.limit);
+        }
+        return {
+          content: [{
+            type: "text" as const,
+            text: events.length === 0
+              ? "No history for this session"
+              : JSON.stringify(events, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // --- clear_history ---
   server.tool(
     "clear_history",

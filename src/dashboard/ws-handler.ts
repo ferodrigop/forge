@@ -1,6 +1,7 @@
 import type { WebSocket } from "ws";
 import type { SessionManager } from "../core/session-manager.js";
 import type { SessionInfo } from "../core/types.js";
+import type { HistoryEvent } from "../core/stream-json-parser.js";
 import { logger } from "../utils/logger.js";
 
 interface ClientState {
@@ -28,6 +29,11 @@ export class WsHandler {
 
     manager.on("sessionUpdated", (info) => {
       this.broadcast({ type: "sessionUpdated", session: info });
+    });
+
+    // Broadcast live history events for claude-agent sessions
+    manager.onHistoryEvent((sessionId: string, event: HistoryEvent) => {
+      this.broadcast({ type: "history_event", sessionId, event });
     });
 
     // Broadcast stats every 5 seconds
@@ -110,6 +116,16 @@ export class WsHandler {
         } catch (err) {
           this.send(client.ws, { type: "error", message: `Failed to close session: ${(err as Error).message}` });
         }
+        break;
+      }
+
+      case "get_history": {
+        const sid = String(msg.sessionId);
+        this.manager.commandHistory.getHistory(sid).then((events) => {
+          this.send(client.ws, { type: "history", sessionId: sid, events });
+        }).catch(() => {
+          this.send(client.ws, { type: "history", sessionId: sid, events: [] });
+        });
         break;
       }
 

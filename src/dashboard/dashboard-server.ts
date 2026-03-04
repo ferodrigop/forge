@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
+import { URL } from "node:url";
 import { WebSocketServer } from "ws";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { SessionManager } from "../core/session-manager.js";
 import type { ForgeConfig } from "../core/types.js";
+import { ClaudeChats } from "../core/claude-chats.js";
 import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML } from "./dashboard-html.js";
@@ -15,6 +17,7 @@ export class DashboardServer {
   private wss: WebSocketServer;
   private wsHandler: WsHandler;
   private transports = new Map<string, StreamableHTTPServerTransport>();
+  private claudeChats = new ClaudeChats();
 
   constructor(
     private manager: SessionManager,
@@ -33,6 +36,70 @@ export class DashboardServer {
       if (req.method === "GET" && req.url === "/api/sessions") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(manager.list()));
+        return;
+      }
+
+      // Session history endpoint
+      const historyMatch = req.method === "GET" && req.url?.match(/^\/api\/sessions\/([^/]+)\/history$/);
+      if (historyMatch) {
+        const sessionId = historyMatch[1];
+        const events = await manager.commandHistory.getHistory(sessionId);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(events));
+        return;
+      }
+
+      // Chat session endpoints
+      const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
+      const pathname = parsedUrl.pathname;
+
+      if (req.method === "GET" && pathname === "/api/chats") {
+        const project = parsedUrl.searchParams.get("project") || undefined;
+        const search = parsedUrl.searchParams.get("search") || undefined;
+        const limit = parsedUrl.searchParams.has("limit") ? Number(parsedUrl.searchParams.get("limit")) : undefined;
+        const offset = parsedUrl.searchParams.has("offset") ? Number(parsedUrl.searchParams.get("offset")) : undefined;
+        const result = await this.claudeChats.listSessions({ project, search, limit, offset });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      const chatIdMatch = pathname.match(/^\/api\/chats\/([^/]+)$/);
+      if (chatIdMatch) {
+        const chatId = chatIdMatch[1];
+
+        if (req.method === "GET") {
+          const messages = await this.claudeChats.getMessages(chatId);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ messages }));
+          return;
+        }
+
+        if (req.method === "DELETE") {
+          const deleted = await this.claudeChats.deleteSession(chatId);
+          res.writeHead(deleted ? 200 : 404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ deleted }));
+          return;
+        }
+      }
+
+      const continueMatch = pathname.match(/^\/api\/chats\/([^/]+)\/continue$/);
+      if (continueMatch && req.method === "POST") {
+        const chatId = continueMatch[1];
+        try {
+          const session = this.manager.create({
+            command: this.config?.claudePath || "claude",
+            args: ["--continue", chatId],
+            name: `claude: continue ${chatId.slice(0, 8)}...`,
+            tags: ["claude-agent"],
+          });
+          session.preserveAfterExit();
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(session.getInfo()));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+        }
         return;
       }
 
