@@ -1,0 +1,49 @@
+{
+  "name": "forge-terminal-mcp",
+  "version": "0.1.0",
+  "description": "Terminal MCP server — spawn, manage, and monitor PTY sessions from Claude Code",
+  "type": "module",
+  "bin": {
+    "forge-terminal-mcp": "./dist/cli.js"
+  },
+  "main": "./dist/server.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "terminal",
+    "pty",
+    "claude",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@xterm/headless": "^5.5.0",
+    "node-pty": "^1.0.0",
+    "ws": "^8.19.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.57",
+    "@types/ws": "^8.18.1",
+    "eslint": "^9.28.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  }
+}

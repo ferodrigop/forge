@@ -1,0 +1,36 @@
+export interface ForgeConfig {
+  maxSessions: number;
+  idleTimeout: number;
+  bufferSize: number;
+  dashboard: boolean;
+  dashboardPort: number;
+  shell: string;
+}
+
+export interface SessionInfo {
+  id: string;
+  pid: number;
+  command: string;
+  cwd: string;
+  cols: number;
+  rows: number;
+  status: SessionStatus;
+  createdAt: string;
+  lastActivityAt: string;
+}
+
+export type SessionStatus = "running" | "exited";
+
+export interface ReadResult {
+  data: string;
+  droppedBytes: number;
+}
+
+export const DEFAULT_CONFIG: ForgeConfig = {
+  maxSessions: 10,
+  idleTimeout: 1_800_000, // 30 minutes
+  bufferSize: 1_048_576, // 1MB
+  dashboard: false,
+  dashboardPort: 3141,
+  shell: process.env.SHELL || "/bin/bash",
+};
