@@ -90,20 +90,7 @@ function handleMessage(msg) {
       break;
     case 'output':
       if (msg.sessionId === activeSessionId.value && termInstance.value) {
-        var activeS = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
-        var isClaude = activeS && activeS.tags && activeS.tags.indexOf('claude-agent') >= 0;
-        if (!isClaude) isClaude = !!streamJsonSessions.value[msg.sessionId];
-        if (!isClaude && msg.data) {
-          if (msg.data.indexOf('"type":"system"') >= 0 || msg.data.indexOf('"type":"assistant"') >= 0 ||
-              msg.data.indexOf('"type":"result"') >= 0 || msg.data.indexOf('"type":"rate_limit_event"') >= 0) {
-            isClaude = true;
-            var sjs = Object.assign({}, streamJsonSessions.value);
-            sjs[msg.sessionId] = true;
-            streamJsonSessions.value = sjs;
-          }
-        }
-        if (isClaude) parseStreamJson(msg.data);
-        else termInstance.value.write(msg.data);
+        termInstance.value.write(msg.data);
       }
       break;
     case 'history':
@@ -127,12 +114,19 @@ function handleMessage(msg) {
   }
 }
 
+var pendingSubscribe = signal(null);
+
 function selectSession(id) {
   if (activeSessionId.value === id) return;
   if (activeSessionId.value) wsSend({ type: 'unsubscribe', sessionId: activeSessionId.value });
   jsonBuf = '';
   activeChatId.value = null;
+  // Set pendingSubscribe — XTermContainer will subscribe after terminal is fit
+  pendingSubscribe.value = id;
   activeSessionId.value = id;
+}
+
+function completeSubscribe(id) {
   wsSend({ type: 'subscribe', sessionId: id });
   var s = sessions.value.find(function(s) { return s.id === id; });
   if (s && s.tags && s.tags.indexOf('claude-agent') >= 0) {

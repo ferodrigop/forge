@@ -32,7 +32,6 @@ function XTermContainer() {
     var fa = new FitAddon.FitAddon();
     term.loadAddon(fa);
     term.open(container);
-    setTimeout(function() { fa.fit(); }, 0);
 
     var ro = new ResizeObserver(function() {
       if (fa) { try { fa.fit(); } catch(e) {} }
@@ -45,6 +44,15 @@ function XTermContainer() {
 
     termInstance.value = term;
     fitAddonInstance.value = fa;
+
+    // Subscribe after fit so backlog renders at correct terminal dimensions
+    setTimeout(function() {
+      if (fa) { try { fa.fit(); } catch(e) {} }
+      if (pendingSubscribe.value) {
+        completeSubscribe(pendingSubscribe.value);
+        pendingSubscribe.value = null;
+      }
+    }, 0);
   }
 
   preactHooks.useEffect(function() {

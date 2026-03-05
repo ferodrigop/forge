@@ -66,6 +66,30 @@ export class DashboardServer {
         return;
       }
 
+      // Write to session endpoint
+      const writeMatch = req.method === "POST" && req.url?.match(/^\/api\/sessions\/([^/]+)\/write$/);
+      if (writeMatch) {
+        try {
+          const sessionId = writeMatch[1];
+          const body = await new Promise<string>((resolve, reject) => {
+            let data = "";
+            req.on("data", (chunk) => { data += chunk; });
+            req.on("end", () => resolve(data));
+            req.on("error", reject);
+          });
+          const opts = body ? JSON.parse(body) : {};
+          const session = manager.getOrThrow(sessionId);
+          const input = opts.newline === false ? opts.input : (opts.input || "") + "\n";
+          session.write(input);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ sent: input.length }));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+        return;
+      }
+
       // Session history endpoint
       const historyMatch = req.method === "GET" && req.url?.match(/^\/api\/sessions\/([^/]+)\/history$/);
       if (historyMatch) {
@@ -181,8 +205,16 @@ export class DashboardServer {
           return;
         }
 
-        if (!sessionId && isInitializeRequest(parsedBody)) {
-          // New MCP session — create transport + server
+        if (isInitializeRequest(parsedBody)) {
+          // New or re-initialization — create transport + server
+          // Clean up stale session if present
+          if (sessionId && this.transports.has(sessionId)) {
+            const old = this.transports.get(sessionId)!;
+            await old.close().catch(() => {});
+            this.transports.delete(sessionId);
+            logger.info("Cleaned up stale MCP session for re-init", { sessionId });
+          }
+
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (sid) => {
@@ -206,11 +238,23 @@ export class DashboardServer {
           return;
         }
 
-        // Bad request — no session ID on a non-init request
+        if (sessionId) {
+          // Session ID present but not found — stale session, tell client to re-initialize
+          logger.warn("MCP request with stale session ID", { sessionId });
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32001, message: "Session not found" },
+            id: null,
+          }));
+          return;
+        }
+
+        // No session ID and not an init request
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
           jsonrpc: "2.0",
-          error: { code: -32000, message: "Bad Request: No valid session ID provided" },
+          error: { code: -32000, message: "Bad Request: Mcp-Session-Id header is required" },
           id: null,
         }));
         return;
@@ -218,9 +262,14 @@ export class DashboardServer {
 
       if (req.method === "GET") {
         // SSE stream for server notifications
-        if (!sessionId || !this.transports.has(sessionId)) {
+        if (!sessionId) {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Invalid or missing session ID" }, id: null }));
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Bad Request: Mcp-Session-Id header is required" }, id: null }));
+          return;
+        }
+        if (!this.transports.has(sessionId)) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message: "Session not found" }, id: null }));
           return;
         }
         const transport = this.transports.get(sessionId)!;
@@ -229,9 +278,14 @@ export class DashboardServer {
       }
 
       if (req.method === "DELETE") {
-        if (!sessionId || !this.transports.has(sessionId)) {
+        if (!sessionId) {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Invalid or missing session ID" }, id: null }));
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Bad Request: Mcp-Session-Id header is required" }, id: null }));
+          return;
+        }
+        if (!this.transports.has(sessionId)) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32001, message: "Session not found" }, id: null }));
           return;
         }
         const transport = this.transports.get(sessionId)!;
