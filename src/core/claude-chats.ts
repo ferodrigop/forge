@@ -41,12 +41,12 @@ function shortProjectName(folderName: string): string {
   return parts.slice(-2).join("/");
 }
 
-// Simple in-memory cache with TTL
-let cachedSessions: ChatSessionMeta[] | null = null;
-let cacheTime = 0;
 const CACHE_TTL = 30_000; // 30 seconds
 
 export class ClaudeChats {
+  private cachedSessions: ChatSessionMeta[] | null = null;
+  private cacheTime = 0;
+
   /** List all Claude Code chat sessions across all projects */
   async listSessions(opts?: {
     project?: string;
@@ -55,12 +55,12 @@ export class ClaudeChats {
     offset?: number;
   }): Promise<{ sessions: ChatSessionMeta[]; total: number }> {
     const now = Date.now();
-    if (!cachedSessions || now - cacheTime > CACHE_TTL) {
-      cachedSessions = await this.scanAllSessions();
-      cacheTime = now;
+    if (!this.cachedSessions || now - this.cacheTime > CACHE_TTL) {
+      this.cachedSessions = await this.scanAllSessions();
+      this.cacheTime = now;
     }
 
-    let filtered = cachedSessions;
+    let filtered = this.cachedSessions;
 
     if (opts?.project) {
       const projectFilter = opts.project.toLowerCase();
@@ -132,7 +132,7 @@ export class ClaudeChats {
       }
 
       // Invalidate cache
-      cachedSessions = null;
+      this.cachedSessions = null;
       return true;
     } catch (err) {
       logger.error("Failed to delete chat session", { sessionId, error: String(err) });
@@ -143,21 +143,21 @@ export class ClaudeChats {
   /** Find a session by ID across all projects */
   async findSession(sessionId: string): Promise<ChatSessionMeta | null> {
     // Check cache first
-    if (cachedSessions && Date.now() - cacheTime < CACHE_TTL) {
-      const found = cachedSessions.find((s) => s.sessionId === sessionId);
+    if (this.cachedSessions && Date.now() - this.cacheTime < CACHE_TTL) {
+      const found = this.cachedSessions.find((s) => s.sessionId === sessionId);
       if (found) return found;
     }
 
     // Full scan
     const sessions = await this.scanAllSessions();
-    cachedSessions = sessions;
-    cacheTime = Date.now();
+    this.cachedSessions = sessions;
+    this.cacheTime = Date.now();
     return sessions.find((s) => s.sessionId === sessionId) || null;
   }
 
   /** Invalidate the session cache */
   invalidateCache(): void {
-    cachedSessions = null;
+    this.cachedSessions = null;
   }
 
   private async scanAllSessions(): Promise<ChatSessionMeta[]> {
