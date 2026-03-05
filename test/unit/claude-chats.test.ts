@@ -43,8 +43,10 @@ describe("ClaudeChats", () => {
     expect(total).toBe(1);
     expect(sessions).toHaveLength(1);
     expect(sessions[0].sessionId).toBe(SESSION_ID);
-    expect(sessions[0].project).toBe("projects/my/api");
-    expect(sessions[0].fullPath).toBe("/Users/testuser/projects/my/api");
+    // decodeProjectPath resolves greedily against filesystem; /Users exists but
+    // /Users/testuser doesn't, so remaining segments join with hyphens as fallback
+    expect(sessions[0].project).toBe("Users/testuser-projects-my-api");
+    expect(sessions[0].fullPath).toBe("/Users/testuser-projects-my-api");
     expect(sessions[0].firstMessage).toBe("Help me build a REST API for user authentication");
     expect(sessions[0].model).toBe("claude-sonnet");
     expect(sessions[0].messageCount).toBe(3); // 2 user + 1 assistant
@@ -144,6 +146,36 @@ describe("ClaudeChats", () => {
     expect(sessions).toHaveLength(1);
     expect(sessions[0].messageCount).toBe(4); // 2 user + 2 assistant
     expect(sessions[0].toolCount).toBe(2); // 2 lines with tool_use
+  });
+
+  it("merges resumed sessions into a single entry", async () => {
+    const rootId = "root-0000-0000-0000-000000000001";
+    const childId = "child-0000-0000-0000-000000000002";
+
+    const rootContent = [
+      JSON.stringify({ type: "user", sessionId: rootId, timestamp: "2025-06-01T09:00:00Z", message: { content: "Build an API" } }),
+      JSON.stringify({ type: "assistant", timestamp: "2025-06-01T09:00:05Z", message: { content: [{ type: "text", text: "Sure thing." }] } }),
+    ].join("\n") + "\n";
+
+    const childContent = [
+      JSON.stringify({ type: "user", sessionId: rootId, timestamp: "2025-06-01T10:00:00Z", message: { content: "[Request interrupted by user for tool use]" } }),
+      JSON.stringify({ type: "user", sessionId: rootId, timestamp: "2025-06-01T10:00:01Z", message: { content: "Continue please" } }),
+      JSON.stringify({ type: "assistant", timestamp: "2025-06-01T10:00:05Z", message: { content: [{ type: "text", text: "Continuing..." }] } }),
+    ].join("\n") + "\n";
+
+    const projectDir = join(tempDir, ".claude", "projects", "-Users-testuser-merge-test");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, `${rootId}.jsonl`), rootContent);
+    await writeFile(join(projectDir, `${childId}.jsonl`), childContent);
+    chats.invalidateCache();
+
+    const { sessions } = await chats.listSessions({ project: "merge" });
+    expect(sessions).toHaveLength(1); // merged into one
+    expect(sessions[0].sessionId).toBe(rootId);
+    expect(sessions[0].firstMessage).toBe("Build an API");
+    expect(sessions[0].messageCount).toBe(5); // root: 1 user + 1 assistant, child: 2 user + 1 assistant
+    expect(sessions[0].resumeCount).toBe(1);
+    expect(sessions[0].allFilePaths).toHaveLength(2);
   });
 
   it("handles missing .claude/projects directory", async () => {

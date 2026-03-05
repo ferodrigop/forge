@@ -1,21 +1,26 @@
 import { join, basename } from "node:path";
 import { homedir } from "node:os";
 import { readFile, readdir, stat, unlink, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { logger } from "../utils/logger.js";
 
 export interface ChatSessionMeta {
   sessionId: string;
+  parentSessionId?: string;
   project: string;
   fullPath: string;
   firstMessage: string;
   messageCount: number;
   toolCount: number;
+  resumeCount: number;
   timestamp: string;
   lastTimestamp: string;
   gitBranch?: string;
   model?: string;
   sizeBytes: number;
   filePath: string;
+  /** All file paths when this entry represents merged continuations */
+  allFilePaths?: string[];
 }
 
 export interface ChatMessage {
@@ -30,17 +35,43 @@ function getProjectsDir(): string {
   return join(homedir(), ".claude", "projects");
 }
 
-/** Decode a claude projects folder name back to a readable path */
+/** Decode a claude projects folder name back to a readable path.
+ *  Claude encodes `/` as `-`, but directory names can also contain `-`.
+ *  We greedily resolve from root, preferring the longest existing filesystem match. */
 function decodeProjectPath(folderName: string): string {
-  // Claude encodes paths like: -Users-rodrigopineda-foo-bar
-  return folderName.replace(/^-/, "/").replace(/-/g, "/");
+  const segments = folderName.replace(/^-/, "").split("-");
+  let resolved = "/";
+  let i = 0;
+
+  while (i < segments.length) {
+    // Try longest possible hyphenated segment first
+    let bestLen = 0;
+    for (let len = segments.length - i; len >= 1; len--) {
+      const candidate = segments.slice(i, i + len).join("-");
+      const testPath = join(resolved, candidate);
+      if (existsSync(testPath)) {
+        bestLen = len;
+        break;
+      }
+    }
+    if (bestLen > 0) {
+      resolved = join(resolved, segments.slice(i, i + bestLen).join("-"));
+      i += bestLen;
+    } else {
+      // No match — join remaining segments with hyphens as fallback
+      resolved = join(resolved, segments.slice(i).join("-"));
+      break;
+    }
+  }
+
+  return resolved;
 }
 
-/** Get a short display name from a project folder — last 3 path segments */
+/** Get a short display name from a project folder — last 2 path segments */
 function shortProjectName(folderName: string): string {
   const decoded = decodeProjectPath(folderName);
   const parts = decoded.split("/").filter(Boolean);
-  return parts.slice(-3).join("/");
+  return parts.slice(-2).join("/");
 }
 
 const CACHE_TTL = 30_000; // 30 seconds
@@ -89,48 +120,53 @@ export class ClaudeChats {
     return { sessions, total };
   }
 
-  /** Get messages from a specific session */
+  /** Get messages from a specific session (including merged continuations) */
   async getMessages(sessionId: string, opts?: { limit?: number; offset?: number }): Promise<ChatMessage[]> {
     const meta = await this.findSession(sessionId);
     if (!meta) return [];
 
-    try {
-      const raw = await readFile(meta.filePath, "utf-8");
-      const messages: ChatMessage[] = [];
+    const paths = meta.allFilePaths || [meta.filePath];
+    const messages: ChatMessage[] = [];
 
-      for (const line of raw.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          messages.push(JSON.parse(trimmed) as ChatMessage);
-        } catch {
-          // skip malformed lines
+    for (const fp of paths) {
+      try {
+        const raw = await readFile(fp, "utf-8");
+        for (const line of raw.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            messages.push(JSON.parse(trimmed) as ChatMessage);
+          } catch {
+            // skip malformed lines
+          }
         }
+      } catch {
+        // skip unreadable files
       }
-
-      const offset = opts?.offset ?? 0;
-      const limit = opts?.limit ?? messages.length;
-      return messages.slice(offset, offset + limit);
-    } catch {
-      return [];
     }
+
+    const offset = opts?.offset ?? 0;
+    const limit = opts?.limit ?? messages.length;
+    return messages.slice(offset, offset + limit);
   }
 
-  /** Delete a chat session and its associated subdirectory */
+  /** Delete a chat session and its associated subdirectory (including merged continuations) */
   async deleteSession(sessionId: string): Promise<boolean> {
     const meta = await this.findSession(sessionId);
     if (!meta) return false;
 
     try {
-      // Delete the JSONL file
-      await unlink(meta.filePath);
-
-      // Try to delete associated subdir (same name without .jsonl)
-      const subdir = meta.filePath.replace(/\.jsonl$/, "");
-      try {
-        await rm(subdir, { recursive: true, force: true });
-      } catch {
-        // subdir may not exist
+      // Delete all files (handles merged continuations)
+      const paths = meta.allFilePaths || [meta.filePath];
+      for (const fp of paths) {
+        try {
+          await unlink(fp);
+          // Try to delete associated subdir (same name without .jsonl)
+          const subdir = fp.replace(/\.jsonl$/, "");
+          try { await rm(subdir, { recursive: true, force: true }); } catch { /* subdir may not exist */ }
+        } catch {
+          // file may already be gone
+        }
       }
 
       // Invalidate cache
@@ -205,7 +241,71 @@ export class ClaudeChats {
       }
     }
 
-    return sessions;
+    return this.mergeResumedSessions(sessions);
+  }
+
+  /** Merge resumed/continued sessions into their root session entry */
+  private mergeResumedSessions(sessions: ChatSessionMeta[]): ChatSessionMeta[] {
+    const byId = new Map<string, ChatSessionMeta>();
+    for (const s of sessions) byId.set(s.sessionId, s);
+
+    // Find the root of each chain by following parentSessionId links
+    const rootOf = (s: ChatSessionMeta): string => {
+      const visited = new Set<string>();
+      let id = s.sessionId;
+      while (true) {
+        const current = byId.get(id);
+        if (!current?.parentSessionId || visited.has(current.parentSessionId)) break;
+        visited.add(id);
+        // If the parent file exists in our set, follow the chain
+        if (byId.has(current.parentSessionId)) {
+          id = current.parentSessionId;
+        } else {
+          // Parent file may have been deleted; this is now the effective root
+          break;
+        }
+      }
+      return id;
+    };
+
+    // Group sessions by root
+    const groups = new Map<string, ChatSessionMeta[]>();
+    for (const s of sessions) {
+      const root = rootOf(s);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root)!.push(s);
+    }
+
+    // Merge each group into a single entry
+    const merged: ChatSessionMeta[] = [];
+    for (const [, group] of groups) {
+      if (group.length === 1) {
+        merged.push(group[0]);
+        continue;
+      }
+
+      // Sort by timestamp ascending to find the original
+      group.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const root = group[0];
+
+      // Use root's firstMessage but aggregate everything else
+      const allPaths = group.map((s) => s.filePath);
+      merged.push({
+        ...root,
+        messageCount: group.reduce((sum, s) => sum + s.messageCount, 0),
+        toolCount: group.reduce((sum, s) => sum + s.toolCount, 0),
+        sizeBytes: group.reduce((sum, s) => sum + s.sizeBytes, 0),
+        lastTimestamp: group.reduce((latest, s) =>
+          new Date(s.lastTimestamp) > new Date(latest) ? s.lastTimestamp : latest,
+          root.lastTimestamp
+        ),
+        resumeCount: group.length - 1,
+        allFilePaths: allPaths,
+        model: root.model || group.find((s) => s.model)?.model,
+      });
+    }
+
+    return merged;
   }
 
   /** Read only the first few lines of a JSONL to extract metadata (fast) */
@@ -228,12 +328,18 @@ export class ClaudeChats {
       let lastTimestamp = "";
       let model: string | undefined;
       let gitBranch: string | undefined;
+      let parentSessionId: string | undefined;
 
       for (const line of headerLines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
         try {
           const obj = JSON.parse(trimmed);
+
+          // Detect resumed sessions: sessionId in the JSONL differs from the filename
+          if (!parentSessionId && obj.sessionId && obj.sessionId !== sessionId) {
+            parentSessionId = obj.sessionId;
+          }
 
           // Extract timestamp
           if (obj.timestamp && !timestamp) {
@@ -301,11 +407,13 @@ export class ClaudeChats {
 
       return {
         sessionId,
+        parentSessionId,
         project,
         fullPath,
         firstMessage: firstMessage || "(empty session)",
         messageCount,
         toolCount,
+        resumeCount: 0,
         timestamp,
         lastTimestamp,
         gitBranch,

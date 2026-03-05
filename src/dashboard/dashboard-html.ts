@@ -168,8 +168,22 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   .chat-item .close-btn:hover { background: #f7768e22; color: #f7768e; }
 
   .chat-project-group {
-    font-size: 11px; font-weight: 600; color: #565f89;
-    padding: 8px 12px 4px; text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 11px; font-weight: 600; color: #a9b1d6;
+    padding: 8px 12px 6px; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; user-select: none;
+    border-bottom: 1px solid #292e42; margin-bottom: 4px;
+    background: #1a1b26; border-radius: 4px;
+  }
+  .chat-project-group:hover { background: #1e2030; }
+  .chat-project-group .chevron {
+    font-size: 9px; color: #565f89; transition: transform 0.15s;
+    flex-shrink: 0; width: 12px; text-align: center;
+  }
+  .chat-project-group .chevron.collapsed { transform: rotate(-90deg); }
+  .chat-project-group .group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chat-project-group .group-stats {
+    font-weight: 400; color: #565f89; font-size: 10px; flex-shrink: 0;
   }
 
   #main {
@@ -238,6 +252,21 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   }
   .chat-bubble.human { align-self: flex-end; background: #292e42; color: #c0caf5; border-bottom-right-radius: 4px; }
   .chat-bubble.assistant { align-self: flex-start; background: #1e2030; color: #a9b1d6; border-bottom-left-radius: 4px; }
+  .chat-bubble.system {
+    align-self: center; background: transparent; color: #3b4261;
+    border: 1px dashed #292e42; font-size: 11px; max-width: 95%;
+    padding: 6px 12px; font-family: monospace; opacity: 0.7; cursor: pointer;
+  }
+  .chat-bubble.system:hover { opacity: 1; border-color: #3b4261; }
+  .chat-bubble.system .system-summary { display: flex; align-items: center; gap: 6px; }
+  .chat-bubble.system .system-chevron { font-size: 8px; transition: transform 0.15s; }
+  .chat-bubble.system .system-chevron.open { transform: rotate(90deg); }
+  .chat-bubble.system .system-full {
+    display: none; margin-top: 6px; padding-top: 6px;
+    border-top: 1px dashed #292e42; white-space: pre-wrap; word-break: break-word;
+    max-height: 200px; overflow-y: auto; font-size: 10px; color: #565f89;
+  }
+  .chat-bubble.system .system-full.visible { display: block; }
   .chat-bubble .tool-block {
     background: #1a1b26; border: 1px solid #292e42; border-radius: 4px;
     padding: 6px 8px; margin: 4px 0; font-family: monospace; font-size: 12px;
@@ -350,6 +379,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   var activeChatId = null;
   var activityEvents = {}; // sessionId -> events[]
   var activityLogOpen = true;
+  var collapsedGroups = {}; // project name -> boolean
 
   var sessionList = document.getElementById('session-list');
   var chatList = document.getElementById('chat-list');
@@ -719,25 +749,35 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
     Object.keys(groups).forEach(function(project) {
       var items = groups[project];
       var totalBytes = items.reduce(function(sum, c) { return sum + (c.sizeBytes || 0); }, 0);
+      var isCollapsed = !!collapsedGroups[project];
       var groupEl = document.createElement('div');
       groupEl.className = 'chat-project-group';
-      groupEl.textContent = project + ' \\u2014 ' + items.length + ' chat' + (items.length !== 1 ? 's' : '') + ' \\u00b7 ' + formatSize(totalBytes);
       if (items[0] && items[0].fullPath) groupEl.title = items[0].fullPath;
+      groupEl.innerHTML =
+        '<span class="chevron' + (isCollapsed ? ' collapsed' : '') + '">\\u25bc</span>' +
+        '<span class="group-name">' + escapeHtml(project) + '</span>' +
+        '<span class="group-stats">' + items.length + ' chat' + (items.length !== 1 ? 's' : '') + ' \\u00b7 ' + formatSize(totalBytes) + '</span>';
+      groupEl.onclick = function() {
+        collapsedGroups[project] = !collapsedGroups[project];
+        renderChats();
+      };
       chatList.appendChild(groupEl);
-      groups[project].forEach(function(c) {
-        var el = document.createElement('div');
-        el.className = 'chat-item' + (c.sessionId === activeChatId ? ' active' : '');
-        el.innerHTML =
-          '<button class="close-btn" title="Delete chat"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4h9.34z"/></svg></button>' +
-          '<div class="chat-msg">' + escapeHtml(c.firstMessage) + '</div>' +
-          '<div class="chat-meta">' + c.messageCount + ' msgs' + (c.toolCount ? ' \\u00b7 ' + c.toolCount + ' tools' : '') + ' \\u00b7 ' + formatSize(c.sizeBytes) + ' \\u00b7 ' + timeAgo(c.lastTimestamp) + (c.model ? ' \\u00b7 ' + c.model : '') + '</div>';
-        el.querySelector('.close-btn').onclick = function(e) {
-          e.stopPropagation();
-          showDeleteModal(c.sessionId);
-        };
-        el.onclick = function() { openChat(c.sessionId); };
-        chatList.appendChild(el);
-      });
+      if (!isCollapsed) {
+        groups[project].forEach(function(c) {
+          var el = document.createElement('div');
+          el.className = 'chat-item' + (c.sessionId === activeChatId ? ' active' : '');
+          el.innerHTML =
+            '<button class="close-btn" title="Delete chat"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4h9.34z"/></svg></button>' +
+            '<div class="chat-msg">' + escapeHtml(c.firstMessage) + '</div>' +
+            '<div class="chat-meta">' + c.messageCount + ' msgs' + (c.toolCount ? ' \\u00b7 ' + c.toolCount + ' tools' : '') + ' \\u00b7 ' + formatSize(c.sizeBytes) + (c.resumeCount ? ' \\u00b7 ' + (c.resumeCount + 1) + ' parts' : '') + ' \\u00b7 ' + timeAgo(c.lastTimestamp) + (c.model ? ' \\u00b7 ' + c.model : '') + '</div>';
+          el.querySelector('.close-btn').onclick = function(e) {
+            e.stopPropagation();
+            showDeleteModal(c.sessionId);
+          };
+          el.onclick = function() { openChat(c.sessionId); };
+          chatList.appendChild(el);
+        });
+      }
     });
   }
 
@@ -792,7 +832,34 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
             text = m.message.content.filter(function(c) { return c.type === 'text'; }).map(function(c) { return c.text; }).join('\\n');
           }
         }
-        if (text) html += '<div class="chat-bubble human">' + escapeHtml(text) + '</div>';
+        if (!text) continue;
+        // Detect system-injected messages (slash commands, reminders, interruptions)
+        var isSystem = /^<(local-command|command-name|system-reminder|cl-|antml)/.test(text.trim()) ||
+          /^\\[Request interrupted/.test(text.trim()) ||
+          (m.userType && m.userType !== 'external');
+        if (isSystem) {
+          // Summarize instead of showing raw XML
+          var summary = text.trim();
+          if (summary.indexOf('<command-name>') >= 0) {
+            var cmdMatch = summary.match(/<command-name>([^<]+)<\\/command-name>/);
+            summary = cmdMatch ? '/' + cmdMatch[1] : 'slash command';
+          } else if (summary.indexOf('<local-command-caveat>') >= 0) {
+            summary = 'system context injection';
+          } else if (summary.indexOf('<local-command-stdout>') >= 0) {
+            var stdoutMatch = summary.match(/<local-command-stdout>([^<]*)<\\/local-command-stdout>/);
+            summary = stdoutMatch ? stdoutMatch[1].slice(0, 80) : 'command output';
+          } else if (/^\\[Request interrupted/.test(summary)) {
+            summary = summary.slice(0, 60);
+          } else {
+            summary = summary.slice(0, 80) + (summary.length > 80 ? '...' : '');
+          }
+          html += '<div class="chat-bubble system" onclick="var f=this.querySelector(\'.system-full\'),c=this.querySelector(\'.system-chevron\');f.classList.toggle(\'visible\');c.classList.toggle(\'open\');">' +
+            '<div class="system-summary"><span class="system-chevron">\\u25b6</span> ' + escapeHtml(summary) + '</div>' +
+            '<div class="system-full">' + escapeHtml(text) + '</div>' +
+          '</div>';
+        } else {
+          html += '<div class="chat-bubble human">' + escapeHtml(text) + '</div>';
+        }
       } else if (role === 'assistant') {
         var parts = '';
         if (m.message && m.message.content) {
