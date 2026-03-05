@@ -192,25 +192,18 @@ export const CSS_STYLES = `
 
   #terminal-container { flex: 1; padding: 8px; min-height: 0; }
 
-  #terminal-input-bar {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-top: 1px solid #292e42; background: #16161e;
+  #terminal-status-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 12px; border-top: 1px solid #292e42; background: #16161e;
+    font-size: 11px; color: #565f89; font-family: monospace;
   }
-  #terminal-input-bar input {
-    flex: 1; background: #1a1b26; border: 1px solid #292e42;
-    border-radius: 4px; padding: 6px 10px; color: #c0caf5;
-    font-family: monospace; font-size: 13px; outline: none;
+  #terminal-status-bar .status-bar-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #terminal-status-bar .status-bar-spacer { flex: 1; }
+  #terminal-status-bar .status-badge {
+    padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 500;
   }
-  #terminal-input-bar input:focus { border-color: #7aa2f7; }
-  #terminal-input-bar input::placeholder { color: #3b4261; }
-  #terminal-input-bar .input-hint { font-size: 11px; color: #3b4261; white-space: nowrap; }
-  #terminal-input-bar button {
-    background: #292e42; border: 1px solid #3b4261; border-radius: 4px;
-    color: #a9b1d6; padding: 5px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
-  }
-  #terminal-input-bar button:hover { background: #3b4261; color: #c0caf5; }
-  #terminal-input-bar button.ctrl-c { color: #f7768e; border-color: #f7768e44; }
-  #terminal-input-bar button.ctrl-c:hover { background: #f7768e22; }
+  #terminal-status-bar .status-badge.running { background: #1a3a2a; color: #9ece6a; }
+  #terminal-status-bar .status-badge.exited { background: #292e42; color: #565f89; }
 
   #activity-log {
     max-height: 200px; overflow-y: auto; border-top: 1px solid #292e42;

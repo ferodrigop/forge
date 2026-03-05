@@ -116,33 +116,20 @@ function ActivityLog() {
   \`;
 }
 
-function TerminalInputBar() {
+function TerminalStatusBar() {
   var activeSession = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
-  var isRunning = activeSession && activeSession.status === 'running';
-  var inputRef = preact.createRef();
-
-  function onKeyDown(e) {
-    if (e.key === 'Enter' && activeSessionId.value) {
-      wsSend({ type: 'input', sessionId: activeSessionId.value, data: inputRef.current.value + '\\n' });
-      inputRef.current.value = '';
-    }
-  }
-
-  function onCtrlC() {
-    if (activeSessionId.value) wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x03' });
-  }
+  if (!activeSession) return null;
+  var cwd = activeSession.cwd || '';
+  // Shorten home dir
+  var home = '';
+  try { home = cwd.replace(/^\\/Users\\/[^/]+/, '~').replace(/^\\/home\\/[^/]+/, '~'); } catch(e) { home = cwd; }
 
   return html\`
-    <div id="terminal-input-bar">
-      <input
-        type="text"
-        ref=\${inputRef}
-        placeholder="Type and press Enter to send..."
-        disabled=\${!isRunning}
-        onKeyDown=\${onKeyDown}
-      />
-      <button class="ctrl-c" title="Send Ctrl+C" disabled=\${!isRunning} onClick=\${onCtrlC}>Ctrl+C</button>
-      <span class="input-hint">Enter sends with newline</span>
+    <div id="terminal-status-bar">
+      <span class="status-bar-item" title=\${cwd}>\u{1F4C2} \${home}</span>
+      <span class="status-bar-spacer"></span>
+      <span class="status-bar-item">\${activeSession.id}</span>
+      <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>
     </div>
   \`;
 }
@@ -159,7 +146,7 @@ function TerminalView() {
       </div>
       <\${XTermContainer} />
       \${showLog ? html\`<\${ActivityLog} />\` : null}
-      <\${TerminalInputBar} />
+      <\${TerminalStatusBar} />
     </div>
   \`;
 }

@@ -13,6 +13,7 @@ const activityLogOpen = signal(true);
 const chatSessions = signal([]);
 const activeChatId = signal(null);
 const collapsedGroups = signal({});
+const collapsedTermGroups = signal({});
 const streamJsonSessions = signal({});
 const wsConnected = signal(false);
 const chatLoading = signal(false);
