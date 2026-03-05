@@ -65,7 +65,7 @@ export class TerminalSession {
       cols,
       rows,
       cwd: this.cwd,
-      env: { ...process.env, ...opts.env } as Record<string, string>,
+      env: (() => { const e: Record<string, string> = { ...process.env, ...opts.env } as Record<string, string>; delete e.CLAUDECODE; return e; })(),
     });
 
     this.ptyProcess.onData((data: string) => {
