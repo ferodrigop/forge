@@ -32,7 +32,7 @@ export const CSS_STYLES = `
     gap: 8px;
   }
 
-  #sidebar-header .logo { font-size: 18px; }
+  #sidebar-header .logo { width: 22px; height: 22px; border-radius: 4px; }
   #sidebar-header .spacer { flex: 1; }
 
   #auto-follow-btn {

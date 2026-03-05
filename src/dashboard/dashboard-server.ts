@@ -9,7 +9,7 @@ import type { ForgeConfig } from "../core/types.js";
 import { ClaudeChats } from "../core/claude-chats.js";
 import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
-import { DASHBOARD_HTML } from "./dashboard-html.js";
+import { DASHBOARD_HTML, LOGO_PNG_BASE64 } from "./dashboard-html.js";
 import { logger } from "../utils/logger.js";
 
 export class DashboardServer {
@@ -127,6 +127,18 @@ export class DashboardServer {
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: (err as Error).message }));
         }
+        return;
+      }
+
+      // Serve logo PNG
+      if (req.method === "GET" && req.url === "/logo.png") {
+        const buf = Buffer.from(LOGO_PNG_BASE64, "base64");
+        res.writeHead(200, {
+          "Content-Type": "image/png",
+          "Content-Length": String(buf.length),
+          "Cache-Control": "public, max-age=86400",
+        });
+        res.end(buf);
         return;
       }
 

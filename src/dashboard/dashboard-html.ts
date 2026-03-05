@@ -1,5 +1,8 @@
 import { CSS_STYLES } from "./frontend/styles.js";
 import { APP_JS } from "./frontend/app.js";
+import { FAVICON_DATA_URI } from "./frontend/assets.js";
+
+export { LOGO_PNG_BASE64 } from "./frontend/assets.js";
 
 export const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -7,6 +10,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Forge Dashboard</title>
+<link rel="icon" href="${FAVICON_DATA_URI}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
 <style>${CSS_STYLES}</style>
 </head>

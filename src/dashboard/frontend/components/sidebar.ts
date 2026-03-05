@@ -2,7 +2,7 @@ export const SIDEBAR_JS = `
 function SidebarHeader() {
   return html\`
     <div id="sidebar-header">
-      <span class="logo">\u2692</span> Forge
+      <img class="logo" src="/logo.png" alt="Forge" /> Forge
       <span class="spacer"></span>
       <button
         id="new-terminal-btn"

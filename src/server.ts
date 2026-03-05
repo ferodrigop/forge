@@ -193,7 +193,6 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
       prompt: z.string().describe("The prompt to send to Claude"),
       cwd: z.string().optional().describe("Working directory for Claude"),
       model: z.string().optional().describe("Model to use (e.g., 'sonnet', 'opus')"),
-      allowedTools: z.array(z.string()).optional().describe("Tools Claude is allowed to use"),
       name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
       tags: z.array(z.string()).max(10).optional().describe("Additional tags (claude-agent is always included)"),
       maxBudget: z.number().positive().optional().describe("Max budget in USD"),
@@ -278,10 +277,6 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
         if (params.model) {
           args.push("--model", params.model);
         }
-        // Default allowed tools so spawned agents can work without permission prompts
-        const defaultTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Agent", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "WebFetch", "WebSearch"];
-        const tools = (params.allowedTools && params.allowedTools.length > 0) ? params.allowedTools : defaultTools;
-        args.push("--allowedTools", tools.join(","));
         if (params.maxBudget) {
           args.push("--max-budget-usd", String(params.maxBudget));
         }
