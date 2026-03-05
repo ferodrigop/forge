@@ -415,6 +415,33 @@ describe("Forge 0.7 Integration — REST endpoints", () => {
     expect(data.messages.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("POST /api/sessions with name and command creates a session", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "test-rest-session", command: "/bin/sh" }),
+    });
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.id).toBeDefined();
+    expect(info.name).toBe("test-rest-session");
+    expect(info.status).toBe("running");
+    manager.close(info.id);
+  });
+
+  it("POST /api/sessions with empty body creates a session with default shell", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.id).toBeDefined();
+    expect(info.status).toBe("running");
+    manager.close(info.id);
+  });
+
   it("DELETE /api/chats/:id deletes the session", async () => {
     // Create a disposable session
     const projectDir = join(tempDir, ".claude", "projects", "-Users-dev-api");

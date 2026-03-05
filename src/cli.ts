@@ -57,7 +57,7 @@ async function cleanDaemonFiles(): Promise<void> {
 
 async function getPortPid(port: number): Promise<number | null> {
   try {
-    const out = execSync(`lsof -i :${port} -t 2>/dev/null`, { encoding: "utf-8" });
+    const out = execSync(`lsof -i :${port} -sTCP:LISTEN -t 2>/dev/null`, { encoding: "utf-8" });
     const pid = parseInt(out.trim().split("\n")[0], 10);
     return Number.isNaN(pid) ? null : pid;
   } catch {

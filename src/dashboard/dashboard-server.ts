@@ -39,6 +39,33 @@ export class DashboardServer {
         return;
       }
 
+      if (req.method === "POST" && req.url === "/api/sessions") {
+        try {
+          const body = await new Promise<string>((resolve, reject) => {
+            let data = "";
+            req.on("data", (chunk) => { data += chunk; });
+            req.on("end", () => resolve(data));
+            req.on("error", reject);
+          });
+          const opts = body ? JSON.parse(body) : {};
+          const session = manager.create({
+            command: opts.command || this.config?.shell || "/bin/sh",
+            args: opts.args,
+            cwd: opts.cwd,
+            name: opts.name,
+            tags: opts.tags,
+            cols: opts.cols,
+            rows: opts.rows,
+          });
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(session.getInfo()));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+        return;
+      }
+
       // Session history endpoint
       const historyMatch = req.method === "GET" && req.url?.match(/^\/api\/sessions\/([^/]+)\/history$/);
       if (historyMatch) {

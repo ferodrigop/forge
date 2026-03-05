@@ -326,6 +326,26 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
     background: #f7768e22; color: #f7768e; border-color: #f7768e44;
   }
   .modal-actions .modal-delete:hover { background: #f7768e33; }
+  .modal-actions .modal-create {
+    background: #7aa2f722; color: #7aa2f7; border-color: #7aa2f744;
+  }
+  .modal-actions .modal-create:hover { background: #7aa2f733; }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label { display: block; font-size: 11px; color: #565f89; margin-bottom: 4px; font-weight: 500; }
+  .modal-field input {
+    width: 100%; background: #1a1b26; border: 1px solid #292e42;
+    border-radius: 4px; padding: 6px 10px; color: #c0caf5;
+    font-size: 12px; outline: none; font-family: monospace;
+  }
+  .modal-field input:focus { border-color: #7aa2f7; }
+  .modal-field input::placeholder { color: #3b4261; }
+
+  #new-terminal-btn {
+    font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px;
+    border: 1px solid #292e42; background: transparent; color: #565f89;
+    cursor: pointer; transition: all 0.15s;
+  }
+  #new-terminal-btn:hover { background: #292e42; color: #7aa2f7; border-color: #7aa2f7; }
 
   .hidden { display: none !important; }
 </style>
@@ -335,6 +355,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
     <div id="sidebar-header">
       <span class="logo">\u2692</span> Forge
       <span class="spacer"></span>
+      <button id="new-terminal-btn" title="New terminal">+</button>
       <button id="auto-follow-btn" class="active" title="Auto-follow new sessions">Follow</button>
     </div>
     <div class="tab-bar">
@@ -387,6 +408,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   var connDot = document.getElementById('conn-dot');
   var connText = document.getElementById('conn-text');
   var autoFollowBtn = document.getElementById('auto-follow-btn');
+  var newTerminalBtn = document.getElementById('new-terminal-btn');
   var terminalsPanel = document.getElementById('terminals-panel');
   var chatsPanel = document.getElementById('chats-panel');
   var chatSearchInput = document.getElementById('chat-search');
@@ -402,10 +424,12 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
         terminalsPanel.classList.remove('hidden');
         chatsPanel.classList.add('hidden');
         autoFollowBtn.classList.remove('hidden');
+        newTerminalBtn.classList.remove('hidden');
       } else {
         terminalsPanel.classList.add('hidden');
         chatsPanel.classList.remove('hidden');
         autoFollowBtn.classList.add('hidden');
+        newTerminalBtn.classList.add('hidden');
         loadChats();
       }
     });
@@ -415,6 +439,49 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
     autoFollow = !autoFollow;
     autoFollowBtn.className = autoFollow ? 'active' : '';
   };
+
+  newTerminalBtn.onclick = function() { showNewTerminalModal(); };
+
+  function showNewTerminalModal() {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML =
+      '<div class="modal-box">' +
+        '<h3>New Terminal</h3>' +
+        '<div class="modal-field"><label>Name</label><input type="text" id="nt-name" placeholder="my-session"></div>' +
+        '<div class="modal-field"><label>Command</label><input type="text" id="nt-command" placeholder="default shell"></div>' +
+        '<div class="modal-field"><label>Working Directory</label><input type="text" id="nt-cwd" placeholder="current directory"></div>' +
+        '<div class="modal-actions">' +
+          '<button class="modal-cancel">Cancel</button>' +
+          '<button class="modal-create">Create</button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('.modal-cancel').onclick = function() { overlay.remove(); };
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.querySelector('.modal-create').onclick = function() {
+      var body = {};
+      var name = overlay.querySelector('#nt-name').value.trim();
+      var command = overlay.querySelector('#nt-command').value.trim();
+      var cwd = overlay.querySelector('#nt-cwd').value.trim();
+      if (name) body.name = name;
+      if (command) body.command = command;
+      if (cwd) body.cwd = cwd;
+      fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(function(r) { return r.json(); }).then(function(info) {
+        overlay.remove();
+        // Session auto-appears via WS sessionCreated event + auto-follow selects it
+      }).catch(function(err) { console.error('Create terminal failed', err); });
+    };
+    // Allow Enter to submit
+    overlay.querySelector('.modal-box').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') overlay.querySelector('.modal-create').click();
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector('#nt-name').focus();
+  }
 
   // Chat search
   var chatSearchTimer = null;
@@ -853,7 +920,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
           } else {
             summary = summary.slice(0, 80) + (summary.length > 80 ? '...' : '');
           }
-          html += '<div class="chat-bubble system" onclick="var f=this.querySelector(\'.system-full\'),c=this.querySelector(\'.system-chevron\');f.classList.toggle(\'visible\');c.classList.toggle(\'open\');">' +
+          html += '<div class="chat-bubble system" onclick="var f=this.querySelector(\\'.system-full\\'),c=this.querySelector(\\'.system-chevron\\');f.classList.toggle(\\'visible\\');c.classList.toggle(\\'open\\');">' +
             '<div class="system-summary"><span class="system-chevron">\\u25b6</span> ' + escapeHtml(summary) + '</div>' +
             '<div class="system-full">' + escapeHtml(text) + '</div>' +
           '</div>';
