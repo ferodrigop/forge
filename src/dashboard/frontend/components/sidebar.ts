@@ -25,7 +25,7 @@ function TabBar() {
     <div class="tab-bar">
       <button
         class=\${'tab-btn' + (currentTab.value === 'terminals' ? ' active' : '')}
-        onClick=\${function() { currentTab.value = 'terminals'; }}
+        onClick=\${function() { currentTab.value = 'terminals'; activeChatId.value = null; }}
       >Terminals</button>
       <button
         class=\${'tab-btn' + (currentTab.value === 'chats' ? ' active' : '')}
