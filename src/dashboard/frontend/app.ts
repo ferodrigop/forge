@@ -44,15 +44,13 @@ connect();
 `;
 
 export const APP_JS = `
-// --- Preact/htm/signals loaded via importmap ---
-import { h, render, createRef, options } from 'preact';
-import htm from 'htm/preact';
-import { signal, computed, effect, batch } from '@preact/signals';
-import * as preactHooks from 'preact/hooks';
-
-var html = htm;
-window.__signals = { signal, computed, effect, batch };
-var preact = { render, createRef, options };
+(function() {
+// --- Preact/htm/signals from UMD globals ---
+var html = htmPreact.html;
+var signal = preactSignals.signal;
+var computed = preactSignals.computed;
+var effect = preactSignals.effect;
+var batch = preactSignals.batch;
 
 // --- Utils ---
 ${UTILS_JS}
@@ -68,4 +66,5 @@ ${MODALS_JS}
 
 // --- App ---
 ${APP_COMPONENT_JS}
+})();
 `;

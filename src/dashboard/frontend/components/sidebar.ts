@@ -132,17 +132,19 @@ function ChatProjectGroup(props) {
   \`;
 }
 
+var __chatSearchTimer = null;
 function ChatsPanel() {
-  var searchTimer = preact.options.__chatSearchTimer;
   function onInput(e) {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(function() { loadChats(e.target.value); }, 300);
-    preact.options.__chatSearchTimer = searchTimer;
+    clearTimeout(__chatSearchTimer);
+    __chatSearchTimer = setTimeout(function() { loadChats(e.target.value); }, 300);
   }
 
   var cs = chatSessions.value;
+  var loading = chatLoading.value;
   var content;
-  if (cs.length === 0) {
+  if (loading && cs.length === 0) {
+    content = html\`<div style="padding:12px;color:#565f89;font-size:12px;display:flex;align-items:center;gap:8px;"><span class="chat-spinner"></span> Loading chats...</div>\`;
+  } else if (cs.length === 0) {
     content = html\`<div style="padding:12px;color:#3b4261;font-size:12px;">No chats found</div>\`;
   } else {
     var groups = {};

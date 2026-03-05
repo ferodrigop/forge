@@ -1,8 +1,5 @@
 export const STATE_JS = `
-// --- Signals ---
-const { signal, computed, effect, batch } = window.__signals;
-
-const sessions = signal([]);
+var sessions = signal([]);
 const activeSessionId = signal(null);
 const autoFollow = signal(true);
 const currentTab = signal('terminals');

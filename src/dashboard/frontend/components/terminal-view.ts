@@ -1,10 +1,9 @@
 export const TERMINAL_VIEW_JS = `
 function XTermContainer() {
   var containerRef = preact.createRef();
-  var resizeObserverRef = preact.createRef();
+  var resizeObserverRef = { current: null };
 
-  // Re-init terminal when activeSessionId changes
-  preact.options.__xtermEffect = function() {
+  function initTerminal() {
     var container = containerRef.current;
     if (!container) return;
 
@@ -46,19 +45,15 @@ function XTermContainer() {
 
     termInstance.value = term;
     fitAddonInstance.value = fa;
-  };
+  }
 
-  // useEffect equivalent via hooks
-  var hookFn = function() {
-    preact.options.__xtermEffect();
+  preactHooks.useEffect(function() {
+    initTerminal();
     return function() {
       if (termInstance.value) { termInstance.value.dispose(); termInstance.value = null; }
       if (resizeObserverRef.current) { resizeObserverRef.current.disconnect(); }
     };
-  };
-
-  // We use preactHooks.useEffect for lifecycle
-  preactHooks.useEffect(hookFn, [activeSessionId.value]);
+  }, [activeSessionId.value]);
 
   return html\`<div id="terminal-container" ref=\${containerRef}></div>\`;
 }

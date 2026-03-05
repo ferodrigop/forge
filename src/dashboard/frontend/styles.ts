@@ -338,4 +338,11 @@ export const CSS_STYLES = `
   #new-terminal-btn:hover { background: #292e42; color: #7aa2f7; border-color: #7aa2f7; }
 
   .hidden { display: none !important; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .chat-spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid #292e42; border-top-color: #7aa2f7;
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
 `;
