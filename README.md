@@ -1,24 +1,52 @@
-# Forge
+<p align="center">
+  <img src="docs/forge-logo.png" alt="Forge" width="120" />
+</p>
 
-Terminal MCP server for Claude Code. Spawn, manage, and monitor real PTY sessions as MCP tools.
+<h1 align="center">Forge</h1>
+
+<p align="center">
+  Terminal MCP server for Claude Code. Spawn, manage, and monitor real PTY sessions as MCP tools.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.7.0-blue" alt="Version" />
+  <img src="https://img.shields.io/badge/tests-144%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
+  <img src="https://img.shields.io/badge/node-%3E%3D18-339933" alt="Node" />
+</p>
+
+---
 
 ## Why
 
-Claude Code's built-in Bash tool runs one command at a time and waits for it to finish. Forge gives Claude persistent terminal sessions — start a dev server in one, run tests in another, tail logs in a third, all concurrently.
+Claude Code's built-in Bash tool runs one command at a time. Forge gives Claude persistent terminals — run your React frontend, Java API, and Postgres migrations in parallel, monitor all three, and only read what changed. Full-stack work without the bottleneck.
 
 **Key differentiators:**
 - **Real PTY** via `node-pty` (same lib as VS Code terminal) — interactive programs, colors, TUI apps all work
 - **Incremental reads** — ring buffer with per-consumer cursors means each `read_terminal` only returns NEW output, saving context window tokens
 - **Clean screen reads** — `@xterm/headless` renders the terminal server-side, so `read_screen` returns exactly what a human would see (no ANSI escape codes)
 - **Multi-agent orchestration** — session groups, output multiplexing, event subscriptions, and templates for managing multiple concurrent sessions
-- **Web dashboard** — real-time browser UI to watch what Claude is doing across all terminals
+- **Web dashboard** — real-time Preact-based browser UI to watch what Claude is doing across all terminals, browse past chat sessions, and monitor activity
 - **Zero config** — single `npx` command in your Claude Code settings
 
 ## Quick Start
 
 ### 1. Add to Claude Code
 
-In your Claude Code MCP settings (`~/.claude/settings.json` or project `.claude/settings.json`):
+```bash
+# Basic
+claude mcp add forge -- npx forge-terminal-mcp
+
+# With web dashboard
+claude mcp add forge -- npx forge-terminal-mcp --dashboard --port 3141
+```
+
+That's it. Restart Claude Code and Forge tools are available.
+
+<details>
+<summary>Alternative: manual JSON config</summary>
+
+Add to `~/.claude/settings.json` or project `.claude/settings.json`:
 
 ```json
 {
@@ -31,9 +59,11 @@ In your Claude Code MCP settings (`~/.claude/settings.json` or project `.claude/
 }
 ```
 
+</details>
+
 ### 2. Use It
 
-Claude now has access to 19 tools across 5 categories:
+Claude now has access to 21 tools across 6 categories:
 
 **Session Lifecycle**
 ```
@@ -59,7 +89,12 @@ resize_terminal      → Change terminal dimensions
 **Search & Wait**
 ```
 grep_terminal        → Regex search across a session's output buffer
-wait_for             → Block until output matches a pattern (e.g., "Server ready")
+wait_for             → Block until output matches a pattern or process exits
+```
+
+**Execution**
+```
+run_command          → Run a command to completion, return output, auto-cleanup
 ```
 
 **Events**
@@ -71,6 +106,7 @@ unsubscribe_events   → Cancel an event subscription
 **Ops**
 ```
 health_check         → Server version, uptime, session count, memory usage
+get_session_history  → Tool call history for Claude agent sessions
 clear_history        → Clear persisted stale session entries
 ```
 
@@ -83,6 +119,10 @@ clear_history        → Clear persisted stale session entries
 > **You:** Spin up 3 Claude agents to research different parts of the codebase
 >
 > **Claude:** *(uses `spawn_claude` three times with tag "research", monitors with `list_terminals` filtered by tag, cleans up with `close_group`)*
+
+> **You:** Build and test, just give me the result
+>
+> **Claude:** *(uses `run_command` with `npm run build && npm test` — creates terminal, waits for exit, returns output, auto-cleans up)*
 
 ## Tools Reference
 
@@ -131,11 +171,23 @@ Templates with `waitFor` automatically block until the pattern appears (30s time
 | `prompt` | string | *required* | Prompt to send to Claude |
 | `cwd` | string | — | Working directory |
 | `model` | string | — | Model (e.g., "sonnet", "opus") |
-| `allowedTools` | string[] | — | Tools Claude can use |
 | `name` | string | Auto from prompt | Session name |
 | `tags` | string[] | `["claude-agent"]` | Tags (claude-agent always included) |
 | `maxBudget` | number | — | Max budget in USD |
 | `bufferSize` | number | Server default | Ring buffer size |
+| `worktree` | boolean | `false` | Create a git worktree (isolates file changes) |
+| `branch` | string | — | Branch name for worktree (required when worktree: true) |
+| `oneShot` | boolean | `false` | Run in `--print` mode (process prompt and exit) |
+
+### `run_command`
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `command` | string | *required* | Command to run (supports `&&` chaining) |
+| `cwd` | string | — | Working directory |
+| `timeout` | number | 300000 | Timeout in ms (max 5 minutes) |
+
+Creates a terminal, waits for the process to exit, returns all output, and auto-cleans up the session. Ideal for build/test/install commands.
 
 ### `write_terminal`
 
@@ -185,8 +237,9 @@ Returns `{ matches: [{ lineNumber, text, context? }], totalMatches }`.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `id` | string | *required* | Session ID |
-| `pattern` | string | *required* | Regex pattern to wait for |
+| `pattern` | string | — | Regex pattern to wait for |
 | `timeout` | number | 30000 | Timeout in ms (100–300000) |
+| `waitForExit` | boolean | `false` | Wait for process to exit instead of pattern match |
 
 Checks the existing buffer first (instant match if pattern already appeared), then watches new output. Returns `{ matched, data?, reason?, elapsed }`.
 
@@ -249,6 +302,14 @@ Available keys: `ctrl+c`, `ctrl+d`, `ctrl+z`, `ctrl+\`, `ctrl+l`, `ctrl+a`, `ctr
 
 No parameters. Returns `{ version, uptime, sessions: { active, max }, memory: { rss, heapUsed, heapTotal } }`.
 
+### `get_session_history`
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `id` | string | *required* | Session ID |
+
+Returns timestamped tool call history for Claude agent sessions.
+
 ### `clear_history`
 
 No parameters. Clears persisted stale session entries from previous server runs.
@@ -273,10 +334,16 @@ Enable the real-time web dashboard to monitor all terminals from your browser:
 ```
 
 Open `http://localhost:3141` to see:
-- Live session list with status indicators
-- Real-time terminal output via WebSocket
-- Interactive input (type directly into sessions)
-- Session switching sidebar
+- **Live terminal sessions** with real-time output via WebSocket
+- **Session grouping** — terminals organized by working directory
+- **Activity log** — tool calls and events for Claude agent sessions
+- **Status bar** — working directory, session ID, running/exited status
+- **Chat history browser** — search, browse, and continue past Claude Code conversations grouped by project
+- **Session management** — create, close, and switch between terminals
+- **Auto-follow mode** — automatically switch to newly created sessions
+- **Memory monitoring** — per-session and total RAM usage
+
+The dashboard is built with Preact + htm + Preact Signals, loaded from CDN with zero build step. All UI code is bundled as string constants inside the server binary.
 
 ## Configuration
 
@@ -309,22 +376,22 @@ Example with custom config:
 ## Architecture
 
 ```
-Claude Code  ←─stdio─→  MCP Server (19 tools + 1 resource)
-                              │
+Claude Code  <--stdio-->  MCP Server (21 tools + 1 resource)
+                              |
                          SessionManager
                          (lifecycle, groups, persistence)
-                              │
-                    ┌─────────┼─────────┐
-                    ▼         ▼         ▼
+                              |
+                    +---------+---------+
+                    v         v         v
                TerminalSession    TerminalSession    ...
-               ┌─────────────┐
-               │   node-pty   │  ← real PTY (colors, signals, TUI)
-               │  RingBuffer  │  ← 1 MB circular, per-consumer cursors
-               │ @xterm/headless │ ← server-side rendering
-               └─────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
+               +---------------+
+               |   node-pty     |  <-- real PTY (colors, signals, TUI)
+               |  RingBuffer    |  <-- 1 MB circular, per-consumer cursors
+               | @xterm/headless|  <-- server-side rendering
+               +---------------+
+                              |
+              +---------------+---------------+
+              v               v               v
          MCP Client      Dashboard WS    Event Subs
          (incremental)   (live stream)   (notifications)
 ```
@@ -336,6 +403,7 @@ Claude Code  ←─stdio─→  MCP Server (19 tools + 1 resource)
 - **Idle timeout** — sessions auto-close after 30 minutes of inactivity (configurable)
 - **Session persistence** — session metadata saved to `~/.forge/sessions.json`, reloaded as stale entries on restart
 - **Event system** — subscribe to session exit or pattern match events, delivered as MCP logging messages
+- **CLAUDECODE stripping** — spawned terminals have the `CLAUDECODE` env var removed to prevent nesting errors when Forge runs inside Claude Code
 
 ## Development
 
@@ -344,7 +412,7 @@ git clone https://github.com/ferodrigop/forge-terminal-mcp.git
 cd forge-terminal-mcp
 npm install
 npm run build       # Compile with tsup
-npm test            # 81 tests (unit + integration)
+npm test            # 144 tests (unit + integration)
 npm run typecheck   # TypeScript strict mode
 npm run lint        # ESLint
 npm run dev         # Watch mode
@@ -355,7 +423,7 @@ npm run dev         # Watch mode
 ```
 src/
   cli.ts                        # Entry point, arg parsing, stdio transport
-  server.ts                     # McpServer + 19 tool registrations + resources
+  server.ts                     # McpServer + 21 tool registrations + resources
   core/
     types.ts                    # ForgeConfig, SessionInfo, defaults
     ring-buffer.ts              # Circular buffer with multi-consumer cursors
@@ -363,14 +431,27 @@ src/
     session-manager.ts          # CRUD, max sessions, groups, persistence
     state-store.ts              # ~/.forge/sessions.json persistence
     templates.ts                # Built-in session templates
+    claude-chats.ts             # Claude Code chat session discovery
+    command-history.ts          # Tool call history tracking
   dashboard/
-    dashboard-server.ts         # HTTP + WebSocket server
-    dashboard-html.ts           # Single-page web UI
+    dashboard-server.ts         # HTTP + WebSocket + MCP transport server
+    dashboard-html.ts           # HTML assembler (imports frontend parts)
     ws-handler.ts               # WebSocket message handling
+    frontend/
+      styles.ts                 # CSS styles (Tokyo Night theme)
+      state.ts                  # Preact Signals + WebSocket + chat API
+      utils.ts                  # timeAgo, formatSize, formatToolBlock
+      app.ts                    # Root App component + JS concatenation
+      assets.ts                 # Base64-embedded favicon + logo
+      components/
+        sidebar.ts              # Session list, chat browser, connection status
+        terminal-view.ts        # XTerm container, activity log, status bar
+        chat-view.ts            # Chat message viewer with bubbles
+        modals.ts               # New terminal + delete chat modals
   utils/
     logger.ts                   # stderr-only JSON logger
     config.ts                   # CLI flags > env vars > defaults
-    control-chars.ts            # Named key → escape sequence map
+    control-chars.ts            # Named key -> escape sequence map
 test/
   unit/                         # ring-buffer, config, control-chars, state-store, templates
   integration/                  # terminal-session, session-manager, mcp-tools E2E
@@ -387,8 +468,11 @@ test/
 | Templates | 3 | Lookup, unknown template, list all |
 | Terminal Session | 8 | PTY spawn, read/write, screen render, resize, exit |
 | Session Manager | 7 | CRUD, max limit, close all, stale entries |
-| MCP Tools E2E | 35 | All 19 tools end-to-end via MCP client |
-| **Total** | **81** | |
+| MCP Tools E2E | 35 | All 21 tools end-to-end via MCP client |
+| Dashboard | 39 | HTTP API, WebSocket, chat sessions, HTML generation |
+| Command History | 10 | Event tracking, retrieval, cleanup |
+| Claude Chats | 14 | Session discovery, message parsing, search |
+| **Total** | **144** | |
 
 ## Requirements
 
