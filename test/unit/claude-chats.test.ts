@@ -13,9 +13,9 @@ const SESSION_ID = "abc12345-6789-0000-1111-222233334444";
 function createSessionContent(): string {
   return [
     JSON.stringify({ type: "summary", timestamp: "2025-06-01T10:00:00Z", model: "claude-sonnet" }),
-    JSON.stringify({ type: "human", timestamp: "2025-06-01T10:00:01Z", message: { content: "Help me build a REST API for user authentication" } }),
+    JSON.stringify({ type: "user", timestamp: "2025-06-01T10:00:01Z", message: { content: "Help me build a REST API for user authentication" } }),
     JSON.stringify({ type: "assistant", timestamp: "2025-06-01T10:00:05Z", message: { content: [{ type: "text", text: "I'll help you build that." }] } }),
-    JSON.stringify({ type: "human", timestamp: "2025-06-01T10:01:00Z", message: { content: "Add JWT support" } }),
+    JSON.stringify({ type: "user", timestamp: "2025-06-01T10:01:00Z", message: { content: "Add JWT support" } }),
   ].join("\n") + "\n";
 }
 
@@ -43,10 +43,12 @@ describe("ClaudeChats", () => {
     expect(total).toBe(1);
     expect(sessions).toHaveLength(1);
     expect(sessions[0].sessionId).toBe(SESSION_ID);
-    expect(sessions[0].project).toBe("my/api");
+    expect(sessions[0].project).toBe("projects/my/api");
+    expect(sessions[0].fullPath).toBe("/Users/testuser/projects/my/api");
     expect(sessions[0].firstMessage).toBe("Help me build a REST API for user authentication");
     expect(sessions[0].model).toBe("claude-sonnet");
-    expect(sessions[0].messageCount).toBe(4);
+    expect(sessions[0].messageCount).toBe(3); // 2 user + 1 assistant
+    expect(sessions[0].toolCount).toBe(0);
   });
 
   it("listSessions filters by project", async () => {
@@ -79,7 +81,7 @@ describe("ClaudeChats", () => {
   it("getMessages returns all messages", async () => {
     const messages = await chats.getMessages(SESSION_ID);
     expect(messages).toHaveLength(4);
-    expect(messages[1].type).toBe("human");
+    expect(messages[1].type).toBe("user");
   });
 
   it("getMessages returns empty for unknown session", async () => {
@@ -91,7 +93,7 @@ describe("ClaudeChats", () => {
   it("getMessages supports pagination", async () => {
     const messages = await chats.getMessages(SESSION_ID, { limit: 2, offset: 1 });
     expect(messages).toHaveLength(2);
-    expect(messages[0].type).toBe("human");
+    expect(messages[0].type).toBe("user");
   });
 
   it("deleteSession removes the file", async () => {
@@ -123,6 +125,25 @@ describe("ClaudeChats", () => {
 
     const { total } = await chats.listSessions();
     expect(total).toBe(1); // only the original session
+  });
+
+  it("counts tool_use lines separately in toolCount", async () => {
+    const toolSession = [
+      JSON.stringify({ type: "user", timestamp: "2025-06-01T10:00:01Z", message: { content: "Read file" } }),
+      JSON.stringify({ type: "assistant", timestamp: "2025-06-01T10:00:05Z", message: { content: [{ type: "text", text: "Reading..." }, { type: "tool_use", name: "Read", input: { file_path: "/tmp/x" } }] } }),
+      JSON.stringify({ type: "assistant", timestamp: "2025-06-01T10:00:06Z", message: { content: [{ type: "tool_use", name: "Bash", input: { command: "ls" } }] } }),
+      JSON.stringify({ type: "user", timestamp: "2025-06-01T10:01:00Z", message: { content: "Thanks" } }),
+    ].join("\n") + "\n";
+
+    const projectDir = join(tempDir, ".claude", "projects", "-Users-testuser-tooltest");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "tool-session.jsonl"), toolSession);
+    chats.invalidateCache();
+
+    const { sessions } = await chats.listSessions({ project: "tooltest" });
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].messageCount).toBe(4); // 2 user + 2 assistant
+    expect(sessions[0].toolCount).toBe(2); // 2 lines with tool_use
   });
 
   it("handles missing .claude/projects directory", async () => {

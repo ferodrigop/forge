@@ -6,8 +6,10 @@ import { logger } from "../utils/logger.js";
 export interface ChatSessionMeta {
   sessionId: string;
   project: string;
+  fullPath: string;
   firstMessage: string;
   messageCount: number;
+  toolCount: number;
   timestamp: string;
   lastTimestamp: string;
   gitBranch?: string;
@@ -34,11 +36,11 @@ function decodeProjectPath(folderName: string): string {
   return folderName.replace(/^-/, "/").replace(/-/g, "/");
 }
 
-/** Get a short display name from a project folder — last 2 path segments */
+/** Get a short display name from a project folder — last 3 path segments */
 function shortProjectName(folderName: string): string {
   const decoded = decodeProjectPath(folderName);
   const parts = decoded.split("/").filter(Boolean);
-  return parts.slice(-2).join("/");
+  return parts.slice(-3).join("/");
 }
 
 const CACHE_TTL = 30_000; // 30 seconds
@@ -181,6 +183,7 @@ export class ClaudeChats {
       }
 
       const projectName = shortProjectName(folder);
+      const fullPath = decodeProjectPath(folder);
 
       try {
         const files = await readdir(projectDir);
@@ -191,7 +194,7 @@ export class ClaudeChats {
           const sessionId = basename(file, ".jsonl");
 
           try {
-            const meta = await this.readSessionMeta(filePath, sessionId, projectName);
+            const meta = await this.readSessionMeta(filePath, sessionId, projectName, fullPath);
             if (meta) sessions.push(meta);
           } catch {
             // skip unreadable files
@@ -209,28 +212,28 @@ export class ClaudeChats {
   private async readSessionMeta(
     filePath: string,
     sessionId: string,
-    project: string
+    project: string,
+    fullPath: string
   ): Promise<ChatSessionMeta | null> {
     try {
       const fileStat = await stat(filePath);
 
-      // Read first 8KB for metadata extraction
+      // Read file for metadata extraction
       const fd = await readFile(filePath, "utf-8");
-      const lines = fd.split("\n").slice(0, 20);
+      const allLines = fd.split("\n");
+      const headerLines = allLines.slice(0, 50);
 
       let firstMessage = "";
-      let messageCount = 0;
       let timestamp = "";
       let lastTimestamp = "";
       let model: string | undefined;
       let gitBranch: string | undefined;
 
-      for (const line of lines) {
+      for (const line of headerLines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
         try {
           const obj = JSON.parse(trimmed);
-          messageCount++;
 
           // Extract timestamp
           if (obj.timestamp && !timestamp) {
@@ -240,16 +243,21 @@ export class ClaudeChats {
             lastTimestamp = obj.timestamp;
           }
 
-          // Extract first user message
-          if (!firstMessage && obj.type === "human" && obj.message) {
+          // Extract first user message (Claude Code uses "user" type, some older formats use "human")
+          if (!firstMessage && (obj.type === "user" || obj.type === "human") && obj.message) {
+            let candidate = "";
             const content = obj.message.content;
             if (typeof content === "string") {
-              firstMessage = content.slice(0, 80);
+              candidate = content.slice(0, 80);
             } else if (Array.isArray(content)) {
               const textBlock = content.find((c: Record<string, unknown>) => c.type === "text");
               if (textBlock?.text) {
-                firstMessage = String(textBlock.text).slice(0, 80);
+                candidate = String(textBlock.text).slice(0, 80);
               }
+            }
+            // Skip system artifacts like tool-use interruptions
+            if (candidate && !candidate.startsWith("[Request interrupted")) {
+              firstMessage = candidate;
             }
           }
 
@@ -270,8 +278,19 @@ export class ClaudeChats {
         }
       }
 
-      // Count total lines (approximate message count) by counting newlines
-      const totalLines = fd.split("\n").filter((l) => l.trim()).length;
+      // Count messages and tools using regex for speed (no JSON.parse per line)
+      let messageCount = 0;
+      let toolCount = 0;
+      for (const line of allLines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (/"type"\s*:\s*"(user|human|assistant)"/.test(trimmed)) {
+          messageCount++;
+        }
+        if (/"type"\s*:\s*"tool_use"/.test(trimmed) || /"tool_use"/.test(trimmed)) {
+          toolCount++;
+        }
+      }
 
       if (!timestamp) {
         timestamp = fileStat.mtime.toISOString();
@@ -283,8 +302,10 @@ export class ClaudeChats {
       return {
         sessionId,
         project,
+        fullPath,
         firstMessage: firstMessage || "(empty session)",
-        messageCount: totalLines,
+        messageCount,
+        toolCount,
         timestamp,
         lastTimestamp,
         gitBranch,

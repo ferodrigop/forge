@@ -75,6 +75,14 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   .tab-btn:hover { color: #a9b1d6; }
   .tab-btn.active { color: #7aa2f7; border-bottom-color: #7aa2f7; }
 
+  #terminals-panel, #chats-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
   #session-list, #chat-list {
     flex: 1;
     overflow-y: auto;
@@ -264,6 +272,32 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
   #session-list::-webkit-scrollbar-track, #chat-list::-webkit-scrollbar-track, #activity-log::-webkit-scrollbar-track, #chat-viewer::-webkit-scrollbar-track { background: transparent; }
   #session-list::-webkit-scrollbar-thumb, #chat-list::-webkit-scrollbar-thumb, #activity-log::-webkit-scrollbar-thumb, #chat-viewer::-webkit-scrollbar-thumb { background: #292e42; border-radius: 2px; }
 
+  /* Delete confirmation modal */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-box {
+    background: #1e2030; border: 1px solid #292e42; border-radius: 8px;
+    padding: 20px 24px; min-width: 320px; max-width: 400px;
+  }
+  .modal-box h3 { font-size: 14px; color: #c0caf5; margin-bottom: 8px; font-weight: 600; }
+  .modal-box p { font-size: 12px; color: #565f89; margin-bottom: 16px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-actions button {
+    padding: 6px 14px; border-radius: 4px; font-size: 12px;
+    cursor: pointer; border: 1px solid #292e42; font-weight: 500;
+  }
+  .modal-actions .modal-cancel {
+    background: transparent; color: #a9b1d6; border-color: #3b4261;
+  }
+  .modal-actions .modal-cancel:hover { background: #292e42; }
+  .modal-actions .modal-delete {
+    background: #f7768e22; color: #f7768e; border-color: #f7768e44;
+  }
+  .modal-actions .modal-delete:hover { background: #f7768e33; }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -358,6 +392,13 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
     clearTimeout(chatSearchTimer);
     chatSearchTimer = setTimeout(function() { loadChats(); }, 300);
   });
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(1) + ' GB';
+  }
 
   function timeAgo(isoStr) {
     if (!isoStr) return '';
@@ -676,23 +717,23 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
       groups[c.project].push(c);
     });
     Object.keys(groups).forEach(function(project) {
+      var items = groups[project];
+      var totalBytes = items.reduce(function(sum, c) { return sum + (c.sizeBytes || 0); }, 0);
       var groupEl = document.createElement('div');
       groupEl.className = 'chat-project-group';
-      groupEl.textContent = project;
+      groupEl.textContent = project + ' \\u2014 ' + items.length + ' chat' + (items.length !== 1 ? 's' : '') + ' \\u00b7 ' + formatSize(totalBytes);
+      if (items[0] && items[0].fullPath) groupEl.title = items[0].fullPath;
       chatList.appendChild(groupEl);
       groups[project].forEach(function(c) {
         var el = document.createElement('div');
         el.className = 'chat-item' + (c.sessionId === activeChatId ? ' active' : '');
-        var sizeKB = Math.round(c.sizeBytes / 1024);
         el.innerHTML =
-          '<button class="close-btn" title="Delete chat">\\u00d7</button>' +
+          '<button class="close-btn" title="Delete chat"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4h9.34z"/></svg></button>' +
           '<div class="chat-msg">' + escapeHtml(c.firstMessage) + '</div>' +
-          '<div class="chat-meta">' + c.messageCount + ' msgs \\u00b7 ' + sizeKB + 'KB \\u00b7 ' + timeAgo(c.lastTimestamp) + (c.model ? ' \\u00b7 ' + c.model : '') + '</div>';
+          '<div class="chat-meta">' + c.messageCount + ' msgs' + (c.toolCount ? ' \\u00b7 ' + c.toolCount + ' tools' : '') + ' \\u00b7 ' + formatSize(c.sizeBytes) + ' \\u00b7 ' + timeAgo(c.lastTimestamp) + (c.model ? ' \\u00b7 ' + c.model : '') + '</div>';
         el.querySelector('.close-btn').onclick = function(e) {
           e.stopPropagation();
-          if (confirm('Delete this chat session?')) {
-            fetch('/api/chats/' + c.sessionId, { method: 'DELETE' }).then(function() { loadChats(); });
-          }
+          showDeleteModal(c.sessionId);
         };
         el.onclick = function() { openChat(c.sessionId); };
         chatList.appendChild(el);
@@ -743,7 +784,7 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
     for (var i = 0; i < messages.length; i++) {
       var m = messages[i];
       var role = m.type || m.role || 'unknown';
-      if (role === 'human') {
+      if (role === 'human' || role === 'user') {
         var text = '';
         if (m.message && m.message.content) {
           if (typeof m.message.content === 'string') text = m.message.content;
@@ -869,6 +910,27 @@ export const DASHBOARD_HTML = `<!DOCTYPE html>
       'Agent': '\\x1b[35m@\\x1b[0m', 'TaskCreate': '\\x1b[33m\\u25a1\\x1b[0m', 'TaskUpdate': '\\x1b[32m\\u2713\\x1b[0m',
     })[toolName] || '\\x1b[90m*\\x1b[0m';
     term.write(icon + ' \\x1b[1m' + toolName + '\\x1b[0m' + (detail ? '\\x1b[90m' + detail + '\\x1b[0m' : '') + '\\r\\n');
+  }
+
+  function showDeleteModal(sessionId) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML =
+      '<div class="modal-box">' +
+        '<h3>Delete this chat session?</h3>' +
+        '<p>This action cannot be undone. The session file will be permanently removed.</p>' +
+        '<div class="modal-actions">' +
+          '<button class="modal-cancel">Cancel</button>' +
+          '<button class="modal-delete">Delete</button>' +
+        '</div>' +
+      '</div>';
+    overlay.querySelector('.modal-cancel').onclick = function() { overlay.remove(); };
+    overlay.querySelector('.modal-delete').onclick = function() {
+      overlay.remove();
+      fetch('/api/chats/' + sessionId, { method: 'DELETE' }).then(function() { loadChats(); });
+    };
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
   }
 
   connect();
