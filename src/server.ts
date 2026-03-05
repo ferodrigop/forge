@@ -364,6 +364,8 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
   );
 
   // --- read_terminal ---
+  const MAX_READ_BYTES = 30_000; // 30KB cap to prevent MCP tool result token overflow
+
   server.tool(
     "read_terminal",
     "Read NEW output from a terminal since last read (incremental). Token-efficient — only returns what changed.",
@@ -376,11 +378,21 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
         const { data, droppedBytes } = session.read();
         const info = session.getInfo();
 
+        const truncated = data.length > MAX_READ_BYTES;
+        const finalData = truncated
+          ? data.slice(data.length - MAX_READ_BYTES)
+          : data;
+
         const result: Record<string, unknown> = {
           status: info.status,
-          data,
+          data: finalData,
           bytes: data.length,
         };
+
+        if (truncated) {
+          result.truncated = true;
+          result.warning = `Output truncated: showing last ${MAX_READ_BYTES} of ${data.length} bytes. Use read_screen for a clean snapshot.`;
+        }
 
         if (droppedBytes > 0) {
           result.droppedBytes = droppedBytes;
@@ -826,12 +838,19 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
             results.push({ id, status: info.status, data: screen });
           } else {
             const { data, droppedBytes } = session.read();
+            const truncated = data.length > MAX_READ_BYTES;
+            const finalData = truncated
+              ? data.slice(data.length - MAX_READ_BYTES)
+              : data;
             const entry: Record<string, unknown> = {
               id,
               status: info.status,
-              data,
+              data: finalData,
               bytes: data.length,
             };
+            if (truncated) {
+              entry.truncated = true;
+            }
             if (droppedBytes > 0) {
               entry.droppedBytes = droppedBytes;
             }
