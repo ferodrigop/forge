@@ -122,7 +122,7 @@ export const CSS_STYLES = `
     overflow: hidden; text-overflow: ellipsis; color: #c0caf5;
     display: flex; align-items: center; gap: 6px;
   }
-  .session-item .session-cmd .ram { font-size: 11px; color: #565f89; font-weight: 400; flex-shrink: 0; }
+  .session-item .session-cmd .ram { font-size: 11px; color: #7dcfff; font-weight: 400; flex-shrink: 0; }
   .session-item .session-meta {
     font-size: 11px; color: #565f89; font-family: monospace;
     display: flex; align-items: center; gap: 6px;
@@ -189,6 +189,21 @@ export const CSS_STYLES = `
     display: flex; align-items: center; justify-content: space-between;
   }
   #terminal-header .session-label { color: #7aa2f7; font-weight: 500; }
+  #terminal-header .header-time { font-size: 11px; color: #565f89; }
+
+  .claude-badge {
+    font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+    margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .claude-badge.waiting { background: #1a3a5c; color: #7aa2f7; }
+  .claude-badge.working { background: #1a3a2a; color: #9ece6a; }
+  .claude-badge.permission { background: #3a2a1a; color: #e0af68; }
+
+  .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #9ece6a;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   #terminal-container { flex: 1; padding: 8px; min-height: 0; }
 

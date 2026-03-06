@@ -7,6 +7,7 @@ const activeModal = signal(null); // { type: 'newTerminal' } | { type: 'deleteCh
 const termInstance = signal(null);
 const fitAddonInstance = signal(null);
 const sessionMemory = signal({});
+const sessionTokens = signal({}); // sessionId -> { totalBytesWritten, totalBytesRead, estimatedTokens }
 const totalMemoryMB = signal(0);
 const activityEvents = signal({}); // sessionId -> events[]
 const activityLogOpen = signal(true);
@@ -16,6 +17,7 @@ const collapsedGroups = signal({});
 const collapsedTermGroups = signal({});
 const streamJsonSessions = signal({});
 const wsConnected = signal(false);
+const termTitle = signal('');
 const chatLoading = signal(false);
 const chatMessages = signal([]);
 var jsonBuf = '';
@@ -84,8 +86,13 @@ function handleMessage(msg) {
       totalMemoryMB.value = msg.totalMemoryMB || 0;
       if (msg.sessions) {
         var mem = Object.assign({}, sessionMemory.value);
-        for (var j = 0; j < msg.sessions.length; j++) mem[msg.sessions[j].id] = msg.sessions[j].memoryMB;
+        var tok = Object.assign({}, sessionTokens.value);
+        for (var j = 0; j < msg.sessions.length; j++) {
+          mem[msg.sessions[j].id] = msg.sessions[j].memoryMB;
+          if (msg.sessions[j].tokenUsage) tok[msg.sessions[j].id] = msg.sessions[j].tokenUsage;
+        }
         sessionMemory.value = mem;
+        sessionTokens.value = tok;
       }
       break;
     case 'output':
@@ -123,6 +130,7 @@ function selectSession(id) {
   activeChatId.value = null;
   // Set pendingSubscribe — XTermContainer will subscribe after terminal is fit
   pendingSubscribe.value = id;
+  termTitle.value = '';
   activeSessionId.value = id;
 }
 

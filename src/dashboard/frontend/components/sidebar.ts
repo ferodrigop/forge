@@ -67,13 +67,64 @@ function SessionItem(props) {
   \`;
 }
 
+function TerminalGroup(props) {
+  var label = props.label;
+  var items = props.items;
+  var isCollapsed = !!collapsedTermGroups.value[label];
+  var running = items.filter(function(s) { return s.status === 'running'; }).length;
+  var stats = running + '/' + items.length;
+
+  return html\`
+    <div>
+      <div
+        class="chat-project-group"
+        title=\${items[0] && items[0].cwd ? items[0].cwd : ''}
+        onClick=\${function() {
+          var cg = Object.assign({}, collapsedTermGroups.value);
+          cg[label] = !cg[label];
+          collapsedTermGroups.value = cg;
+        }}
+      >
+        <span class=\${'chevron' + (isCollapsed ? ' collapsed' : '')}>\u25bc</span>
+        <span class="group-name">\${label}</span>
+        <span class="group-stats">\${stats}</span>
+      </div>
+      \${!isCollapsed ? items.map(function(s) {
+        return html\`<\${SessionItem} key=\${s.id} session=\${s} />\`;
+      }) : null}
+    </div>
+  \`;
+}
+
 function SessionList() {
   var ss = sessions.value;
   if (ss.length === 0) {
     return html\`<div style="padding:12px;color:#3b4261;font-size:12px;">No sessions</div>\`;
   }
-  return html\`\${ss.map(function(s) {
-    return html\`<\${SessionItem} key=\${s.id} session=\${s} />\`;
+
+  // Group by shortened cwd
+  var groups = {};
+  ss.forEach(function(s) {
+    var cwd = s.cwd || 'unknown';
+    var label;
+    try { label = cwd.replace(/^\\/Users\\/[^/]+/, '~').replace(/^\\/home\\/[^/]+/, '~'); }
+    catch(e) { label = cwd; }
+    var parts = label.split('/').filter(function(p) { return p; });
+    if (parts.length > 0) label = parts[parts.length - 1];
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(s);
+  });
+
+  var keys = Object.keys(groups);
+  // If only one group, render flat
+  if (keys.length <= 1) {
+    return html\`\${ss.map(function(s) {
+      return html\`<\${SessionItem} key=\${s.id} session=\${s} />\`;
+    })}\`;
+  }
+
+  return html\`\${keys.map(function(label) {
+    return html\`<\${TerminalGroup} key=\${label} label=\${label} items=\${groups[label]} />\`;
   })}\`;
 }
 
@@ -173,7 +224,7 @@ function ConnectionStatus() {
     label = 'Connected | ' + running + ' session' + (running !== 1 ? 's' : '');
     var mem = totalMemoryMB.value;
     if (mem > 0) {
-      label += ' | ' + (mem >= 1024 ? (mem / 1024).toFixed(1) + ' GB' : mem + ' MB');
+      label += ' | RAM ' + (mem >= 1024 ? (mem / 1024).toFixed(1) + ' GB' : mem + ' MB');
     }
   } else {
     label = 'Disconnected \\u2014 reconnecting...';

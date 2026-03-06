@@ -41,6 +41,7 @@ function XTermContainer() {
 
     term.onData(function(data) { wsSend({ type: 'input', sessionId: activeSessionId.value, data: data }); });
     term.onResize(function(size) { wsSend({ type: 'resize', sessionId: activeSessionId.value, cols: size.cols, rows: size.rows }); });
+    term.onTitleChange(function(title) { termTitle.value = title || ''; });
 
     termInstance.value = term;
     fitAddonInstance.value = fa;
@@ -132,9 +133,24 @@ function TerminalStatusBar() {
   var home = '';
   try { home = cwd.replace(/^\\/Users\\/[^/]+/, '~').replace(/^\\/home\\/[^/]+/, '~'); } catch(e) { home = cwd; }
 
+  // Token usage from live stats
+  var tok = sessionTokens.value[activeSession.id];
+  var tokenText = '';
+  if (tok) {
+    var t = tok.estimatedTokens || 0;
+    tokenText = t >= 1000000 ? (t / 1000000).toFixed(1) + 'M tokens'
+      : t >= 1000 ? (t / 1000).toFixed(1) + 'k tokens'
+      : t + ' tokens';
+    var bw = tok.totalBytesWritten || 0;
+    var br = tok.totalBytesRead || 0;
+    var fmtBytes = function(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' B'; };
+    tokenText += ' (\\u2191' + fmtBytes(bw) + ' \\u2193' + fmtBytes(br) + ')';
+  }
+
   return html\`
     <div id="terminal-status-bar">
       <span class="status-bar-item" title=\${cwd}>\u{1F4C2} \${home}</span>
+      \${tokenText ? html\`<span class="status-bar-item" style="color:#7dcfff">\${tokenText}</span>\` : null}
       <span class="status-bar-spacer"></span>
       <span class="status-bar-item">\${activeSession.id}</span>
       <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>
@@ -142,18 +158,39 @@ function TerminalStatusBar() {
   \`;
 }
 
+function ClaudeStatusBadge() {
+  var title = termTitle.value;
+  if (!title || title.indexOf('Claude Code') < 0) return null;
+
+  // ✳ = idle/waiting, spinner chars (⠂⠐⠈⠠⠄⠁) = processing
+  var isWaiting = title.indexOf('\\u2733') >= 0; // ✳
+  var hasPermission = title.indexOf('\\u25b6\\u25b6') >= 0; // ▶▶ permission prompt
+
+  if (hasPermission) {
+    return html\`<span class="claude-badge permission">\\u26a0 Needs permission</span>\`;
+  }
+  if (isWaiting) {
+    return html\`<span class="claude-badge waiting">Waiting for input</span>\`;
+  }
+  return html\`<span class="claude-badge working"><span class="pulse-dot"></span> Working</span>\`;
+}
+
 function TerminalView() {
   var activeSession = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
   var headerLabel = activeSession && activeSession.name ? activeSession.name : activeSessionId.value;
-  var showLog = isClaudeSession();
+
+  var startedText = '';
+  if (activeSession && activeSession.createdAt) {
+    startedText = 'Started ' + timeAgo(activeSession.createdAt);
+  }
 
   return html\`
     <div id="main">
       <div id="terminal-header">
-        <span>Session: <span class="session-label">\${headerLabel}</span></span>
+        <span>Session: <span class="session-label">\${headerLabel}</span> <\${ClaudeStatusBadge} /></span>
+        \${startedText ? html\`<span class="header-time">\${startedText}</span>\` : null}
       </div>
       <\${XTermContainer} />
-      \${showLog ? html\`<\${ActivityLog} />\` : null}
       <\${TerminalStatusBar} />
     </div>
   \`;

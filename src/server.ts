@@ -188,10 +188,11 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
   // --- spawn_claude ---
   server.tool(
     "spawn_claude",
-    "Spawn a Claude Code agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous --print mode. Use worktree + branch to run in an isolated git worktree.",
+    "Spawn a Claude Code agent in a new terminal session. IMPORTANT: cwd must be set explicitly — there is no session inheritance. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous --print mode. Use worktree + branch to run in an isolated git worktree.",
     {
       prompt: z.string().describe("The prompt to send to Claude"),
-      cwd: z.string().optional().describe("Working directory for Claude"),
+      cwd: z.string().optional().describe("Working directory for Claude (REQUIRED for worktrees — must point to the worktree path, not a session ID)"),
+      fromSession: z.string().optional().describe("Copy cwd from an existing session ID (alternative to setting cwd manually)"),
       model: z.string().optional().describe("Model to use (e.g., 'sonnet', 'opus')"),
       name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
       tags: z.array(z.string()).max(10).optional().describe("Additional tags (claude-agent is always included)"),
@@ -203,7 +204,18 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     },
     async (params) => {
       try {
+        // Resolve cwd: explicit > fromSession > process.cwd()
         let effectiveCwd = params.cwd;
+        if (!effectiveCwd && params.fromSession) {
+          const sourceSession = manager.get(params.fromSession);
+          if (!sourceSession) {
+            return {
+              content: [{ type: "text" as const, text: `Error: fromSession "${params.fromSession}" not found` }],
+              isError: true,
+            };
+          }
+          effectiveCwd = sourceSession.getInfo().cwd;
+        }
         let worktreePath: string | undefined;
 
         // Create git worktree if requested

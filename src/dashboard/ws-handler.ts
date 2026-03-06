@@ -195,10 +195,18 @@ export class WsHandler {
   private broadcastStats(): void {
     if (this.clients.size === 0) return;
     const stats = this.manager.getStats();
+    // Include token usage per session for live dashboard updates
+    const sessionsWithTokens = stats.sessions.map((s) => {
+      const session = this.manager.get(s.id);
+      return {
+        ...s,
+        tokenUsage: session?.getStats() ?? null,
+      };
+    });
     this.broadcast({
       type: "stats",
       totalMemoryMB: stats.totalMemoryMB,
-      sessions: stats.sessions,
+      sessions: sessionsWithTokens,
     });
   }
 
