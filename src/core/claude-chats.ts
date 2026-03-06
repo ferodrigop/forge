@@ -329,6 +329,7 @@ export class ClaudeChats {
       let model: string | undefined;
       let gitBranch: string | undefined;
       let parentSessionId: string | undefined;
+      let cwdFromFile: string | undefined;
 
       for (const line of headerLines) {
         const trimmed = line.trim();
@@ -372,12 +373,14 @@ export class ClaudeChats {
             model = obj.model;
           }
 
-          // Extract git branch from cwd or metadata
-          if (!gitBranch && obj.cwd) {
-            // Try to infer branch from path
+          // Extract cwd and git branch from session data
+          if (obj.cwd) {
             const cwdStr = String(obj.cwd);
-            const branchMatch = cwdStr.match(/feature\/([^/]+)/);
-            if (branchMatch) gitBranch = `feature/${branchMatch[1]}`;
+            if (!cwdFromFile) cwdFromFile = cwdStr;
+            if (!gitBranch) {
+              const branchMatch = cwdStr.match(/feature\/([^/]+)/);
+              if (branchMatch) gitBranch = `feature/${branchMatch[1]}`;
+            }
           }
         } catch {
           continue;
@@ -409,7 +412,7 @@ export class ClaudeChats {
         sessionId,
         parentSessionId,
         project,
-        fullPath,
+        fullPath: cwdFromFile || fullPath,
         firstMessage: firstMessage || "(empty session)",
         messageCount,
         toolCount,

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer } from "ws";
@@ -138,11 +139,19 @@ export class DashboardServer {
       if (continueMatch && req.method === "POST") {
         const chatId = continueMatch[1];
         try {
+          // Look up the chat's project path so we resume in the correct cwd
+          const chatMeta = await this.claudeChats.findSession(chatId);
+          if (!chatMeta?.fullPath || !existsSync(chatMeta.fullPath)) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Project directory not found for this chat" }));
+            return;
+          }
           const session = this.manager.create({
             command: this.config?.claudePath || "claude",
-            args: ["--continue", chatId],
+            args: ["--resume", chatId],
             name: `claude: continue ${chatId.slice(0, 8)}...`,
             tags: ["claude-agent"],
+            cwd: chatMeta.fullPath,
           });
           session.preserveAfterExit();
           res.writeHead(200, { "Content-Type": "application/json" });

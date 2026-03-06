@@ -270,10 +270,14 @@ function openChat(chatId) {
 }
 
 function continueChat(chatId) {
-  fetch('/api/chats/' + chatId + '/continue', { method: 'POST' }).then(function(r) { return r.json(); }).then(function() {
+  fetch('/api/chats/' + chatId + '/continue', { method: 'POST' }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Continue failed'); });
+    return r.json();
+  }).then(function(data) {
     currentTab.value = 'terminals';
     activeChatId.value = null;
-  }).catch(function(err) { console.error('Continue failed', err); });
+    if (data && data.id) selectSession(data.id);
+  }).catch(function(err) { alert(err.message || 'Continue failed'); });
 }
 
 function deleteChat(chatId) {
