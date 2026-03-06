@@ -201,6 +201,7 @@ export class WsHandler {
       return {
         ...s,
         tokenUsage: session?.getStats() ?? null,
+        claudeState: session?.claudeState ?? null,
       };
     });
     this.broadcast({

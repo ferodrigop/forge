@@ -93,6 +93,16 @@ function handleMessage(msg) {
         }
         sessionMemory.value = mem;
         sessionTokens.value = tok;
+        // Merge claudeState into sessions for sidebar rendering
+        var csMap = {};
+        for (var k = 0; k < msg.sessions.length; k++) {
+          if (msg.sessions[k].claudeState) csMap[msg.sessions[k].id] = msg.sessions[k].claudeState;
+        }
+        if (Object.keys(csMap).length > 0) {
+          sessions.value = sessions.value.map(function(s) {
+            return csMap[s.id] ? Object.assign({}, s, { claudeState: csMap[s.id] }) : s;
+          });
+        }
       }
       break;
     case 'output':

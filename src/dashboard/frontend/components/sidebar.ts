@@ -58,6 +58,7 @@ function SessionItem(props) {
         </div>
         <div class="session-meta">\${metaText}</div>
       </div>
+      \${s.claudeState === 'blocked' ? html\`<span class="blocked-icon" title="Needs attention">!</span>\` : null}
       <button
         class="close-btn"
         title="Close session"

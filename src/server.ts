@@ -318,7 +318,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
         if (!isOneShot) {
           setTimeout(() => {
             try {
-              session.write(params.prompt + "\n");
+              session.write(params.prompt + "\r");
             } catch {
               // Session may have exited before we could write
             }

@@ -159,17 +159,17 @@ function TerminalStatusBar() {
 }
 
 function ClaudeStatusBadge() {
-  var title = termTitle.value;
-  if (!title || title.indexOf('Claude Code') < 0) return null;
+  var activeSession = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
+  if (!activeSession || !activeSession.tags || activeSession.tags.indexOf('claude-agent') < 0) return null;
+  if (activeSession.status === 'exited') return null;
 
-  // ✳ = idle/waiting, spinner chars (⠂⠐⠈⠠⠄⠁) = processing
-  var isWaiting = title.indexOf('\\u2733') >= 0; // ✳
-  var hasPermission = title.indexOf('\\u25b6\\u25b6') >= 0; // ▶▶ permission prompt
-
-  if (hasPermission) {
-    return html\`<span class="claude-badge permission">\\u26a0 Needs permission</span>\`;
+  if (activeSession.claudeState === 'blocked') {
+    return html\`<span class="claude-badge permission">Needs attention</span>\`;
   }
-  if (isWaiting) {
+
+  var title = termTitle.value;
+  if (!title || title.indexOf('Claude') < 0) return null;
+  if (title.indexOf('\\u2733') >= 0) {
     return html\`<span class="claude-badge waiting">Waiting for input</span>\`;
   }
   return html\`<span class="claude-badge working"><span class="pulse-dot"></span> Working</span>\`;

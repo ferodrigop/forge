@@ -40,6 +40,7 @@ export class TerminalSession {
   private onExitCallback?: (id: string, exitCode: number) => void;
   private dataListeners: Array<(data: string) => void> = [];
   private exitListeners: Array<(id: string, exitCode: number) => void> = [];
+  private _termTitle: string = "";
 
   constructor(opts: TerminalSessionOptions) {
     this.id = opts.id;
@@ -66,6 +67,10 @@ export class TerminalSession {
       rows,
       cwd: this.cwd,
       env: (() => { const e: Record<string, string> = { ...process.env, ...opts.env } as Record<string, string>; delete e.CLAUDECODE; return e; })(),
+    });
+
+    this.xterm.onTitleChange((title: string) => {
+      this._termTitle = title;
     });
 
     this.ptyProcess.onData((data: string) => {
@@ -96,6 +101,30 @@ export class TerminalSession {
 
   get exitCode(): number | undefined {
     return this._exitCode;
+  }
+
+  get termTitle(): string {
+    return this._termTitle;
+  }
+
+  /** Derive Claude Code state from terminal title + screen. Returns null for non-Claude sessions. */
+  get claudeState(): "blocked" | null {
+    if (!this.tags?.includes("claude-agent")) return null;
+    if (this._status === "exited") return null;
+    const t = this._termTitle;
+    if (!t || !t.includes("Claude")) return null;
+    // Only check when idle (✳ in title). Spinner = actively working, no alert needed.
+    if (!t.includes("\u2733")) return null;
+    // Check screen for permission/question prompts
+    const screen = this.readScreen();
+    if (
+      screen.includes("Do you want to proceed?") ||
+      screen.includes("Yes, allow") ||
+      screen.includes("Needs permission")
+    ) {
+      return "blocked";
+    }
+    return null;
   }
 
   get pid(): number {
@@ -238,6 +267,7 @@ export class TerminalSession {
       ...(this._exitedAt && { exitedAt: this._exitedAt.toISOString() }),
       memoryMB: this.getMemoryMB(),
       tokenUsage: this.getStats(),
+      ...(this.claudeState && { claudeState: this.claudeState }),
     };
   }
 

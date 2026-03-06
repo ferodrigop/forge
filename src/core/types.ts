@@ -28,6 +28,7 @@ export interface SessionInfo {
     totalBytesRead: number;
     estimatedTokens: number;
   };
+  claudeState?: "blocked";
 }
 
 export type SessionStatus = "running" | "exited";

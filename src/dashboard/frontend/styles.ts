@@ -116,6 +116,20 @@ export const CSS_STYLES = `
   .session-item .status-dot.running { background: #9ece6a; box-shadow: 0 0 4px #9ece6a88; }
   .session-item .status-dot.exited { background: #565f89; }
 
+  .session-item .blocked-icon {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #7aa2f7; color: #1a1b26;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; cursor: default;
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
   .session-item .session-info { flex: 1; min-width: 0; }
   .session-item .session-cmd {
     font-size: 13px; font-weight: 500; white-space: nowrap;
