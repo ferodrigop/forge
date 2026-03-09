@@ -72,6 +72,52 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     }
   );
 
+  // --- revive_terminal ---
+  server.tool(
+    "revive_terminal",
+    "Recreate a previously exited terminal session with the same command, working directory, name, tags, and dimensions. The old session is removed and a fresh one is spawned.",
+    {
+      sessionId: z.string().describe("ID of the exited session to revive"),
+      name: z.string().max(100).optional().describe("Override session name"),
+    },
+    async (params) => {
+      try {
+        const stale = manager.findExited(params.sessionId);
+        if (!stale) {
+          return {
+            content: [{ type: "text" as const, text: `Session "${params.sessionId}" not found or still running. Only exited sessions can be revived.` }],
+            isError: true,
+          };
+        }
+
+        manager.removeStale(params.sessionId);
+
+        const session = manager.create({
+          command: stale.command,
+          cwd: stale.cwd,
+          cols: stale.cols,
+          rows: stale.rows,
+          name: params.name ?? stale.name,
+          tags: stale.tags,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ revived: true, oldId: params.sessionId, ...session.getInfo() }, null, 2),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // --- create_from_template ---
   server.tool(
     "create_from_template",

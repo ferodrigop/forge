@@ -59,6 +59,11 @@ function SessionItem(props) {
         <div class="session-meta">\${metaText}</div>
       </div>
       \${s.claudeState === 'blocked' ? html\`<span class="blocked-icon" title="Needs attention">!</span>\` : null}
+      \${s.status === 'exited' ? html\`<button
+        class="revive-btn"
+        title="Revive session"
+        onClick=\${function(e) { e.stopPropagation(); reviveSession(s.id); }}
+      >\u21bb</button>\` : null}
       <button
         class="close-btn"
         title="Close session"
@@ -117,13 +122,6 @@ function SessionList() {
   });
 
   var keys = Object.keys(groups);
-  // If only one group, render flat
-  if (keys.length <= 1) {
-    return html\`\${ss.map(function(s) {
-      return html\`<\${SessionItem} key=\${s.id} session=\${s} />\`;
-    })}\`;
-  }
-
   return html\`\${keys.map(function(label) {
     return html\`<\${TerminalGroup} key=\${label} label=\${label} items=\${groups[label]} />\`;
   })}\`;

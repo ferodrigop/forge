@@ -119,6 +119,30 @@ export class WsHandler {
         break;
       }
 
+      case "revive": {
+        const sessionId = String(msg.sessionId);
+        const stale = this.manager.findExited(sessionId);
+        if (!stale) {
+          this.send(client.ws, { type: "error", message: `Session "${sessionId}" not found or still running` });
+          break;
+        }
+        try {
+          this.manager.removeStale(sessionId);
+          this.manager.create({
+            command: stale.command,
+            cwd: stale.cwd,
+            cols: stale.cols,
+            rows: stale.rows,
+            name: stale.name,
+            tags: stale.tags,
+          });
+          logger.info("Session revived via dashboard", { oldId: sessionId });
+        } catch (err) {
+          this.send(client.ws, { type: "error", message: `Failed to revive: ${(err as Error).message}` });
+        }
+        break;
+      }
+
       case "get_history": {
         const sid = String(msg.sessionId);
         this.manager.commandHistory.getHistory(sid).then((events) => {

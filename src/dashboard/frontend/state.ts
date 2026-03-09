@@ -108,6 +108,7 @@ function handleMessage(msg) {
     case 'output':
       if (msg.sessionId === activeSessionId.value && termInstance.value) {
         termInstance.value.write(msg.data);
+        termInstance.value.scrollToBottom();
       }
       break;
     case 'history':
@@ -154,6 +155,10 @@ function completeSubscribe(id) {
 
 function closeSession(id) {
   wsSend({ type: 'close', sessionId: id });
+}
+
+function reviveSession(id) {
+  wsSend({ type: 'revive', sessionId: id });
 }
 
 function isClaudeSession() {

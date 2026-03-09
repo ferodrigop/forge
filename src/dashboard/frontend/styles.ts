@@ -142,6 +142,15 @@ export const CSS_STYLES = `
     display: flex; align-items: center; gap: 6px;
   }
 
+  .session-item .revive-btn {
+    flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
+    border: none; background: transparent; color: #565f89;
+    font-size: 14px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
+  }
+  .session-item:hover .revive-btn { opacity: 1; }
+  .session-item .revive-btn:hover { background: #9ece6a22; color: #9ece6a; }
+
   .session-item .close-btn {
     flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
     border: none; background: transparent; color: #565f89;

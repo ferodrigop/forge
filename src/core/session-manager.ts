@@ -186,6 +186,32 @@ export class SessionManager {
     return count;
   }
 
+  /** Find an exited session by ID (active exited or stale entry) */
+  findExited(id: string): SessionInfo | undefined {
+    // Check active sessions first (exited but not yet swept)
+    const active = this.sessions.get(id);
+    if (active) {
+      const info = active.getInfo();
+      if (info.status === "exited") return info;
+      return undefined; // Still running — can't revive
+    }
+    // Check stale entries
+    return this.staleEntries.find((s) => s.id === id);
+  }
+
+  /** Remove a stale entry by ID (used after reviving) */
+  removeStale(id: string): void {
+    // Remove from stale entries
+    this.staleEntries = this.staleEntries.filter((s) => s.id !== id);
+    // Remove from active sessions if exited
+    const session = this.sessions.get(id);
+    if (session && session.getInfo().status === "exited") {
+      session.close();
+      this.sessions.delete(id);
+      this.emitter.emit("sessionClosed", { ...session.getInfo(), status: "exited" });
+    }
+  }
+
   /** Clear persisted stale entries */
   async clearHistory(): Promise<void> {
     this.staleEntries = [];
