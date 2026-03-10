@@ -344,6 +344,10 @@ function createTerminalInDir(cwd) {
 }
 
 function createClaudeSession(cwd) {
-  createTerminal({ command: 'claude', cwd: cwd, tags: ['claude-agent'] });
+  createTerminal({ agent: 'claude', cwd: cwd });
+}
+
+function createCodexSession(cwd) {
+  createTerminal({ agent: 'codex', cwd: cwd });
 }
 `;

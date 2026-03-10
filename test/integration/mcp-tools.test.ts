@@ -214,6 +214,79 @@ describe("MCP Tools E2E", () => {
     expect(info.tags).toContain("research");
   });
 
+  // --- spawn_codex tests ---
+
+  it("spawn_codex creates session with auto-name and codex-agent tag", async () => {
+    const result = await client.callTool({
+      name: "spawn_codex",
+      arguments: { prompt: "fix the tests" },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.name).toBe("codex: fix the tests");
+    expect(info.tags).toContain("codex-agent");
+    expect(info.command).toMatch(/codex$/);
+  });
+
+  it("spawn_codex accepts name/tags overrides", async () => {
+    const result = await client.callTool({
+      name: "spawn_codex",
+      arguments: {
+        prompt: "test prompt",
+        name: "custom-codex",
+        tags: ["research"],
+      },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.name).toBe("custom-codex");
+    expect(info.tags).toContain("codex-agent");
+    expect(info.tags).toContain("research");
+  });
+
+  it("spawn_codex without prompt creates interactive session", async () => {
+    const result = await client.callTool({
+      name: "spawn_codex",
+      arguments: {},
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.name).toBe("codex: interactive");
+    expect(info.tags).toContain("codex-agent");
+  });
+
+  it("spawn_codex oneShot requires prompt", async () => {
+    const result = await client.callTool({
+      name: "spawn_codex",
+      arguments: { oneShot: true },
+    });
+    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+    expect(text).toContain("prompt");
+    expect(result.isError).toBe(true);
+  });
+
+  it("spawn_codex fromSession copies cwd", async () => {
+    // Create a source session
+    const source = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", cwd: "/tmp" },
+    });
+    const sourceInfo = JSON.parse((source.content as Array<{ type: string; text: string }>)[0].text);
+
+    const result = await client.callTool({
+      name: "spawn_codex",
+      arguments: { prompt: "hello", fromSession: sourceInfo.id },
+    });
+    const info = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(info.cwd).toBe("/tmp");
+  });
+
+  it("spawn_codex fromSession with invalid id returns error", async () => {
+    const result = await client.callTool({
+      name: "spawn_codex",
+      arguments: { prompt: "hello", fromSession: "nonexistent" },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("not found");
+  });
+
   // --- MCP Resource tests ---
 
   it("listResources returns sessions", async () => {

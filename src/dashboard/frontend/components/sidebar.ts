@@ -59,7 +59,7 @@ function SessionItem(props) {
         <div class="session-meta">\${metaText}</div>
       </div>
       \${s.claudeState === 'blocked' && s.status === 'running' ? html\`<span class="blocked-icon" title="Needs attention">!</span>\` : null}
-      \${s.status === 'exited' && !(s.tags && s.tags.indexOf('claude-agent') >= 0) ? html\`<button
+      \${s.status === 'exited' && !(s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0)) ? html\`<button
         class="revive-btn"
         title="Revive session"
         onClick=\${function(e) { e.stopPropagation(); reviveSession(s.id); }}
@@ -120,6 +120,12 @@ function TerminalGroup(props) {
     createClaudeSession(cwd);
   }
 
+  function onNewCodex(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createCodexSession(cwd);
+  }
+
   // Close popover on outside click
   preactHooks.useEffect(function() {
     if (!popoverOpen) return;
@@ -161,6 +167,10 @@ function TerminalGroup(props) {
               <button class="group-popover-item" onClick=\${onNewClaude}>
                 <span class="claude-icon">\u2726</span>
                 <span>Claude Code</span>
+              </button>
+              <button class="group-popover-item" onClick=\${onNewCodex}>
+                <span class="codex-icon">\u25c8</span>
+                <span>Codex</span>
               </button>
             </div>
           \` : null}

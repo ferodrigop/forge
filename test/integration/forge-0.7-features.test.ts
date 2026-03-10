@@ -34,6 +34,7 @@ const TEST_CONFIG: ForgeConfig = {
   dashboardPort: 0,
   shell: "/bin/sh",
   claudePath: "echo", // safe substitute
+  codexPath: "echo", // safe substitute
   exitedTtl: 3_600_000,
 };
 

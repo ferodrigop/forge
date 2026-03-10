@@ -6,6 +6,7 @@ export interface ForgeConfig {
   dashboardPort: number;
   shell: string;
   claudePath: string;
+  codexPath: string;
   authToken?: string;
   exitedTtl: number;
 }
@@ -47,6 +48,7 @@ export const DEFAULT_CONFIG: ForgeConfig = {
   dashboardPort: 3141,
   shell: process.env.SHELL || "/bin/bash",
   claudePath: process.env.FORGE_CLAUDE_PATH || "claude",
+  codexPath: process.env.FORGE_CODEX_PATH || "codex",
   authToken: process.env.FORGE_AUTH_TOKEN,
   exitedTtl: 3_600_000, // 1 hour
 };

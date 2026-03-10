@@ -311,6 +311,7 @@ Daemon options (forge start):
   --buffer-size <n>    Ring buffer size in bytes (default: 1048576)
   --shell <path>       Default shell (default: $SHELL)
   --claude-path <path> Path to claude CLI (default: claude)
+  --codex-path <path>  Path to codex CLI (default: codex)
   --auth-token <token> Require Bearer token for /mcp, /api, /ws
   --port <n>           HTTP port (default: 3141)
   --verbose            Enable debug logging

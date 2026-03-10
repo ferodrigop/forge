@@ -241,7 +241,9 @@ export class ClaudeChats {
       }
     }
 
-    return this.mergeResumedSessions(sessions);
+    // Filter out ghost sessions with no messages (system init only)
+    const nonEmpty = sessions.filter((s) => s.messageCount > 0);
+    return this.mergeResumedSessions(nonEmpty);
   }
 
   /** Merge resumed/continued sessions into their root session entry */

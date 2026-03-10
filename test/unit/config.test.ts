@@ -64,4 +64,26 @@ describe("parseConfig", () => {
     const config = parseConfig(["--auth-token", "cli-secret"]);
     expect(config.authToken).toBe("cli-secret");
   });
+
+  it("codexPath defaults to 'codex'", () => {
+    const config = parseConfig([]);
+    expect(config.codexPath).toBe("codex");
+  });
+
+  it("codexPath from CLI flag", () => {
+    const config = parseConfig(["--codex-path", "/usr/local/bin/codex"]);
+    expect(config.codexPath).toBe("/usr/local/bin/codex");
+  });
+
+  it("codexPath from env var", () => {
+    process.env.FORGE_CODEX_PATH = "/opt/codex";
+    const config = parseConfig([]);
+    expect(config.codexPath).toBe("/opt/codex");
+  });
+
+  it("codexPath CLI flag takes precedence over env var", () => {
+    process.env.FORGE_CODEX_PATH = "/opt/codex";
+    const config = parseConfig(["--codex-path", "/usr/local/bin/codex"]);
+    expect(config.codexPath).toBe("/usr/local/bin/codex");
+  });
 });

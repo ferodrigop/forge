@@ -61,20 +61,52 @@ export class DashboardServer {
         try {
           const body = await this.readBody(req);
           const opts = body ? JSON.parse(body) : {};
+
+          // Resolve agent shorthand to configured binary + default tags
+          let command = opts.command || this.config?.shell || "/bin/sh";
+          let tags = opts.tags;
+          if (opts.agent === "claude") {
+            command = this.config?.claudePath || "claude";
+            tags = tags || ["claude-agent"];
+          } else if (opts.agent === "codex") {
+            command = this.config?.codexPath || "codex";
+            tags = tags || ["codex-agent"];
+          }
+
           const session = manager.create({
-            command: opts.command || this.config?.shell || "/bin/sh",
+            command,
             args: opts.args,
             cwd: opts.cwd,
             name: opts.name,
-            tags: opts.tags,
+            tags,
             cols: opts.cols,
             rows: opts.rows,
           });
+
+          // Preserve agent sessions after exit (consistent with MCP spawn tools)
+          if (opts.agent === "claude" || opts.agent === "codex") {
+            session.preserveAfterExit();
+          }
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(session.getInfo()));
         } catch (err) {
           this.respondBodyError(res, err);
         }
+        return;
+      }
+
+      // Read session screen endpoint
+      const screenMatch = req.method === "GET" && pathname.match(/^\/api\/sessions\/([^/]+)\/screen$/);
+      if (screenMatch) {
+        const sessionId = screenMatch[1];
+        const session = manager.get(sessionId);
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: `Session "${sessionId}" not found` }));
+          return;
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ id: sessionId, screen: session.readScreen() }));
         return;
       }
 

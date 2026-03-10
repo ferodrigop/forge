@@ -395,6 +395,99 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     }
   );
 
+  // --- spawn_codex ---
+  server.tool(
+    "spawn_codex",
+    "Spawn a Codex agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous `codex exec` mode (requires prompt).",
+    {
+      prompt: z.string().optional().describe("The prompt to send to Codex (required for oneShot mode)"),
+      cwd: z.string().optional().describe("Working directory for Codex"),
+      fromSession: z.string().optional().describe("Copy cwd from an existing session ID (alternative to setting cwd manually)"),
+      model: z.string().optional().describe("Model to use"),
+      name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
+      tags: z.array(z.string()).max(10).optional().describe("Additional tags (codex-agent is always included)"),
+      bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
+      oneShot: z.boolean().optional().describe("Run in `codex exec` mode (one-shot: process prompt and exit). Requires prompt. Default: false (interactive)"),
+    },
+    async (params) => {
+      try {
+        if (params.oneShot && !params.prompt) {
+          return {
+            content: [{ type: "text" as const, text: "Error: 'prompt' is required when oneShot is true" }],
+            isError: true,
+          };
+        }
+
+        // Resolve cwd: explicit > fromSession > process.cwd()
+        let effectiveCwd = params.cwd;
+        if (!effectiveCwd && params.fromSession) {
+          const sourceSession = manager.get(params.fromSession);
+          if (!sourceSession) {
+            return {
+              content: [{ type: "text" as const, text: `Error: fromSession "${params.fromSession}" not found` }],
+              isError: true,
+            };
+          }
+          effectiveCwd = sourceSession.getInfo().cwd;
+        }
+
+        const isOneShot = params.oneShot === true;
+        const args: string[] = [];
+
+        if (isOneShot) {
+          args.push("exec", params.prompt!);
+        }
+
+        if (params.model) {
+          args.push("--model", params.model);
+        }
+
+        const autoName = params.name ?? (params.prompt ? `codex: ${params.prompt.slice(0, 60)}` : "codex: interactive");
+        const baseTags = ["codex-agent"];
+        const mergedTags = params.tags
+          ? [...new Set([...baseTags, ...params.tags])]
+          : baseTags;
+
+        const session = manager.create({
+          command: config.codexPath,
+          args,
+          cwd: effectiveCwd,
+          name: autoName,
+          tags: mergedTags,
+          bufferSize: params.bufferSize,
+        });
+
+        // Keep session data readable after exit
+        session.preserveAfterExit();
+
+        // Interactive mode: send the prompt to stdin after Codex starts up
+        if (!isOneShot && params.prompt) {
+          setTimeout(() => {
+            try {
+              session.write(params.prompt! + "\r");
+            } catch {
+              // Session may have exited before we could write
+            }
+          }, 2000);
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(session.getInfo(), null, 2),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // --- write_terminal ---
   server.tool(
     "write_terminal",
