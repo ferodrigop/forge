@@ -325,8 +325,9 @@ function openChat(chatId, source) {
   });
 }
 
-function continueChat(chatId) {
-  fetch(apiBase + '/api/chats/' + chatId + '/continue', { method: 'POST', headers: authHeaders() }).then(function(r) {
+function continueChat(chatId, source) {
+  var endpoint = source === 'codex' ? '/api/codex-chats/' : '/api/chats/';
+  fetch(apiBase + endpoint + encodeURIComponent(chatId) + '/continue', { method: 'POST', headers: authHeaders() }).then(function(r) {
     if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Continue failed'); });
     return r.json();
   }).then(function(data) {

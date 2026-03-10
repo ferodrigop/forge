@@ -1,7 +1,7 @@
 {
   "name": "forge-terminal-mcp",
   "version": "0.7.0",
-  "description": "Terminal MCP server — spawn, manage, and monitor PTY sessions from Claude Code",
+  "description": "Terminal MCP server for AI coding agents — spawn, manage, and monitor PTY sessions via MCP",
   "type": "module",
   "bin": {
     "forge": "./dist/cli.js",

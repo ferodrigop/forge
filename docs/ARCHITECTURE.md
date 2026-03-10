@@ -2,24 +2,24 @@
 
 Living document. Updated as the codebase evolves.
 
-**Current version:** 0.7.0 | **Tests:** 144 | **Tools:** 21
+**Current version:** 0.7.0 | **Tests:** 161 | **Tools:** 22
 
 ---
 
 ## What Forge Is
 
-A Node.js MCP server that gives Claude Code persistent PTY terminal sessions. Communicates over stdio (JSON-RPC), manages real terminal processes via `node-pty`, and optionally serves a web dashboard for live monitoring.
+A Node.js MCP server that gives AI coding agents (Claude Code, Codex, or any MCP client) persistent PTY terminal sessions. Communicates over stdio (JSON-RPC) or HTTP, manages real terminal processes via `node-pty`, and optionally serves a web dashboard for live monitoring. Also available as a native macOS desktop app via Electron.
 
 ## System Overview
 
 ```
                      ┌─────────────────────────────────────────┐
-                     │            Claude Code CLI               │
+                     │         MCP Client (any agent)            │
                      └──────────────┬──────────────────────────┘
-                                    │ stdio (JSON-RPC)
+                                    │ stdio (JSON-RPC) or HTTP
                      ┌──────────────▼──────────────────────────┐
                      │          MCP Server (server.ts)          │
-                     │  21 tools + 1 resource template          │
+                     │  22 tools + 1 resource template          │
                      │                                          │
                      │  ┌──────────────────────────────────┐   │
                      │  │       SessionManager              │   │
@@ -46,7 +46,7 @@ A Node.js MCP server that gives Claude Code persistent PTY terminal sessions. Co
 
 ### 1. MCP Server (`src/server.ts`)
 
-Single file, ~1200 lines. Registers all 21 tools and 1 resource template with the MCP SDK. Each tool follows the pattern:
+Single file, ~1400 lines. Registers all 22 tools and 1 resource template with the MCP SDK. Each tool follows the pattern:
 
 ```typescript
 server.tool("name", "description", { /* zod schema */ }, async (params) => {
@@ -95,7 +95,7 @@ Persists tool call events as JSONL to `~/.forge/history/{sessionId}.jsonl`.
 
 Event types: `session_init`, `tool_call`, `tool_result`
 
-For Claude agent sessions, terminal output streams through `StreamJsonParser` which extracts Claude's internal JSON-RPC events (tool use, results, errors) and converts them to HistoryEvents.
+For agent sessions (Claude, Codex), terminal output streams through `StreamJsonParser` which extracts internal JSON-RPC events (tool use, results, errors) and converts them to HistoryEvents.
 
 ### 6. Claude Chats (`src/core/claude-chats.ts`)
 
@@ -108,13 +108,14 @@ Scans `~/.claude/projects/` for past Claude Code conversation files. Features:
 
 ## Tool Categories
 
-### Session Lifecycle (7 tools)
+### Session Lifecycle (8 tools)
 
 | Tool | Purpose |
 |------|---------|
 | `create_terminal` | Spawn PTY with name, tags, buffer size, dimensions |
 | `create_from_template` | Spawn from preset (shell, next-dev, vite-dev, etc.) with auto `waitFor` |
 | `spawn_claude` | Launch Claude Code sub-agent. Supports worktree isolation, oneShot mode |
+| `spawn_codex` | Launch Codex sub-agent. Supports worktree isolation |
 | `close_terminal` | Kill session, free resources |
 | `close_group` | Batch close by tag |
 | `list_terminals` | List sessions, optional tag filter |
@@ -156,7 +157,7 @@ Scans `~/.claude/projects/` for past Claude Code conversation files. Features:
 | Tool | Purpose |
 |------|---------|
 | `health_check` | Version, uptime, session count, memory |
-| `get_session_history` | Tool call timeline for Claude agent sessions |
+| `get_session_history` | Tool call timeline for agent sessions |
 | `clear_history` | Remove stale session entries from disk |
 
 ## Dashboard
@@ -167,8 +168,8 @@ Preact + htm + Preact Signals UI. Zero build step — loaded from CDN, code bund
 
 ```
 src/dashboard/frontend/
-  app.ts              — Root component, keyboard handlers, WebSocket init
-  state.ts            — 17+ Preact Signals for global state
+  app.ts              — Root component, keyboard handlers, WebSocket init, desktop detection
+  state.ts            — 17+ Preact Signals for global state, configurable API/WS host
   styles.ts           — Tokyo Night theme CSS
   utils.ts            — timeAgo, formatBytes, formatToolBlock helpers
   assets.ts           — Base64-embedded UMD bundles (Preact, htm, xterm)
@@ -182,8 +183,8 @@ src/dashboard/frontend/
 ### Dashboard Features
 
 - **Live terminal output** via WebSocket (xterm.js rendering)
-- **Activity log** — real-time tool call timeline for Claude agents
-- **Chat history browser** — search/browse/continue past Claude Code sessions
+- **Activity log** — real-time tool call timeline for agent sessions (Claude, Codex)
+- **Chat history browser** — search/browse/continue past Claude Code and Codex sessions
 - **Session grouping** by tags and working directory
 - **Auto-follow mode** — auto-switch to newly created sessions
 - **Memory monitoring** — per-session and total RAM
@@ -193,7 +194,57 @@ src/dashboard/frontend/
 
 - `dashboard-server.ts` — HTTP server (serves HTML + REST API) + WebSocket
 - `ws-handler.ts` — Handles subscribe/select/input/resize messages
-- REST endpoints: `/api/sessions`, `/api/chats`, `/api/chats/{id}/messages`, `/api/chats/{id}/continue`
+- REST endpoints: `/api/sessions`, `/api/chats`, `/api/chats/{id}`, `/api/chats/{id}/continue`, `/api/codex-chats`, `/api/codex-chats/{id}`
+
+## Desktop App (Electron)
+
+Native macOS desktop app. The Electron main process runs the Forge server in-process — no separate daemon needed.
+
+### Architecture
+
+```
+Electron Main Process (Node.js / CJS)
+  ├── daemon.ts  → Detects existing daemon OR starts server in-process
+  │   ├── In-process: createServer() + DashboardServer on 127.0.0.1:3141
+  │   └── External:  DesktopHtmlServer (random port) + DaemonBridge (WS relay to 3141)
+  ├── window.ts  → BrowserWindow (hiddenInset title bar, sandbox, CSP)
+  ├── preload.ts → contextBridge exposes { isDesktop, platform, trafficLightClearance }
+  ├── tray.ts    → Menu bar icon with session count + actions
+  ├── menu.ts    → Standard macOS app menu
+  └── notifications.ts → Native alerts on session create/exit
+```
+
+### Split-Port Architecture
+
+When an existing CLI daemon is running on port 3141, the desktop app uses a split-port approach:
+1. `DesktopHtmlServer` serves the dashboard HTML (with desktop CSS/preload) on an OS-assigned port
+2. `DaemonBridge` connects via WebSocket to the existing daemon for session data
+3. Frontend uses `daemonPort` query parameter to direct API/WS calls to the daemon port
+4. `webSecurity: false` allows cross-port localhost requests
+
+When no daemon is running, the app starts the full server in-process on 3141 (same as CLI mode).
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `desktop/main/index.ts` | App entry, single instance lock, lifecycle |
+| `desktop/main/daemon.ts` | Server lifecycle, detect/start/bridge |
+| `desktop/main/window.ts` | BrowserWindow creation, security, state persistence |
+| `desktop/main/preload.ts` | Context bridge (minimal surface) |
+| `desktop/main/html-server.ts` | Serves dashboard HTML for split-port mode |
+| `desktop/main/daemon-bridge.ts` | WebSocket relay to existing daemon |
+| `desktop/main/tray.ts` | System tray with session count |
+| `desktop/main/notifications.ts` | Native notifications via SessionManager or DaemonBridge events |
+
+### Security
+
+- `sandbox: true` + `contextIsolation: true` in renderer
+- Navigation locked to localhost origins
+- External links open in default browser
+- All permissions (camera, mic, geolocation, etc.) denied
+- CSP restricts scripts to self + jsdelivr CDN
+- DevTools disabled in packaged builds
 
 ## Data Flow
 
@@ -231,12 +282,12 @@ Claude calls write_terminal(id, input)
 3. setTimeout → resolve as "timeout"
 ```
 
-### spawn_claude
+### spawn_claude / spawn_codex
 ```
 1. Build args: ["--print", "-p", prompt] + model/budget/tools flags
 2. If worktree: git worktree add → set cwd to worktree path
-3. manager.create({ command: claudePath, args })
-4. If claude-agent tagged: wire StreamJsonParser for history extraction
+3. manager.create({ command: claudePath|codexPath, args })
+4. If claude-agent/codex-agent tagged: wire StreamJsonParser for history extraction
 5. Return session info + worktree path
 ```
 
@@ -257,11 +308,15 @@ Claude calls write_terminal(id, input)
 
 4. **Fire-and-forget history** — CommandHistory appends are non-blocking. A failed disk write doesn't break the terminal session.
 
-5. **CLAUDECODE stripping** — Spawned terminals have the `CLAUDECODE` env var removed to prevent "already running inside Claude Code" nesting errors.
+5. **Agent env stripping** — Spawned terminals have agent-specific env vars (e.g., `CLAUDECODE`) removed to prevent nesting errors.
 
 6. **Session preservation after exit** — Exited sessions remain readable (buffer intact) until explicitly closed or server restarts. This allows post-mortem inspection.
 
 7. **30KB read cap** — `read_terminal` caps output at 30KB per call to prevent MCP token overflow. Full buffer available via `readFullBuffer()` in `grep_terminal` and `wait_for`.
+
+8. **Shared daemon utilities** — PID file management, port detection, and process lifecycle are in `src/utils/daemon.ts`, shared between CLI (`src/cli.ts`) and desktop app (`desktop/main/daemon.ts`).
+
+9. **Desktop split-port** — When an existing daemon occupies port 3141, the desktop app serves its own HTML on a random port and bridges to the daemon via WebSocket, rather than conflicting or replacing it.
 
 ## Configuration Precedence
 
@@ -274,26 +329,27 @@ CLI flag > Environment variable > Default value
 | Buffer size | `--buffer-size` | `FORGE_BUFFER_SIZE` | 1048576 (1MB) |
 | Shell | `--shell` | `SHELL` | /bin/bash |
 | Claude path | `--claude-path` | `FORGE_CLAUDE_PATH` | claude |
+| Codex path | `--codex-path` | `FORGE_CODEX_PATH` | codex |
 | Dashboard | `--dashboard` | `FORGE_DASHBOARD` | off |
 | Port | `--port` | `FORGE_DASHBOARD_PORT` | 3141 |
 
 ## Test Structure
 
-144 tests across 11 suites:
+161 tests across 12 suites:
 
 | Suite | Tests | Type |
 |-------|-------|------|
 | Ring Buffer | 13 | Unit |
-| Config | 5 | Unit |
+| Config | 10 | Unit |
 | Control Chars | 6 | Unit |
 | State Store | 4 | Unit |
 | Templates | 3 | Unit |
 | Stream JSON Parser | 11 | Unit |
-| Command History | 10 | Unit/Integration |
+| Command History | 6 | Unit/Integration |
 | Claude Chats | 14 | Unit |
 | Terminal Session | 8 | Integration |
 | Session Manager | 7 | Integration |
-| MCP Tools E2E | 35 | Integration |
-| Dashboard | 39 | Integration |
+| MCP Tools E2E | 51 | Integration |
+| Forge 0.7 Features | 28 | Integration |
 
 Test pattern: `InMemoryTransport.createLinkedPair()` for MCP E2E tests, real PTY processes for terminal/session tests.

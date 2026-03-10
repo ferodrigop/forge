@@ -108,54 +108,69 @@ function ChatMessages() {
 function CodexChatBubble(props) {
   var m = props.message;
   var type = m.type || '';
+  // Codex JSONL wraps data under "payload"
+  var payload = m.payload || m;
 
   if (type === 'session_meta') {
     var meta = [];
-    if (m.model) meta.push('model: ' + m.model);
-    if (m.cwd) meta.push('cwd: ' + m.cwd);
+    if (payload.model) meta.push('model: ' + payload.model);
+    if (payload.cwd) meta.push('cwd: ' + payload.cwd);
     return html\`<div class="chat-bubble system"><div class="system-summary">Session: \${meta.join(' | ') || 'started'}</div></div>\`;
   }
 
-  if (type === 'response_item' && m.item) {
-    var item = m.item;
-    if (item.type === 'message' && item.role === 'user') {
+  if (type === 'response_item' && payload) {
+    if (payload.type === 'message' && payload.role === 'user') {
       var text = '';
-      if (Array.isArray(item.content)) {
-        var tp = item.content.find(function(c) { return c.type === 'input_text' || c.type === 'text'; });
+      if (Array.isArray(payload.content)) {
+        var tp = payload.content.find(function(c) { return c.type === 'input_text' || c.type === 'text'; });
         if (tp) text = tp.text || '';
-      } else if (typeof item.content === 'string') {
-        text = item.content;
+      } else if (typeof payload.content === 'string') {
+        text = payload.content;
       }
       if (!text) return null;
+      // Skip developer/system messages (permissions, AGENTS.md, collaboration mode)
+      if (payload.role === 'developer') return null;
       return html\`<div class="chat-bubble human">\${text}</div>\`;
     }
-    if (item.type === 'message' && (item.role === 'assistant' || item.role === 'agent')) {
+    if (payload.type === 'message' && payload.role === 'developer') return null;
+    if (payload.type === 'message' && (payload.role === 'assistant' || payload.role === 'agent')) {
       var parts = [];
-      if (Array.isArray(item.content)) {
-        for (var i = 0; i < item.content.length; i++) {
-          var block = item.content[i];
+      if (Array.isArray(payload.content)) {
+        for (var i = 0; i < payload.content.length; i++) {
+          var block = payload.content[i];
           if (block.type === 'output_text' || block.type === 'text') parts.push(block.text || '');
         }
-      } else if (typeof item.content === 'string') {
-        parts.push(item.content);
+      } else if (typeof payload.content === 'string') {
+        parts.push(payload.content);
       }
       if (parts.length === 0) return null;
       return html\`<div class="chat-bubble assistant">\${parts.join('\\n')}</div>\`;
     }
-    if (item.type === 'command_execution' || item.type === 'function_call') {
-      var cmd = item.command || item.name || '';
+    if (payload.type === 'reasoning') return null;
+    if (payload.type === 'command_execution' || payload.type === 'function_call') {
+      var cmd = payload.command || payload.name || '';
       return html\`<div class="chat-bubble assistant"><div class="tool-block">$ \${cmd}</div></div>\`;
     }
-    if (item.type === 'file_edit' || item.type === 'file_create' || item.type === 'file_delete') {
-      var fp = item.file_path || item.path || '';
-      var label = item.type === 'file_edit' ? 'Edit' : item.type === 'file_create' ? 'Create' : 'Delete';
+    if (payload.type === 'file_edit' || payload.type === 'file_create' || payload.type === 'file_delete') {
+      var fp = payload.file_path || payload.path || '';
+      var label = payload.type === 'file_edit' ? 'Edit' : payload.type === 'file_create' ? 'Create' : 'Delete';
       return html\`<div class="chat-bubble assistant"><div class="tool-block">\${label}: \${fp}</div></div>\`;
     }
   }
 
   if (type === 'event_msg') {
-    return html\`<div class="chat-bubble system"><div class="system-summary">\${m.event || type}</div></div>\`;
+    var evtType = payload.type || '';
+    // Skip noisy internal events
+    if (evtType === 'token_count' || evtType === 'task_started' || evtType === 'task_complete') return null;
+    if (evtType === 'user_message') return null; // already shown via response_item
+    if (evtType === 'agent_message') {
+      return html\`<div class="chat-bubble assistant">\${payload.message || ''}</div>\`;
+    }
+    return html\`<div class="chat-bubble system"><div class="system-summary">\${evtType || type}</div></div>\`;
   }
+
+  // Skip turn_context and other internal types
+  if (type === 'turn_context') return null;
 
   return null;
 }
@@ -167,7 +182,7 @@ function ChatView() {
     <div id="main">
       <div class="chat-header-bar">
         <span style="color:#565f89;font-size:13px;">\${isCodex ? 'Codex' : 'Chat'}: <span style="color:#7aa2f7;font-weight:500;">\${chatId ? chatId.slice(0, 8) + '...' : ''}</span></span>
-        \${!isCodex ? html\`<button class="continue-btn" onClick=\${function() { continueChat(chatId); }}>Continue Session</button>\` : null}
+        <button class="continue-btn" onClick=\${function() { continueChat(chatId, isCodex ? 'codex' : 'claude'); }}>\${isCodex ? 'Resume Session' : 'Continue Session'}</button>
       </div>
       <\${isCodex ? CodexChatMessages : ChatMessages} />
     </div>

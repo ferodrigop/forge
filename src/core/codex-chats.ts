@@ -222,24 +222,28 @@ export class CodexChats {
         if (!trimmed) continue;
         try {
           const obj = JSON.parse(trimmed);
+          // Codex JSONL wraps data under "payload"
+          const payload = (obj.payload || obj) as Record<string, unknown>;
 
           // session_meta event
           if (obj.type === "session_meta") {
-            if (obj.model && !model) model = obj.model;
-            if (obj.cwd && !cwd) cwd = obj.cwd;
-            if (obj.timestamp && !timestamp) timestamp = obj.timestamp;
+            if (payload.model && !model) model = String(payload.model);
+            if (payload.cwd && !cwd) cwd = String(payload.cwd);
+            if ((payload.timestamp || obj.timestamp) && !timestamp) timestamp = String(payload.timestamp || obj.timestamp);
           }
 
           // Extract timestamp
-          if (obj.timestamp && !timestamp) timestamp = obj.timestamp;
-          if (obj.timestamp) lastTimestamp = obj.timestamp;
+          const ts = obj.timestamp || payload.timestamp;
+          if (ts && !timestamp) timestamp = String(ts);
+          if (ts) lastTimestamp = String(ts);
 
           // First user prompt from response_item with role=user or event_msg
           if (!firstMessage) {
-            if (obj.type === "response_item" && obj.item) {
-              const item = obj.item as Record<string, unknown>;
-              if (item.type === "message" && item.role === "user") {
-                const content = item.content;
+            if (obj.type === "response_item" && payload) {
+              // Skip developer/system messages
+              if (payload.type === "message" && payload.role === "developer") continue;
+              if (payload.type === "message" && payload.role === "user") {
+                const content = payload.content;
                 if (Array.isArray(content)) {
                   const textPart = content.find((c: Record<string, unknown>) => c.type === "input_text" || c.type === "text");
                   if (textPart) {
@@ -250,9 +254,9 @@ export class CodexChats {
                 }
               }
             }
-            // Also check for prompt in event_msg
-            if (obj.type === "event_msg" && obj.event === "user_message") {
-              const text = obj.text || obj.content || "";
+            // Also check for prompt in event_msg with user_message type
+            if (obj.type === "event_msg" && payload.type === "user_message") {
+              const text = payload.message || payload.text || payload.content || "";
               if (typeof text === "string" && text.length > 0) {
                 firstMessage = text.slice(0, 80);
               }

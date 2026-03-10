@@ -230,6 +230,41 @@ export class DashboardServer {
         }
       }
 
+      const codexContinueMatch = pathname.match(/^\/api\/codex-chats\/([^/]+)\/continue$/);
+      if (codexContinueMatch && req.method === "POST") {
+        const chatId = decodeURIComponent(codexContinueMatch[1]);
+        try {
+          const chatMeta = await this.codexChats.findSession(chatId);
+          if (!chatMeta) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Codex session not found" }));
+            return;
+          }
+          // Extract UUID from filename: rollout-<timestamp>-<uuid>.jsonl
+          const uuidMatch = chatMeta.sessionId.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+          if (!uuidMatch) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Could not extract session UUID" }));
+            return;
+          }
+          const codexPath = this.config?.codexPath || "codex";
+          const session = this.manager.create({
+            command: codexPath,
+            args: ["resume", uuidMatch[1]],
+            name: `codex: resume ${uuidMatch[1].slice(0, 8)}...`,
+            tags: ["codex-agent"],
+            cwd: chatMeta.fullPath || undefined,
+          });
+          session.preserveAfterExit();
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(session.getInfo()));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+        return;
+      }
+
       // Serve logo PNG
       if (req.method === "GET" && req.url === "/logo.png") {
         const buf = Buffer.from(LOGO_PNG_BASE64, "base64");

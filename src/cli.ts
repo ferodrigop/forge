@@ -235,7 +235,7 @@ async function main(): Promise<void> {
 
   if (args.includes("--help") || args.includes("-h")) {
     process.stderr.write(`
-forge — Persistent terminal MCP daemon for Claude Code
+forge — Persistent terminal MCP server for AI coding agents
 
 Usage:
   forge start [-d]     Start daemon (foreground, or -d for detached/background)
