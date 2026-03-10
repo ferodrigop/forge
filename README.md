@@ -5,12 +5,12 @@
 <h1 align="center">Forge</h1>
 
 <p align="center">
-  Terminal MCP server for Claude Code. Spawn, manage, and monitor real PTY sessions as MCP tools.
+  Terminal MCP server for AI coding agents. Spawn, manage, and monitor real PTY sessions via the Model Context Protocol.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.7.0-blue" alt="Version" />
-  <img src="https://img.shields.io/badge/tests-144%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-161%20passing-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/node-%3E%3D18-339933" alt="Node" />
 </p>
@@ -19,41 +19,41 @@
 
 ## Why
 
-Claude Code's built-in Bash tool runs one command at a time. Forge gives Claude persistent terminals — run your React frontend, Java API, and Postgres migrations in parallel, monitor all three, and only read what changed. Full-stack work without the bottleneck.
+AI coding agents (Claude Code, Codex, etc.) typically run one command at a time. Forge gives them persistent terminals — run your React frontend, Java API, and Postgres migrations in parallel, monitor all three, and only read what changed. Full-stack work without the bottleneck.
+
+Works with **any MCP-compatible client** — Claude Code, Codex, or your own agent.
 
 **Key differentiators:**
 - **Real PTY** via `node-pty` (same lib as VS Code terminal) — interactive programs, colors, TUI apps all work
 - **Incremental reads** — ring buffer with per-consumer cursors means each `read_terminal` only returns NEW output, saving context window tokens
 - **Clean screen reads** — `@xterm/headless` renders the terminal server-side, so `read_screen` returns exactly what a human would see (no ANSI escape codes)
-- **Multi-agent orchestration** — session groups, output multiplexing, event subscriptions, and templates for managing multiple concurrent sessions
-- **Web dashboard** — real-time Preact-based browser UI to watch what Claude is doing across all terminals, browse past chat sessions, and monitor activity
-- **Zero config** — single `npx` command in your Claude Code settings
+- **Multi-agent orchestration** — spawn Claude and Codex sub-agents, session groups, output multiplexing, event subscriptions, and templates for managing multiple concurrent sessions
+- **Web dashboard** — real-time Preact-based browser UI to watch what your agents are doing across all terminals, browse past chat sessions, and monitor activity
+- **Zero config** — single `npx` command or HTTP MCP endpoint
 
 ## Quick Start
 
-### 1. Add to Claude Code
+### 1. Add to Your Agent
+
+<details open>
+<summary><strong>Claude Code</strong></summary>
 
 ```bash
-# Basic
+# Basic (stdio)
 claude mcp add forge -- npx forge-terminal-mcp
 
 # With web dashboard
 claude mcp add forge -- npx forge-terminal-mcp --dashboard --port 3141
 ```
 
-That's it. Restart Claude Code and Forge tools are available.
-
-<details>
-<summary>Alternative: manual JSON config</summary>
-
-Add to `~/.claude/settings.json` or project `.claude/settings.json`:
+Or add to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "forge": {
       "command": "npx",
-      "args": ["forge-terminal-mcp"]
+      "args": ["forge-terminal-mcp", "--dashboard", "--port", "3141"]
     }
   }
 }
@@ -61,15 +61,95 @@ Add to `~/.claude/settings.json` or project `.claude/settings.json`:
 
 </details>
 
-### 2. Use It
+<details>
+<summary><strong>Codex</strong></summary>
 
-Claude now has access to 21 tools across 6 categories:
+```bash
+# Add Forge as HTTP MCP server
+codex mcp add forge --url http://127.0.0.1:3141/mcp
+
+# Verify
+codex mcp list
+codex mcp get forge
+```
+
+Codex stores this in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.forge]
+url = "http://127.0.0.1:3141/mcp"
+```
+
+</details>
+
+<details>
+<summary><strong>HTTP MCP (any client)</strong></summary>
+
+Start the daemon (choose one launch mode), then point any MCP client at the HTTP endpoint:
+
+```bash
+# If forge is on PATH (global install or npm link)
+forge start -d
+
+# From this repo (local clone)
+node dist/cli.js start -d
+
+# Without install (published package)
+npx forge-terminal-mcp start -d
+```
+
+```json
+{
+  "mcpServers": {
+    "forge": {
+      "type": "http",
+      "url": "http://127.0.0.1:3141/mcp"
+    }
+  }
+}
+```
+
+</details>
+
+Restart your agent and Forge tools are available.
+
+Important: Codex and Claude Code load MCP servers at process start. If you add/remove servers, restart the current agent session.
+
+### 2. Smoke Test (60s)
+
+```bash
+# Codex MCP registration
+codex mcp list
+codex mcp get forge
+
+# Forge daemon status
+node dist/cli.js status
+```
+
+Expected:
+- `codex mcp list` shows `forge` as enabled
+- `node dist/cli.js status` reports running and `http://127.0.0.1:3141`
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `forge: command not found` | Use `node dist/cli.js ...` from the repo root, or `npx forge-terminal-mcp ...`. |
+| `No MCP servers configured yet` in Codex | Run `codex mcp add forge --url http://127.0.0.1:3141/mcp`, then restart Codex. |
+| `listen EPERM ... 127.0.0.1:3141` | Run Forge in an environment that allows local port binding, or use a different port with `--port` and update the MCP URL to match. |
+| A message appears typed but agent does not answer | The input may be queued; press `Enter` (or use `submit=true` when writing programmatically). |
+| MCP server is configured but tools do not appear | Restart the current agent session so MCP servers reload. |
+
+### 3. Use It
+
+Your agent now has access to 22 tools across 6 categories:
 
 **Session Lifecycle**
 ```
 create_terminal      → Spawn a PTY session with optional name, tags, buffer size
 create_from_template → Spawn from a built-in template (shell, next-dev, vite-dev, etc.)
 spawn_claude         → Launch a Claude Code sub-agent in a dedicated session
+spawn_codex          → Launch a Codex sub-agent in a dedicated session
 close_terminal       → Kill a session and free resources
 close_group          → Close all sessions matching a tag
 list_terminals       → List sessions, optionally filtered by tag
@@ -106,7 +186,7 @@ unsubscribe_events   → Cancel an event subscription
 **Ops**
 ```
 health_check         → Server version, uptime, session count, memory usage
-get_session_history  → Tool call history for Claude agent sessions
+get_session_history  → Tool call history for agent sessions
 clear_history        → Clear persisted stale session entries
 ```
 
@@ -114,15 +194,15 @@ clear_history        → Clear persisted stale session entries
 
 > **You:** Start a Next.js dev server and run the test suite in parallel
 >
-> **Claude:** *(uses `create_from_template` with "next-dev", `wait_for` "Ready", then creates a second session for `npm test`, uses `read_multiple` to poll both)*
+> **Agent:** *(uses `create_from_template` with "next-dev", `wait_for` "Ready", then creates a second session for `npm test`, uses `read_multiple` to poll both)*
 
-> **You:** Spin up 3 Claude agents to research different parts of the codebase
+> **You:** Spin up 3 sub-agents to research different parts of the codebase
 >
-> **Claude:** *(uses `spawn_claude` three times with tag "research", monitors with `list_terminals` filtered by tag, cleans up with `close_group`)*
+> **Agent:** *(uses `spawn_claude` three times with tag "research", monitors with `list_terminals` filtered by tag, cleans up with `close_group`)*
 
 > **You:** Build and test, just give me the result
 >
-> **Claude:** *(uses `run_command` with `npm run build && npm test` — creates terminal, waits for exit, returns output, auto-cleans up)*
+> **Agent:** *(uses `run_command` with `npm run build && npm test` — creates terminal, waits for exit, returns output, auto-cleans up)*
 
 ## Tools Reference
 
@@ -308,7 +388,7 @@ No parameters. Returns `{ version, uptime, sessions: { active, max }, memory: { 
 |-----------|------|---------|-------------|
 | `id` | string | *required* | Session ID |
 
-Returns timestamped tool call history for Claude agent sessions.
+Returns timestamped tool call history for agent sessions (Claude, Codex).
 
 ### `clear_history`
 
@@ -336,9 +416,9 @@ Enable the real-time web dashboard to monitor all terminals from your browser:
 Open `http://localhost:3141` to see:
 - **Live terminal sessions** with real-time output via WebSocket
 - **Session grouping** — terminals organized by working directory
-- **Activity log** — tool calls and events for Claude agent sessions
+- **Activity log** — tool calls and events for agent sessions
 - **Status bar** — working directory, session ID, running/exited status
-- **Chat history browser** — search, browse, and continue past Claude Code conversations grouped by project
+- **Chat history browser** — search, browse, and continue past Claude Code and Codex conversations grouped by project
 - **Session management** — create, close, and switch between terminals
 - **Auto-follow mode** — automatically switch to newly created sessions
 - **Memory monitoring** — per-session and total RAM usage
@@ -346,6 +426,40 @@ Open `http://localhost:3141` to see:
 If `--auth-token` is enabled, open the dashboard with `?token=YOUR_TOKEN` so browser API/WebSocket calls are authorized.
 
 The dashboard is built with Preact + htm + Preact Signals, loaded from CDN with zero build step. All UI code is bundled as string constants inside the server binary.
+
+## Desktop App (macOS)
+
+Forge includes an Electron-based desktop app for macOS with native window management, system tray, and notifications.
+
+### Running in Development
+
+```bash
+npm run build                    # Build forge core
+cd desktop && npm install        # Install Electron deps
+npx @electron/rebuild            # Rebuild node-pty for Electron
+npm run dev                      # Launch the desktop app
+```
+
+Or from the repo root: `npm run desktop:dev`
+
+### Features
+
+- Native macOS title bar with traffic light integration
+- System tray with session count, new terminal, start-at-login toggle
+- Close-to-tray (app keeps running when window closed)
+- Native notifications on session created/exited
+- Window state persistence across restarts
+- Auto-detects existing CLI daemon — connects to it or starts in-process
+- Security hardened: sandboxed renderer, navigation lock, CSP, permission deny-all
+
+### Packaging
+
+```bash
+cd desktop
+npm run package          # Build DMG + ZIP
+```
+
+Produces a signed `Forge.app` in `desktop/release/`. Requires Apple Developer certificate for notarization (see `desktop/forge.entitlements.plist`).
 
 ## Configuration
 
@@ -379,7 +493,9 @@ Example with custom config:
 ## Architecture
 
 ```
-Claude Code  <--stdio-->  MCP Server (21 tools + 1 resource)
+MCP Client   <--stdio-->  MCP Server (22 tools + 1 resource)
+(Claude Code,    or
+ Codex, etc) <--HTTP--->
                               |
                          SessionManager
                          (lifecycle, groups, persistence)
@@ -399,14 +515,14 @@ Claude Code  <--stdio-->  MCP Server (21 tools + 1 resource)
          (incremental)   (live stream)   (notifications)
 ```
 
-- **Single Node.js process** — MCP server communicates over stdio (stdin/stdout for JSON-RPC)
+- **Single Node.js process** — MCP server communicates over stdio (JSON-RPC) or HTTP (streamable)
 - **All logging to stderr** — stdout is reserved for the MCP protocol
 - **Ring buffer per session** — 1 MB circular buffer with cursor-based reads. When the buffer fills, old data is overwritten and `droppedBytes` tells the consumer how much was lost
 - **Headless xterm per session** — full terminal emulation server-side. `read_screen` returns the rendered viewport, correctly handling cursor positioning, alternate screen, line wrapping
 - **Idle timeout** — sessions auto-close after 30 minutes of inactivity (configurable)
 - **Session persistence** — session metadata saved to `~/.forge/sessions.json`, reloaded as stale entries on restart
 - **Event system** — subscribe to session exit or pattern match events, delivered as MCP logging messages
-- **CLAUDECODE stripping** — spawned terminals have the `CLAUDECODE` env var removed to prevent nesting errors when Forge runs inside Claude Code
+- **Agent env stripping** — spawned terminals have agent-specific env vars (e.g., `CLAUDECODE`) removed to prevent nesting errors
 
 ## Development
 
@@ -415,7 +531,7 @@ git clone https://github.com/ferodrigop/forge-terminal-mcp.git
 cd forge-terminal-mcp
 npm install
 npm run build       # Compile with tsup
-npm test            # 144 tests (unit + integration)
+npm test            # 161 tests (unit + integration)
 npm run typecheck   # TypeScript strict mode
 npm run lint        # ESLint
 npm run dev         # Watch mode
@@ -426,7 +542,7 @@ npm run dev         # Watch mode
 ```
 src/
   cli.ts                        # Entry point, arg parsing, stdio transport
-  server.ts                     # McpServer + 21 tool registrations + resources
+  server.ts                     # McpServer + 22 tool registrations + resources
   core/
     types.ts                    # ForgeConfig, SessionInfo, defaults
     ring-buffer.ts              # Circular buffer with multi-consumer cursors
@@ -455,6 +571,22 @@ src/
     logger.ts                   # stderr-only JSON logger
     config.ts                   # CLI flags > env vars > defaults
     control-chars.ts            # Named key -> escape sequence map
+    daemon.ts                   # Daemon lifecycle (PID, port, lock files)
+desktop/
+  main/
+    index.ts                    # Electron main process entry
+    daemon.ts                   # Forge server lifecycle (start/detect existing)
+    window.ts                   # BrowserWindow + state persistence
+    preload.ts                  # Context bridge (forgeDesktop API)
+    tray.ts                     # System tray + context menu
+    menu.ts                     # macOS application menu
+    notifications.ts            # Native notification bridge
+    auto-launch.ts              # Login item registration
+    html-server.ts              # Lightweight HTTP server for desktop HTML
+    daemon-bridge.ts            # WebSocket relay to existing daemon
+    updater.ts                  # Auto-update placeholder
+  electron-builder.yml          # Build config (DMG, universal binary)
+  forge.entitlements.plist      # macOS entitlements
 test/
   unit/                         # ring-buffer, config, control-chars, state-store, templates
   integration/                  # terminal-session, session-manager, mcp-tools E2E
@@ -465,17 +597,18 @@ test/
 | Suite | Tests | Covers |
 |-------|-------|--------|
 | Ring Buffer | 13 | Circular writes, multi-consumer, wrap-around, dropped bytes |
-| Config | 5 | CLI parsing, env vars, defaults, precedence |
+| Config | 10 | CLI parsing, env vars, defaults, precedence, codex path |
 | Control Chars | 6 | Key resolution, case insensitivity, unknown keys |
 | State Store | 4 | Load/save round-trip, corruption handling |
 | Templates | 3 | Lookup, unknown template, list all |
+| Stream JSON Parser | 11 | Claude event parsing, tool use extraction |
 | Terminal Session | 8 | PTY spawn, read/write, screen render, resize, exit |
 | Session Manager | 7 | CRUD, max limit, close all, stale entries |
-| MCP Tools E2E | 35 | All 21 tools end-to-end via MCP client |
-| Dashboard | 39 | HTTP API, WebSocket, chat sessions, HTML generation |
-| Command History | 10 | Event tracking, retrieval, cleanup |
+| MCP Tools E2E | 51 | All 22 tools end-to-end via MCP client |
+| Forge 0.7 Features | 28 | Codex spawn, worktree, dashboard API, chat history |
+| Command History | 6 | Event tracking, retrieval, cleanup |
 | Claude Chats | 14 | Session discovery, message parsing, search |
-| **Total** | **144** | |
+| **Total** | **161** | |
 
 ## Requirements
 
