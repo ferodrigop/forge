@@ -1,0 +1,53 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ferodrigop/forge-terminal",
+  "title": "Forge",
+  "description": "Terminal MCP server for AI coding agents — spawn, manage, and monitor persistent PTY sessions. Real terminals with node-pty, incremental reads via ring buffer, headless xterm screen capture, multi-agent orchestration (Claude Code + Codex), web dashboard, and desktop app.",
+  "version": "0.7.0",
+  "repository": {
+    "url": "https://github.com/ferodrigop/forge-terminal-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "forge-terminal-mcp",
+      "version": "0.7.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "FORGE_MAX_SESSIONS",
+          "description": "Max concurrent PTY sessions (default: 10)",
+          "required": false
+        },
+        {
+          "name": "FORGE_IDLE_TIMEOUT",
+          "description": "Session idle timeout in ms (default: 1800000)",
+          "required": false
+        },
+        {
+          "name": "FORGE_BUFFER_SIZE",
+          "description": "Ring buffer size per session in bytes (default: 1048576)",
+          "required": false
+        },
+        {
+          "name": "FORGE_AUTH_TOKEN",
+          "description": "Require Bearer token for /mcp, /api, and /ws endpoints",
+          "required": false
+        },
+        {
+          "name": "FORGE_DASHBOARD",
+          "description": "Enable web dashboard (set to '1' or 'true')",
+          "required": false
+        },
+        {
+          "name": "FORGE_DASHBOARD_PORT",
+          "description": "Dashboard HTTP port (default: 3141)",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

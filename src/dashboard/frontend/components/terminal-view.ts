@@ -211,6 +211,37 @@ function ClaudeStatusBadge() {
   return html\`<span class="claude-badge working"><span class="pulse-dot"></span> Working</span>\`;
 }
 
+function DelegatePromptBanner() {
+  var activeSession = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
+  if (!activeSession || !activeSession.tags) return null;
+  if (activeSession.tags.indexOf('delegate-task') < 0) return null;
+
+  // Extract prompt from session name: "delegate(claude): the prompt text"
+  var name = activeSession.name || '';
+  var colonIdx = name.indexOf(': ');
+  var prompt = colonIdx >= 0 ? name.slice(colonIdx + 2) : name;
+  if (!prompt) return null;
+
+  // Detect agent and mode from tags
+  var agent = activeSession.tags.indexOf('codex-agent') >= 0 ? 'codex' : 'claude';
+  var isInteractive = activeSession.tags.indexOf('mode:interactive') >= 0;
+  var modeLabel = isInteractive ? 'interactive' : 'oneshot';
+
+  var agentColor = agent === 'claude' ? '#bb9af7' : '#9ece6a';
+
+  return html\`
+    <div class="delegate-prompt-banner">
+      <div class="delegate-prompt-header">
+        <span class="delegate-agent-badge" style=\${'background:' + agentColor + '22;color:' + agentColor + ';border:1px solid ' + agentColor + '44'}>
+          \u2728 \${agent}
+        </span>
+        <span class="delegate-mode-badge">\${modeLabel}</span>
+      </div>
+      <div class="delegate-prompt-text">\${prompt}</div>
+    </div>
+  \`;
+}
+
 function TerminalView() {
   var activeSession = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
   var headerLabel = activeSession && activeSession.name ? activeSession.name : activeSessionId.value;
@@ -226,6 +257,7 @@ function TerminalView() {
         <span>Session: <span class="session-label">\${headerLabel}</span> <\${ClaudeStatusBadge} /></span>
         \${startedText ? html\`<span class="header-time">\${startedText}</span>\` : null}
       </div>
+      <\${DelegatePromptBanner} />
       <\${XTermContainer} />
       <\${TerminalStatusBar} />
     </div>

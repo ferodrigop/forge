@@ -19,7 +19,7 @@ A Node.js MCP server that gives AI coding agents (Claude Code, Codex, or any MCP
                                     │ stdio (JSON-RPC) or HTTP
                      ┌──────────────▼──────────────────────────┐
                      │          MCP Server (server.ts)          │
-                     │  22 tools + 1 resource template          │
+                     │  23 tools + 1 resource template          │
                      │                                          │
                      │  ┌──────────────────────────────────┐   │
                      │  │       SessionManager              │   │
@@ -46,7 +46,7 @@ A Node.js MCP server that gives AI coding agents (Claude Code, Codex, or any MCP
 
 ### 1. MCP Server (`src/server.ts`)
 
-Single file, ~1400 lines. Registers all 22 tools and 1 resource template with the MCP SDK. Each tool follows the pattern:
+Single file, ~1400 lines. Registers all 23 tools and 1 resource template with the MCP SDK. Each tool follows the pattern:
 
 ```typescript
 server.tool("name", "description", { /* zod schema */ }, async (params) => {
@@ -151,6 +151,12 @@ Scans `~/.claude/projects/` for past Claude Code conversation files. Features:
 |------|---------|
 | `subscribe_events` | Watch for exit or pattern_match, delivered as MCP logging messages |
 | `unsubscribe_events` | Cancel subscription |
+
+### Agent Delegation (1 tool)
+
+| Tool | Purpose |
+|------|---------|
+| `delegate_task` | Delegate a task to another agent (Claude or Codex). Oneshot (run and return) or interactive (multi-turn conversation with follow-ups via sessionId). Orchestrator attribution via `from` param. |
 
 ### Ops (3 tools)
 

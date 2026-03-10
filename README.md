@@ -142,7 +142,7 @@ Expected:
 
 ### 3. Use It
 
-Your agent now has access to 22 tools across 6 categories:
+Your agent now has access to 23 tools across 7 categories:
 
 **Session Lifecycle**
 ```
@@ -181,6 +181,11 @@ run_command          → Run a command to completion, return output, auto-cleanu
 ```
 subscribe_events     → Get notified when a session exits or matches a pattern
 unsubscribe_events   → Cancel an event subscription
+```
+
+**Agent Delegation**
+```
+delegate_task        → Delegate a task to another agent — oneshot or interactive multi-turn
 ```
 
 **Ops**
@@ -493,7 +498,7 @@ Example with custom config:
 ## Architecture
 
 ```
-MCP Client   <--stdio-->  MCP Server (22 tools + 1 resource)
+MCP Client   <--stdio-->  MCP Server (23 tools + 1 resource)
 (Claude Code,    or
  Codex, etc) <--HTTP--->
                               |
@@ -604,7 +609,7 @@ test/
 | Stream JSON Parser | 11 | Claude event parsing, tool use extraction |
 | Terminal Session | 8 | PTY spawn, read/write, screen render, resize, exit |
 | Session Manager | 7 | CRUD, max limit, close all, stale entries |
-| MCP Tools E2E | 51 | All 22 tools end-to-end via MCP client |
+| MCP Tools E2E | 51 | All 23 tools end-to-end via MCP client |
 | Forge 0.7 Features | 28 | Codex spawn, worktree, dashboard API, chat history |
 | Command History | 6 | Event tracking, retrieval, cleanup |
 | Claude Chats | 14 | Session discovery, message parsing, search |

@@ -154,6 +154,16 @@
 
 56. [ ] Homebrew Cask — `brew install --cask forge` formula pointing to GitHub Release DMG. Submit PR to homebrew-cask. `S`
 
+## MCP Registry & Protocols
+
+57. [ ] Publish to MCP Registry — `server.json` prepared. Run `mcp-publisher publish` to list Forge on `registry.modelcontextprotocol.io` for discoverability. Supports both stdio (npm) and HTTP transports. `S`
+
+58. [ ] `delegate_task` MCP Tool — Allow one agent to delegate a subtask to another (e.g., Claude asks Codex to review code). Forge spawns the target agent, waits for completion, returns structured results. Practical agent-to-agent collaboration without full A2A protocol. `L`
+
+59. [ ] MCP Tasks Primitive — Adopt the experimental Tasks spec (SDK v1.24+) for long-running tools (`spawn_claude`, `spawn_codex`, `run_command`). Return task IDs instead of blocking. Wait for spec to stabilize and clients to adopt. `L`
+
+60. [ ] A2A Protocol Support — Expose spawned agents as A2A-compatible endpoints with Agent Cards. Enable external agents to discover and delegate tasks through Forge. Wait for Claude Code/Codex to support A2A natively. `XL`
+
 ## Cross-Platform
 
 45. [ ] Windows ConPTY Testing — `node-pty` supports ConPTY but spawn-helper and shell defaults are Unix-only. Test and fix for Windows users. `M`
@@ -177,5 +187,9 @@
 > - `run_command` (#18) and `waitForExit` (#12) were added specifically to address benchmark findings
 > - Desktop app (50–54) scaffolding done on `feature/desktop-app` branch — Phases 1-3 implemented
 > - Distribution: GitHub Releases (#55) first, then Homebrew Cask (#56) for maximum Mac developer reach
+> - MCP Registry (#57) is a quick win — `server.json` ready, just needs `mcp-publisher publish`
+> - `delegate_task` (#58) is the practical path to agent-to-agent — no protocol dependency
+> - MCP Tasks (#59) and A2A (#60) are watch-and-wait — specs still evolving, no client support yet
+> - ACP (IBM) was archived Aug 2025 and merged into A2A — not worth separate investment
 > - Cross-platform and multi-client features are community-driven — implement based on demand
 > - Size estimates: S (~1 day), M (~2-3 days), L (~1 week), XL (~2+ weeks)

@@ -23,12 +23,15 @@
     "desktop:dev": "npm run build && cd desktop && npm run dev",
     "desktop:build": "npm run build && cd desktop && npm run package"
   },
+  "mcpName": "io.github.ferodrigop/forge-terminal",
   "keywords": [
     "mcp",
     "terminal",
     "pty",
     "claude",
-    "claude-code"
+    "claude-code",
+    "codex",
+    "ai-agents"
   ],
   "repository": {
     "type": "git",

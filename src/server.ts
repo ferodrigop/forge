@@ -360,11 +360,15 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
         // Keep session data readable after exit so orchestrator can diagnose failures
         session.preserveAfterExit();
 
-        // Interactive mode: send the prompt to stdin after Claude starts up
+        // Interactive mode: send the prompt to stdin after Claude starts up.
+        // Text and Enter are sent separately to avoid paste burst detection issues.
         if (!isOneShot) {
           setTimeout(() => {
             try {
-              session.write(params.prompt + "\r");
+              session.write(params.prompt);
+              setTimeout(() => {
+                try { session.write("\r"); } catch { /* exited */ }
+              }, 500);
             } catch {
               // Session may have exited before we could write
             }
@@ -523,11 +527,16 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
         // Keep session data readable after exit
         session.preserveAfterExit();
 
-        // Interactive mode: send the prompt to stdin after Codex starts up
+        // Interactive mode: send the prompt to stdin after Codex starts up.
+        // Text and Enter must be sent separately — Codex's paste burst detector
+        // treats rapid text+Enter as a paste (inserts newline) instead of submitting.
         if (!isOneShot && params.prompt) {
           setTimeout(() => {
             try {
-              session.write(params.prompt! + "\r");
+              session.write(params.prompt!);
+              setTimeout(() => {
+                try { session.write("\r"); } catch { /* exited */ }
+              }, 500);
             } catch {
               // Session may have exited before we could write
             }
@@ -1336,6 +1345,483 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
               output: finalOutput,
               duration,
               sessionId,
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- delegate_task ---
+
+  /**
+   * Wait for an agent to finish its current turn (interactive mode).
+   *
+   * Agent-agnostic detection strategy (works for any CLI agent):
+   * 1. **Explicit signal** — Codex emits `turn.completed` in JSONL stream (instant detection)
+   * 2. **Output quiet period** — After receiving output, if terminal goes silent for N seconds,
+   *    the turn is considered done. This is the universal fallback that works for Claude, Codex,
+   *    or any future agent without agent-specific hacks.
+   * 3. **Process exit** — Agent exited (one-shot finished, crash, etc.)
+   *
+   * The quiet period is configurable (default 5s) — short enough to be responsive,
+   * long enough to avoid false positives during tool execution pauses.
+   */
+  function waitForTurnCompletion(
+    session: ReturnType<typeof manager.create>,
+    agentType: "claude" | "codex",
+    timeoutMs: number,
+    quietPeriodMs = 5_000,
+  ): Promise<{ reason: "turn_complete" | "exited" | "timeout"; exitCode?: number }> {
+    return new Promise((resolve) => {
+      let settled = false;
+      let hasOutput = false;
+      let quietTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanups: Array<() => void> = [];
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        if (quietTimer) clearTimeout(quietTimer);
+        clearTimeout(hardTimer);
+        for (const fn of cleanups) fn();
+      };
+
+      // Already exited?
+      if (session.status === "exited") {
+        resolve({ reason: "exited", exitCode: session.exitCode });
+        return;
+      }
+
+      // Watch for exit
+      const unsubExit = session.onExit((_id, exitCode) => {
+        if (settled) return;
+        cleanup();
+        resolve({ reason: "exited", exitCode });
+      });
+      cleanups.push(unsubExit);
+
+      // Watch output for explicit signals or quiet period
+      const unsubData = session.onData((data: string) => {
+        if (settled) return;
+        hasOutput = true;
+
+        // Codex explicit signal: turn.completed in JSONL stream
+        if (agentType === "codex" && data.includes('"turn.completed"')) {
+          cleanup();
+          resolve({ reason: "turn_complete" });
+          return;
+        }
+
+        // Universal: reset quiet timer on every output chunk
+        // When output stops flowing for quietPeriodMs, the turn is done
+        if (quietTimer) clearTimeout(quietTimer);
+        quietTimer = setTimeout(() => {
+          if (settled || !hasOutput) return;
+          cleanup();
+          resolve({ reason: "turn_complete" });
+        }, quietPeriodMs);
+      });
+      cleanups.push(unsubData);
+
+      // Hard timeout
+      const hardTimer = setTimeout(() => {
+        if (settled) return;
+        cleanup();
+        resolve({ reason: "timeout" });
+      }, timeoutMs);
+    });
+  }
+
+  server.tool(
+    "delegate_task",
+    "Delegate a task to another AI agent (Claude or Codex). Supports two modes:\n" +
+    "- **oneshot** (default): Agent processes the prompt and exits. Output returned directly.\n" +
+    "- **interactive**: Agent stays alive between turns. Use `sessionId` for follow-up messages to review, push back, or guide the agent's work.\n\n" +
+    "For interactive multi-turn conversations, the first call spawns the agent and returns a sessionId. " +
+    "Subsequent calls with that sessionId send follow-up messages. Use `from` to label which orchestrator is speaking.",
+    {
+      agent: z.enum(["claude", "codex"]).describe("Which agent to delegate to (required for first call, ignored on follow-ups)").optional(),
+      prompt: z.string().describe("The task prompt or follow-up message to send to the agent"),
+      mode: z.enum(["oneshot", "interactive"]).optional().describe("Delegation mode: 'oneshot' (default) runs to completion, 'interactive' keeps agent alive for multi-turn conversation"),
+      sessionId: z.string().optional().describe("Session ID from a previous interactive delegate_task call — sends a follow-up message to that agent"),
+      from: z.string().optional().describe("Orchestrator label (e.g., 'opus 4.6', 'gpt-codex4.5') — prefixed to the prompt so the delegate knows who is speaking"),
+      cwd: z.string().optional().describe("Working directory for the agent"),
+      timeout: z.number().int().min(10_000).max(600_000).optional().describe("Timeout in ms (default: 300000 / 5 min, max: 600000 / 10 min)"),
+      model: z.string().optional().describe("Model override (e.g., 'sonnet', 'opus', 'o3')"),
+      maxBudget: z.number().optional().describe("Max budget in USD (Claude only)"),
+      worktree: z.boolean().optional().describe("Create a git worktree for isolated file changes"),
+      branch: z.string().optional().describe("Branch name for the worktree (required when worktree: true)"),
+    },
+    async (params) => {
+      const timeoutMs = params.timeout ?? 300_000;
+      const start = Date.now();
+      const isInteractive = params.mode === "interactive";
+
+      // Format prompt with orchestrator attribution
+      const formattedPrompt = params.from
+        ? `${params.from}: ${params.prompt}`
+        : params.prompt;
+
+      try {
+        // ─── Follow-up to existing interactive session ───
+        if (params.sessionId) {
+          const session = manager.get(params.sessionId);
+          if (!session) {
+            return {
+              content: [{ type: "text" as const, text: `Error: session "${params.sessionId}" not found. It may have exited or been closed.` }],
+              isError: true,
+            };
+          }
+
+          if (session.status === "exited") {
+            const rawOutput = session.readFullBuffer();
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  status: "exited",
+                  exitCode: session.exitCode,
+                  output: rawOutput.slice(-102_400),
+                  sessionId: params.sessionId,
+                  message: "Agent has already exited. Use a new delegate_task call to spawn a fresh agent.",
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          // Determine agent type from session tags
+          const info = session.getInfo();
+          const agentType: "claude" | "codex" = info.tags?.includes("codex-agent") ? "codex" : "claude";
+
+          // Record buffer position before sending, so we capture only the new output
+          const bufferBefore = session.readFullBuffer();
+
+          // Send the follow-up message to the agent's TUI input.
+          // IMPORTANT: Codex's TUI has a paste burst detector — if text + Enter arrive
+          // in rapid succession, it's treated as a paste (newline inserted) instead of
+          // a submission. We must send text first, wait for the paste burst window to
+          // close (~300ms), then send Enter separately.
+          // Claude Code has the same Enter-to-submit behavior, so this works for both.
+          session.write(formattedPrompt);
+          await new Promise<void>((resolve) => setTimeout(resolve, 500));
+          session.write("\r");
+
+          // Wait for the agent to finish its turn
+          const turnResult = await waitForTurnCompletion(session, agentType, timeoutMs);
+          const duration = Date.now() - start;
+
+          const rawOutput = session.readFullBuffer();
+          // Extract only the NEW output since we sent the message
+          const newOutput = rawOutput.slice(bufferBefore.length);
+          const MAX_OUTPUT = 102_400;
+          const output = newOutput.length > MAX_OUTPUT
+            ? newOutput.slice(0, MAX_OUTPUT) + `\n\n--- OUTPUT TRUNCATED (${newOutput.length} bytes total, showing first ${MAX_OUTPUT}) ---`
+            : newOutput;
+
+          if (turnResult.reason === "exited") {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  status: turnResult.exitCode === 0 ? "completed" : "failed",
+                  agent: agentType,
+                  exitCode: turnResult.exitCode,
+                  output,
+                  duration,
+                  sessionId: params.sessionId,
+                }, null, 2),
+              }],
+            };
+          }
+
+          if (turnResult.reason === "timeout") {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  status: "timeout",
+                  agent: agentType,
+                  output,
+                  duration,
+                  sessionId: params.sessionId,
+                  message: `Agent did not finish turn within ${timeoutMs}ms. Session still alive — retry or use read_terminal to check progress.`,
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          // turn_complete — agent is waiting for next input
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                status: "awaiting_followup",
+                agent: agentType,
+                output,
+                duration,
+                sessionId: params.sessionId,
+                message: "Agent finished its turn and is waiting for your next message. Send another delegate_task with this sessionId to continue, or close_terminal to end.",
+              }, null, 2),
+            }],
+          };
+        }
+
+        // ─── First call — spawn a new agent ───
+        if (!params.agent) {
+          return {
+            content: [{ type: "text" as const, text: "Error: 'agent' is required when spawning a new delegate (no sessionId provided)" }],
+            isError: true,
+          };
+        }
+
+        let session: ReturnType<typeof manager.create> | undefined;
+        let effectiveCwd = params.cwd;
+        let worktreePath: string | undefined;
+
+        // Create git worktree if requested
+        if (params.worktree) {
+          if (!params.branch) {
+            return {
+              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
+              isError: true,
+            };
+          }
+
+          const baseCwd = params.cwd ?? process.cwd();
+          let repoRoot: string;
+          try {
+            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
+          } catch {
+            return {
+              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
+              isError: true,
+            };
+          }
+
+          const repoName = path.basename(repoRoot);
+          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
+          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
+
+          try {
+            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
+              cwd: repoRoot, encoding: "utf-8", stdio: "pipe",
+            });
+          } catch (err) {
+            const msg = (err as Error).message;
+            if (msg.includes("already exists")) {
+              try {
+                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
+                  cwd: repoRoot, encoding: "utf-8", stdio: "pipe",
+                });
+              } catch (err2) {
+                return {
+                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
+                  isError: true,
+                };
+              }
+            } else {
+              return {
+                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
+                isError: true,
+              };
+            }
+          }
+
+          effectiveCwd = worktreePath;
+        }
+
+        // Build agent command and args
+        const isClaude = params.agent === "claude";
+        const command = isClaude ? config.claudePath : config.codexPath;
+        const args: string[] = [];
+        const agentTag = isClaude ? "claude-agent" : "codex-agent";
+
+        if (isInteractive) {
+          // Interactive mode: pass prompt as CLI arg (both Claude and Codex accept it).
+          // This avoids the TUI input submission issue — the agent starts with the prompt directly.
+          if (isClaude) {
+            if (params.model) args.push("--model", params.model);
+            if (params.maxBudget) args.push("--max-budget-usd", String(params.maxBudget));
+          } else {
+            // Codex interactive: `codex "prompt"` starts interactive with initial prompt
+            if (params.model) args.push("--model", params.model);
+          }
+          // Push prompt as positional argument — both `claude "prompt"` and `codex "prompt"` work
+          args.push(formattedPrompt);
+        } else {
+          // Oneshot mode: pass prompt as CLI argument
+          if (isClaude) {
+            args.push("--print", "--output-format", "text", "--verbose", formattedPrompt);
+            if (params.model) args.push("--model", params.model);
+            if (params.maxBudget) args.push("--max-budget-usd", String(params.maxBudget));
+          } else {
+            args.push("exec", formattedPrompt);
+            if (params.model) args.push("--model", params.model);
+          }
+        }
+
+        const taskLabel = params.prompt.slice(0, 60);
+        const modeLabel = isInteractive ? "interactive" : "oneshot";
+        const tags = ["delegate-task", agentTag, `mode:${modeLabel}`];
+        if (worktreePath && params.branch) {
+          tags.push("worktree", `branch:${params.branch}`);
+        }
+
+        session = manager.create({
+          command,
+          args,
+          cwd: effectiveCwd,
+          name: `delegate(${params.agent}): ${taskLabel}`,
+          tags,
+          bufferSize: 2_097_152, // 2MB buffer for delegate tasks
+        });
+
+        session.preserveAfterExit();
+        const sessionId = session.id;
+
+        if (isInteractive) {
+          // Prompt was passed as CLI arg — agent starts processing immediately.
+          // Wait for the agent to finish its turn.
+          const turnResult = await waitForTurnCompletion(session, params.agent, timeoutMs);
+          const duration = Date.now() - start;
+
+          const rawOutput = session.readFullBuffer();
+          const MAX_OUTPUT = 102_400;
+          const output = rawOutput.length > MAX_OUTPUT
+            ? rawOutput.slice(0, MAX_OUTPUT) + `\n\n--- OUTPUT TRUNCATED (${rawOutput.length} bytes total, showing first ${MAX_OUTPUT}) ---`
+            : rawOutput;
+
+          if (turnResult.reason === "exited") {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  status: turnResult.exitCode === 0 ? "completed" : "failed",
+                  agent: params.agent,
+                  exitCode: turnResult.exitCode,
+                  output,
+                  duration,
+                  sessionId,
+                  worktreePath: worktreePath || undefined,
+                }, null, 2),
+              }],
+            };
+          }
+
+          if (turnResult.reason === "timeout") {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  status: "timeout",
+                  agent: params.agent,
+                  output,
+                  duration,
+                  sessionId,
+                  worktreePath: worktreePath || undefined,
+                  message: `Agent did not finish turn within ${timeoutMs}ms. Session still alive — use read_terminal to check progress or send another follow-up.`,
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          // turn_complete — agent is waiting for next input
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                status: "awaiting_followup",
+                agent: params.agent,
+                output,
+                duration,
+                sessionId,
+                worktreePath: worktreePath || undefined,
+                message: "Agent finished its turn and is waiting for your next message. Send another delegate_task with this sessionId to continue, or close_terminal to end.",
+              }, null, 2),
+            }],
+          };
+        }
+
+        // ─── Oneshot mode: wait for process exit ───
+        const exitResult = await new Promise<{ exited: boolean; exitCode?: number }>((resolve) => {
+          let settled = false;
+
+          const cleanup = () => {
+            if (settled) return;
+            settled = true;
+            unsubExit();
+            clearTimeout(timer);
+          };
+
+          if (session!.status === "exited") {
+            resolve({ exited: true, exitCode: session!.exitCode });
+            return;
+          }
+
+          const unsubExit = session!.onExit((_id, exitCode) => {
+            if (settled) return;
+            cleanup();
+            resolve({ exited: true, exitCode });
+          });
+
+          const timer = setTimeout(() => {
+            if (settled) return;
+            cleanup();
+            resolve({ exited: false });
+          }, timeoutMs);
+        });
+
+        const rawOutput = session.readFullBuffer();
+        const duration = Date.now() - start;
+
+        // Truncate output at ~100KB
+        const MAX_OUTPUT = 102_400;
+        const truncated = rawOutput.length > MAX_OUTPUT;
+        const output = truncated
+          ? rawOutput.slice(0, MAX_OUTPUT) + `\n\n--- OUTPUT TRUNCATED (${rawOutput.length} bytes total, showing first ${MAX_OUTPUT}) ---`
+          : rawOutput;
+
+        if (!exitResult.exited) {
+          // Timeout — keep session alive for inspection
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                status: "timeout",
+                agent: params.agent,
+                exitCode: null,
+                output,
+                duration,
+                sessionId,
+                worktreePath: worktreePath || undefined,
+                message: `Agent did not complete within ${timeoutMs}ms. Session kept alive — use read_terminal/close_terminal with sessionId.`,
+              }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+
+        // Completed — keep session visible (preserveAfterExit already set)
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              status: exitResult.exitCode === 0 ? "completed" : "failed",
+              agent: params.agent,
+              exitCode: exitResult.exitCode,
+              output,
+              duration,
+              sessionId,
+              worktreePath: worktreePath || undefined,
             }, null, 2),
           }],
         };

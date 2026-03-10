@@ -285,6 +285,28 @@ export const CSS_STYLES = `
   #terminal-header .session-label { color: #7aa2f7; font-weight: 500; }
   #terminal-header .header-time { font-size: 11px; color: #565f89; }
 
+  .delegate-prompt-banner {
+    padding: 10px 16px; border-bottom: 1px solid #292e42;
+    background: #1e1f2e;
+  }
+  .delegate-prompt-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .delegate-agent-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    display: inline-flex; align-items: center;
+  }
+  .delegate-agent-badge svg { width: 12px; height: 12px; }
+  .delegate-mode-badge {
+    font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 3px;
+    background: #292e42; color: #565f89; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .delegate-prompt-text {
+    font-size: 13px; color: #c0caf5; line-height: 1.5;
+    padding: 8px 12px; background: #24283b; border-radius: 6px;
+    border-left: 3px solid #7aa2f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
   .claude-badge {
     font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
     margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;
