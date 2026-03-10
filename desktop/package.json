@@ -1,0 +1,26 @@
+{
+  "name": "forge-desktop",
+  "version": "0.7.0",
+  "description": "Forge Terminal MCP — Desktop App",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build:main": "tsup",
+    "dev": "npm run build:main && electron .",
+    "package": "npm run build:main && electron-builder --mac",
+    "package:dmg": "npm run build:main && electron-builder --mac dmg",
+    "package:zip": "npm run build:main && electron-builder --mac zip"
+  },
+  "dependencies": {
+    "electron-store": "^10.0.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "@electron/rebuild": "^3.7.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  }
+}

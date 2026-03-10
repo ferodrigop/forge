@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/rodrigopineda/Progra/work/ravn/ravn_labs/forge/*.md)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(gh search:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git -C /Users/rodrigopineda/Progra/work/ravn/ravn_labs/forge diff --stat master main 2>/dev/null | head -40)",
+      "Bash(/opt/homebrew/bin/npm test:*)",
+      "Read(//Users/rodrigopineda/Progra/work/ravn/ravn_labs/forge-desktop-worktree/**)",
+      "Bash(/opt/homebrew/bin/npm run:*)",
+      "Bash(cd /Users/rodrigopineda/Progra/work/ravn/ravn_labs/forge-desktop-worktree/desktop && /opt/homebrew/bin/npm run build:main 2>&1 | tail -3 && ./node_modules/.bin/electron . 2>&1)",
+      "WebFetch(domain:www.electronjs.org)"
+    ]
+  }
+}

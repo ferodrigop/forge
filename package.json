@@ -19,7 +19,9 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "desktop:dev": "npm run build && cd desktop && npm run dev",
+    "desktop:build": "npm run build && cd desktop && npm run package"
   },
   "keywords": [
     "mcp",

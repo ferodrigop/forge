@@ -11,6 +11,24 @@ export const CSS_STYLES = `
 
   #app { display: contents; }
 
+  /* Desktop app: title bar region for macOS hidden inset traffic lights */
+  body.forge-desktop #sidebar-header {
+    padding-left: var(--traffic-light-clearance, 80px);
+    padding-top: 14px;
+    padding-bottom: 14px;
+    -webkit-app-region: drag;
+  }
+  body.forge-desktop #sidebar-header button,
+  body.forge-desktop #sidebar-header .logo {
+    -webkit-app-region: no-drag;
+  }
+  body.forge-desktop #main-titlebar {
+    height: 38px;
+    -webkit-app-region: drag;
+    background: #1a1b26;
+    flex-shrink: 0;
+  }
+
   #sidebar {
     width: 260px;
     min-width: 260px;
