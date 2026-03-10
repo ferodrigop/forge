@@ -1,79 +1,16 @@
-import { spawn, execFileSync } from "node:child_process";
-import { readFile, writeFile, mkdir, unlink, access } from "node:fs/promises";
-import { join } from "node:path";
-import { homedir } from "node:os";
+import { spawn } from "node:child_process";
 import { createServer } from "./server.js";
 import { parseConfig } from "./utils/config.js";
 import { logger, setLogLevel } from "./utils/logger.js";
-
-const FORGE_DIR = join(homedir(), ".forge");
-const PID_FILE = join(FORGE_DIR, "daemon.pid");
-const LOCK_FILE = join(FORGE_DIR, "daemon.lock");
-const DEFAULT_PORT = 3141;
-
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function readPid(): Promise<number | null> {
-  try {
-    const raw = await readFile(PID_FILE, "utf-8");
-    const pid = parseInt(raw.trim(), 10);
-    return Number.isNaN(pid) ? null : pid;
-  } catch {
-    return null;
-  }
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function writeDaemonFiles(pid: number): Promise<void> {
-  await mkdir(FORGE_DIR, { recursive: true });
-  await writeFile(PID_FILE, String(pid));
-  await writeFile(LOCK_FILE, String(pid));
-}
-
-async function cleanDaemonFiles(): Promise<void> {
-  for (const f of [PID_FILE, LOCK_FILE]) {
-    try {
-      await unlink(f);
-    } catch {
-      // Already gone
-    }
-  }
-}
-
-async function getPortPid(port: number): Promise<number | null> {
-  try {
-    const out = execFileSync("lsof", ["-i", `:${port}`, "-sTCP:LISTEN", "-t"], { encoding: "utf-8" });
-    const pid = parseInt(out.trim().split("\n")[0], 10);
-    return Number.isNaN(pid) ? null : pid;
-  } catch {
-    return null;
-  }
-}
-
-async function getDaemonStatus(): Promise<{ running: boolean; pid?: number }> {
-  const pid = await readPid();
-  if (pid && isProcessAlive(pid)) {
-    return { running: true, pid };
-  }
-  // Stale PID file — clean up
-  if (pid) await cleanDaemonFiles();
-  return { running: false };
-}
+import {
+  DEFAULT_PORT,
+  readPid,
+  isProcessAlive,
+  writeDaemonFiles,
+  cleanDaemonFiles,
+  getPortPid,
+  getDaemonStatus,
+} from "./utils/daemon.js";
 
 // ─── Subcommands ───────────────────────────────────────────────
 
@@ -311,6 +248,7 @@ Daemon options (forge start):
   --buffer-size <n>    Ring buffer size in bytes (default: 1048576)
   --shell <path>       Default shell (default: $SHELL)
   --claude-path <path> Path to claude CLI (default: claude)
+  --codex-path <path>  Path to codex CLI (default: codex)
   --auth-token <token> Require Bearer token for /mcp, /api, /ws
   --port <n>           HTTP port (default: 3141)
   --verbose            Enable debug logging

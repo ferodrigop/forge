@@ -23,10 +23,21 @@ function MainArea() {
   return html\`<\${EmptyState} />\`;
 }
 
+var isDesktop = !!(window.forgeDesktop && window.forgeDesktop.isDesktop);
+
+function MainContent() {
+  return html\`
+    <div style="display:flex;flex-direction:column;flex:1;min-width:0">
+      \${isDesktop ? html\`<div id="main-titlebar"></div>\` : null}
+      <\${MainArea} />
+    </div>
+  \`;
+}
+
 function App() {
   return html\`
     <\${Sidebar} />
-    <\${MainArea} />
+    <\${MainContent} />
     <\${ModalOverlay} />
   \`;
 }
@@ -35,6 +46,17 @@ function App() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && activeModal.value) activeModal.value = null;
 });
+
+// Detect desktop app and set traffic light clearance
+if (window.forgeDesktop && window.forgeDesktop.isDesktop) {
+  document.body.classList.add('forge-desktop');
+  if (window.forgeDesktop.trafficLightClearance) {
+    document.documentElement.style.setProperty(
+      '--traffic-light-clearance',
+      window.forgeDesktop.trafficLightClearance + 'px'
+    );
+  }
+}
 
 // Mount
 preact.render(html\`<\${App} />\`, document.getElementById('app'));

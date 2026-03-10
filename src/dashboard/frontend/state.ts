@@ -29,6 +29,13 @@ var jsonBuf = '';
 var ws = null;
 var authToken = null;
 
+// Desktop app: when HTML is served from a different port than the daemon,
+// daemonPort tells us where the real API/WS lives.
+var _qp = new URLSearchParams(location.search);
+var _daemonPort = _qp.get('daemonPort');
+var apiBase = _daemonPort ? 'http://127.0.0.1:' + _daemonPort : '';
+var wsHost = _daemonPort ? '127.0.0.1:' + _daemonPort : location.host;
+
 (function initAuthToken() {
   var p = new URLSearchParams(location.search);
   var fromUrl = p.get('token');
@@ -50,7 +57,7 @@ function authHeaders(extra) {
 
 function connect() {
   var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  var wsUrl = proto + '//' + location.host + '/ws' + (authToken ? ('?token=' + encodeURIComponent(authToken)) : '');
+  var wsUrl = proto + '//' + wsHost + '/ws' + (authToken ? ('?token=' + encodeURIComponent(authToken)) : '');
   ws = new WebSocket(wsUrl);
   ws.onopen = function() {
     wsConnected.value = true;
@@ -299,7 +306,7 @@ function openChat(chatId) {
     termInstance.value.dispose();
     termInstance.value = null;
   }
-  fetch('/api/chats/' + chatId, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
+  fetch(apiBase + '/api/chats/' + chatId, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
     chatMessages.value = data.messages || [];
     chatLoading.value = false;
   }).catch(function() {
@@ -309,7 +316,7 @@ function openChat(chatId) {
 }
 
 function continueChat(chatId) {
-  fetch('/api/chats/' + chatId + '/continue', { method: 'POST', headers: authHeaders() }).then(function(r) {
+  fetch(apiBase + '/api/chats/' + chatId + '/continue', { method: 'POST', headers: authHeaders() }).then(function(r) {
     if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Continue failed'); });
     return r.json();
   }).then(function(data) {
@@ -320,14 +327,14 @@ function continueChat(chatId) {
 }
 
 function deleteChat(chatId) {
-  fetch('/api/chats/' + chatId, { method: 'DELETE', headers: authHeaders() }).then(function() {
+  fetch(apiBase + '/api/chats/' + chatId, { method: 'DELETE', headers: authHeaders() }).then(function() {
     if (activeChatId.value === chatId) activeChatId.value = null;
     loadChats();
   });
 }
 
 function createTerminal(opts) {
-  fetch('/api/sessions', {
+  fetch(apiBase + '/api/sessions', {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(opts),

@@ -136,6 +136,24 @@
 
 ---
 
+## Desktop App
+
+50. [ ] Electron Desktop App MVP — BrowserWindow with in-process daemon, hidden title bar inset, window state persistence, system tray with session count. `L`
+
+51. [ ] Tray + Menu + Notifications — Menu bar icon, macOS app menu, close-to-tray, native notifications on session created/exited. `M`
+
+52. [ ] Auto-Launch + Auto-Update — Login item registration, electron-updater with GitHub Releases. `S`
+
+53. [ ] Offline Frontend Assets — Bundle Preact/xterm.js/htm locally instead of CDN for offline use. `M`
+
+54. [ ] Code Signing + Notarization — Apple Developer cert, hardened runtime, electron-builder afterSign hook. Required for DMG distribution. `M`
+
+## Distribution
+
+55. [ ] GitHub Releases — Build DMG + ZIP on tag push, upload to GitHub Releases. Universal binary (arm64 + x64). `M`
+
+56. [ ] Homebrew Cask — `brew install --cask forge` formula pointing to GitHub Release DMG. Submit PR to homebrew-cask. `S`
+
 ## Cross-Platform
 
 45. [ ] Windows ConPTY Testing — `node-pty` supports ConPTY but spawn-helper and shell defaults are Unix-only. Test and fix for Windows users. `M`
@@ -157,5 +175,7 @@
 > - Publishing prerequisites (30–34) are the immediate priority — blocks all external adoption
 > - Dashboard streaming (#39) is the highest-impact UX improvement from benchmarking
 > - `run_command` (#18) and `waitForExit` (#12) were added specifically to address benchmark findings
+> - Desktop app (50–54) scaffolding done on `feature/desktop-app` branch — Phases 1-3 implemented
+> - Distribution: GitHub Releases (#55) first, then Homebrew Cask (#56) for maximum Mac developer reach
 > - Cross-platform and multi-client features are community-driven — implement based on demand
 > - Size estimates: S (~1 day), M (~2-3 days), L (~1 week), XL (~2+ weeks)

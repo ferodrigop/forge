@@ -1,0 +1,53 @@
+appId: com.forge.terminal
+productName: Forge
+copyright: Copyright © 2024-2026
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - resources/**/*
+  - package.json
+
+# Include the parent forge dist/ for in-process daemon
+extraResources:
+  - from: ../dist
+    to: forge-dist
+    filter:
+      - "**/*"
+  - from: ../node_modules/node-pty
+    to: node_modules/node-pty
+    filter:
+      - "**/*"
+
+mac:
+  category: public.app-category.developer-tools
+  icon: resources/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - universal
+    - target: zip
+      arch:
+        - universal
+  hardenedRuntime: true
+  entitlements: forge.entitlements.plist
+  entitlementsInherit: forge.entitlements.plist
+  darkModeSupport: true
+
+dmg:
+  title: Forge
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+publish:
+  provider: github
+  owner: ferodrigop
+  repo: forge-terminal-mcp
