@@ -58,10 +58,10 @@ function SessionItem(props) {
         </div>
         <div class="session-meta">\${metaText}</div>
       </div>
-      \${s.claudeState === 'blocked' ? html\`<span class="blocked-icon" title="Needs attention">!</span>\` : null}
-      \${s.status === 'exited' ? html\`<button
+      \${s.claudeState === 'blocked' && s.status === 'running' ? html\`<span class="blocked-icon" title="Needs attention">!</span>\` : null}
+      \${s.status === 'exited' && !(s.tags && s.tags.indexOf('claude-agent') >= 0) ? html\`<button
         class="revive-btn"
-        title=\${s.tags && s.tags.indexOf('claude-agent') >= 0 ? 'New Claude session (use Chats tab to resume conversation)' : 'Revive session'}
+        title="Revive session"
         onClick=\${function(e) { e.stopPropagation(); reviveSession(s.id); }}
       >\u21bb</button>\` : null}
       <button
@@ -148,7 +148,7 @@ function TerminalGroup(props) {
         <span class="group-stats">\${stats}</span>
         <button ref=\${copiedRef} class="group-action-btn group-copy-btn" title="Copy path" onClick=\${onCopy}>
           <span class="copy-icon"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg></span>
-          <span class="check-icon"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#9ece6a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-7"/></svg> Copied!</span>
+          <span class="check-icon"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#9ece6a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-7"/></svg></span>
         </button>
         <div class="group-popover-anchor" style="position:relative">
           <button class="group-action-btn group-add-btn" title="New session in this directory" onClick=\${onPlusClick}>+</button>

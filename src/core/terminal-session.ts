@@ -109,21 +109,25 @@ export class TerminalSession {
 
   /** Derive Claude Code state from terminal title + screen. Returns null for non-Claude sessions. */
   get claudeState(): "blocked" | null {
-    if (!this.tags?.includes("claude-agent")) return null;
     if (this._status === "exited") return null;
     const t = this._termTitle;
-    if (!t || !t.includes("Claude")) return null;
-    // Only check when idle (✳ in title). Spinner = actively working, no alert needed.
-    if (!t.includes("\u2733")) return null;
-    // Check only the bottom portion of the screen for active permission prompts.
-    // Old prompts scroll up but the active one is always near the bottom.
+    // Detect Claude sessions by tag OR terminal title
+    const isClaude = this.tags?.includes("claude-agent") || (t && t.includes("Claude"));
+    if (!isClaude) return null;
+    // Read the visible screen and find the last non-empty line.
+    // Permission prompts are only "active" if they appear at the very bottom
+    // of the visible content (no output has appeared after them).
     const screen = this.readScreen();
     const lines = screen.split("\n");
-    const bottom = lines.slice(-10).join("\n");
+    // Find the last non-empty line index
+    let lastContent = lines.length - 1;
+    while (lastContent >= 0 && lines[lastContent].trim() === "") lastContent--;
+    if (lastContent < 0) return null;
+    // Check the last few content lines (the prompt spans ~5 lines: header, options, esc/tab hint)
+    const tail = lines.slice(Math.max(0, lastContent - 6), lastContent + 1).join("\n");
     if (
-      bottom.includes("Do you want to proceed?") ||
-      bottom.includes("Yes, allow") ||
-      bottom.includes("Needs permission")
+      (tail.includes("Do you want to proceed?") || tail.includes("Needs permission")) &&
+      (tail.includes("Yes") || tail.includes("Esc to cancel"))
     ) {
       return "blocked";
     }

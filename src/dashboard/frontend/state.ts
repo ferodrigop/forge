@@ -117,16 +117,18 @@ function handleMessage(msg) {
         }
         sessionMemory.value = mem;
         sessionTokens.value = tok;
-        // Merge claudeState into sessions for sidebar rendering
+        // Merge claudeState into sessions for sidebar rendering (always update, including clearing)
         var csMap = {};
         for (var k = 0; k < msg.sessions.length; k++) {
-          if (msg.sessions[k].claudeState) csMap[msg.sessions[k].id] = msg.sessions[k].claudeState;
+          csMap[msg.sessions[k].id] = msg.sessions[k].claudeState || null;
         }
-        if (Object.keys(csMap).length > 0) {
-          sessions.value = sessions.value.map(function(s) {
-            return csMap[s.id] ? Object.assign({}, s, { claudeState: csMap[s.id] }) : s;
-          });
-        }
+        sessions.value = sessions.value.map(function(s) {
+          if (s.id in csMap) {
+            var newState = csMap[s.id];
+            if (s.claudeState !== newState) return Object.assign({}, s, { claudeState: newState });
+          }
+          return s;
+        });
       }
       break;
     case 'output':
