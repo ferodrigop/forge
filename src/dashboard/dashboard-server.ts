@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import { URL } from "node:url";
@@ -32,7 +32,14 @@ export class DashboardServer {
     this.httpServer = createHttpServer(async (req, res) => {
       const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
       const pathname = parsedUrl.pathname;
+
+      // DNS rebinding protection: reject cross-origin requests to API/MCP endpoints
       const protectedPath = pathname === "/mcp" || pathname.startsWith("/api/");
+      if (protectedPath && !this.isLocalOrigin(req)) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden: invalid origin" }));
+        return;
+      }
       if (protectedPath && !this.isAuthorized(req)) {
         this.respondUnauthorized(res);
         return;
@@ -175,8 +182,12 @@ export class DashboardServer {
       res.end(DASHBOARD_HTML);
     });
 
-    this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws" });
+    this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws", maxPayload: MAX_BODY_BYTES });
     this.wss.on("connection", (ws, req) => {
+      if (!this.isLocalOrigin(req)) {
+        ws.close(1008, "Forbidden: invalid origin");
+        return;
+      }
       if (!this.isAuthorized(req)) {
         ws.close(1008, "Unauthorized");
         return;
@@ -312,18 +323,42 @@ export class DashboardServer {
     }
   }
 
+  /** DNS rebinding protection: only allow requests from localhost origins */
+  private isLocalOrigin(req: IncomingMessage): boolean {
+    const origin = req.headers.origin;
+    // No Origin header = non-browser request (curl, MCP client, etc.) — allow
+    if (!origin) return true;
+    try {
+      const url = new URL(origin);
+      const host = url.hostname;
+      return host === "127.0.0.1" || host === "localhost" || host === "::1" || host === `[::1]`;
+    } catch {
+      return false;
+    }
+  }
+
   private isAuthorized(req: IncomingMessage): boolean {
     const token = this.config?.authToken;
     if (!token) return true;
     const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
     const queryToken = parsedUrl.searchParams.get("token");
-    if (queryToken === token) return true;
+    if (queryToken && this.safeEqual(queryToken, token)) return true;
     const authHeader = req.headers.authorization;
     if (!authHeader) return false;
-    if (authHeader.startsWith("Bearer ")) {
-      return authHeader.slice("Bearer ".length) === token;
+    const provided = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : authHeader;
+    return this.safeEqual(provided, token);
+  }
+
+  private safeEqual(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) {
+      timingSafeEqual(bufB, bufB); // constant-time even on length mismatch
+      return false;
     }
-    return authHeader === token;
+    return timingSafeEqual(bufA, bufB);
   }
 
   private respondUnauthorized(res: ServerResponse): void {
