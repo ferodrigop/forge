@@ -23,6 +23,12 @@
   - Keep generic command-based creation unchanged.
   - Add `Codex` option to the per-directory launcher popover in the sidebar.
   - Keep one-shot Codex exposure MCP-only in this phase (no one-shot dashboard form).
+- Additional changes shipped beyond the original plan:
+  - Add `GET /api/sessions/:id/screen` REST endpoint for reading terminal output via HTTP.
+  - Ghost/stale session deletion from dashboard (WS close handler falls back to `removeStale`).
+  - Broadened permission detection to catch `"Do you want to overwrite"` and other Claude prompts.
+  - Permission detection extended to `codex-agent` sessions.
+  - Shared sparkles SVG icon for both Claude Code and Codex in launcher popover.
 - Preserve existing Claude-specific behavior:
   - Keep chat browser/continue and Claude stream-json history parsing scoped to `claude-agent`.
   - Do not add Codex chat/history parsing in this phase.
@@ -62,17 +68,20 @@
 - Add a "Codex Chats" tab or filter in the dashboard Chats panel.
 - Support `/api/codex-chats/:id/continue` for resuming Codex sessions.
 
-### Codex status detection (blocked state)
-- Detect when a Codex session is waiting for user input (equivalent to `claudeState: "blocked"`).
-- Surface the blocked indicator (!) in the sidebar for Codex sessions.
+### ~~Codex status detection (blocked state)~~ DONE
+- ~~Detect when a Codex session is waiting for user input (equivalent to `claudeState: "blocked"`).~~
+- ~~Surface the blocked indicator (!) in the sidebar for Codex sessions.~~
+- Shipped: `claudeState` getter now detects both `claude-agent` and `codex-agent` sessions, with broadened permission patterns (`"Do you want"`, `"Allow"`).
 
-### Worktree support for `spawn_codex`
-- Port the `worktree` + `branch` parameters from `spawn_claude` to `spawn_codex`.
-- Allows Codex agents to run in isolated git worktrees.
+### ~~Worktree support for `spawn_codex`~~ DONE
+- ~~Port the `worktree` + `branch` parameters from `spawn_claude` to `spawn_codex`.~~
+- ~~Allows Codex agents to run in isolated git worktrees.~~
+- Shipped: identical worktree logic with `worktree` + `branch` params, auto-tags `worktree` and `branch:{name}`.
 
 ### One-shot dashboard form
 - Add a one-shot prompt input form in the dashboard for Codex (and optionally Claude).
 - Currently one-shot mode is MCP-only; a dashboard form would let users trigger `codex exec` from the UI.
 
-### Dashboard `POST /api/sessions` integration tests
-- Add integration tests for `POST /api/sessions` with `agent: "codex"` and `agent: "claude"` verifying command/tag resolution against configured paths.
+### ~~Dashboard `POST /api/sessions` integration tests~~ DONE
+- ~~Add integration tests for `POST /api/sessions` with `agent: "codex"` and `agent: "claude"` verifying command/tag resolution against configured paths.~~
+- Shipped: 6 tests covering agent resolution, custom tags, backward compat, and `GET /api/sessions/:id/screen`.

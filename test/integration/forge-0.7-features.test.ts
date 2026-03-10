@@ -443,6 +443,72 @@ describe("Forge 0.7 Integration — REST endpoints", () => {
     manager.close(info.id);
   });
 
+  it("POST /api/sessions with agent:'claude' resolves to configured claudePath and tags", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent: "claude", cwd: "/tmp" }),
+    });
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.command).toBe(TEST_CONFIG.claudePath);
+    expect(info.tags).toContain("claude-agent");
+    manager.close(info.id);
+  });
+
+  it("POST /api/sessions with agent:'codex' resolves to configured codexPath and tags", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent: "codex", cwd: "/tmp" }),
+    });
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.command).toBe(TEST_CONFIG.codexPath);
+    expect(info.tags).toContain("codex-agent");
+    manager.close(info.id);
+  });
+
+  it("POST /api/sessions with agent preserves custom tags", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent: "codex", cwd: "/tmp", tags: ["codex-agent", "test"] }),
+    });
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.tags).toContain("codex-agent");
+    expect(info.tags).toContain("test");
+    manager.close(info.id);
+  });
+
+  it("POST /api/sessions without agent uses command (backward compat)", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command: "/bin/sh", cwd: "/tmp" }),
+    });
+    expect(res.status).toBe(200);
+    const info = await res.json();
+    expect(info.command).toBe("/bin/sh");
+    expect(info.tags).toBeUndefined();
+    manager.close(info.id);
+  });
+
+  it("GET /api/sessions/:id/screen returns terminal screen", async () => {
+    const session = manager.create({ command: "/bin/sh", args: ["-c", "echo hello-screen"] });
+    await new Promise((r) => setTimeout(r, 500));
+    const data = await fetchJson(`/api/sessions/${session.id}/screen`);
+    expect(data.id).toBe(session.id);
+    expect(data.screen).toContain("hello-screen");
+    manager.close(session.id);
+  });
+
+  it("GET /api/sessions/:id/screen returns 404 for unknown session", async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions/nonexistent/screen`);
+    expect(res.status).toBe(404);
+  });
+
   it("DELETE /api/chats/:id deletes the session", async () => {
     // Create a disposable session
     const projectDir = join(tempDir, ".claude", "projects", "-Users-dev-api");

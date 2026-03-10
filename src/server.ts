@@ -401,12 +401,14 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     "Spawn a Codex agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous `codex exec` mode (requires prompt).",
     {
       prompt: z.string().optional().describe("The prompt to send to Codex (required for oneShot mode)"),
-      cwd: z.string().optional().describe("Working directory for Codex"),
+      cwd: z.string().optional().describe("Working directory for Codex (REQUIRED for worktrees — must point to the worktree path, not a session ID)"),
       fromSession: z.string().optional().describe("Copy cwd from an existing session ID (alternative to setting cwd manually)"),
       model: z.string().optional().describe("Model to use"),
       name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
       tags: z.array(z.string()).max(10).optional().describe("Additional tags (codex-agent is always included)"),
       bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
+      worktree: z.boolean().optional().describe("Create a git worktree for this agent (isolates file changes on a separate branch)"),
+      branch: z.string().optional().describe("Branch name for the worktree (required when worktree: true, e.g., 'feature/codex-fix')"),
       oneShot: z.boolean().optional().describe("Run in `codex exec` mode (one-shot: process prompt and exit). Requires prompt. Default: false (interactive)"),
     },
     async (params) => {
@@ -430,6 +432,64 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           }
           effectiveCwd = sourceSession.getInfo().cwd;
         }
+        let worktreePath: string | undefined;
+
+        // Create git worktree if requested
+        if (params.worktree) {
+          if (!params.branch) {
+            return {
+              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
+              isError: true,
+            };
+          }
+
+          const baseCwd = params.cwd ?? process.cwd();
+
+          let repoRoot: string;
+          try {
+            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
+          } catch {
+            return {
+              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
+              isError: true,
+            };
+          }
+
+          const repoName = path.basename(repoRoot);
+          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
+          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
+
+          try {
+            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
+              cwd: repoRoot,
+              encoding: "utf-8",
+              stdio: "pipe",
+            });
+          } catch (err) {
+            const msg = (err as Error).message;
+            if (msg.includes("already exists")) {
+              try {
+                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
+                  cwd: repoRoot,
+                  encoding: "utf-8",
+                  stdio: "pipe",
+                });
+              } catch (err2) {
+                return {
+                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
+                  isError: true,
+                };
+              }
+            } else {
+              return {
+                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
+                isError: true,
+              };
+            }
+          }
+
+          effectiveCwd = worktreePath;
+        }
 
         const isOneShot = params.oneShot === true;
         const args: string[] = [];
@@ -444,6 +504,9 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
 
         const autoName = params.name ?? (params.prompt ? `codex: ${params.prompt.slice(0, 60)}` : "codex: interactive");
         const baseTags = ["codex-agent"];
+        if (params.worktree && params.branch) {
+          baseTags.push("worktree", `branch:${params.branch}`);
+        }
         const mergedTags = params.tags
           ? [...new Set([...baseTags, ...params.tags])]
           : baseTags;
@@ -471,11 +534,18 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           }, 2000);
         }
 
+        const info = session.getInfo();
+        const result: Record<string, unknown> = { ...info };
+        if (worktreePath) {
+          result.worktreePath = worktreePath;
+          result.branch = params.branch;
+        }
+
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(session.getInfo(), null, 2),
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };
