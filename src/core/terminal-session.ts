@@ -111,9 +111,9 @@ export class TerminalSession {
   get claudeState(): "blocked" | null {
     if (this._status === "exited") return null;
     const t = this._termTitle;
-    // Detect Claude sessions by tag OR terminal title
-    const isClaude = this.tags?.includes("claude-agent") || (t && t.includes("Claude"));
-    if (!isClaude) return null;
+    // Detect agent sessions by tag OR terminal title
+    const isAgent = this.tags?.includes("claude-agent") || this.tags?.includes("codex-agent") || (t && (t.includes("Claude") || t.includes("Codex")));
+    if (!isAgent) return null;
     // Read the visible screen and find the last non-empty line.
     // Permission prompts are only "active" if they appear at the very bottom
     // of the visible content (no output has appeared after them).
@@ -126,8 +126,8 @@ export class TerminalSession {
     // Check the last few content lines (the prompt spans ~5 lines: header, options, esc/tab hint)
     const tail = lines.slice(Math.max(0, lastContent - 6), lastContent + 1).join("\n");
     if (
-      (tail.includes("Do you want to proceed?") || tail.includes("Needs permission")) &&
-      (tail.includes("Yes") || tail.includes("Esc to cancel"))
+      (tail.includes("Do you want") || tail.includes("Needs permission")) &&
+      (tail.includes("Yes") || tail.includes("Esc to cancel") || tail.includes("Allow"))
     ) {
       return "blocked";
     }

@@ -80,25 +80,21 @@ function TerminalGroup(props) {
   var running = items.filter(function(s) { return s.status === 'running'; }).length;
   var stats = running + '/' + items.length;
   var cwd = items[0] && items[0].cwd ? items[0].cwd : '';
-  var copiedRef = preact.createRef();
-  var copiedState = preact.createRef();
-  copiedState.current = copiedState.current || false;
   var popoverOpen = activeGroupPopover.value === label;
+  var copiedArr = preactHooks.useState(false);
+  var isCopied = copiedArr[0];
+  var setCopied = copiedArr[1];
+  var copyTimerRef = preact.createRef();
 
   function onCopy(e) {
     e.stopPropagation();
     if (cwd) {
       navigator.clipboard.writeText(cwd).then(function() {
-        if (copiedRef.current) {
-          copiedRef.current.classList.add('copied');
-          copiedRef.current.setAttribute('data-copied', 'true');
-          setTimeout(function() {
-            if (copiedRef.current) {
-              copiedRef.current.classList.remove('copied');
-              copiedRef.current.removeAttribute('data-copied');
-            }
-          }, 1500);
-        }
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        setCopied(true);
+        copyTimerRef.current = setTimeout(function() {
+          setCopied(false);
+        }, 1500);
       });
     }
   }
@@ -152,7 +148,7 @@ function TerminalGroup(props) {
         <span class=\${'chevron' + (isCollapsed ? ' collapsed' : '')}>\u25bc</span>
         <span class="group-name">\${label}</span>
         <span class="group-stats">\${stats}</span>
-        <button ref=\${copiedRef} class="group-action-btn group-copy-btn" title="Copy path" onClick=\${onCopy}>
+        <button class=\${'group-action-btn group-copy-btn' + (isCopied ? ' copied' : '')} title="Copy path" onClick=\${onCopy}>
           <span class="copy-icon"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg></span>
           <span class="check-icon"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#9ece6a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-7"/></svg></span>
         </button>
