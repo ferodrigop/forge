@@ -26,6 +26,7 @@ function XTermContainer() {
       fontSize: 14,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
       cursorBlink: true,
+      cursorStyle: 'bar',
       allowProposedApi: true,
     });
 
@@ -39,6 +40,18 @@ function XTermContainer() {
     ro.observe(container);
     resizeObserverRef.current = ro;
 
+    // macOS keybindings
+    term.attachCustomKeyEventHandler(function(ev) {
+      if (ev.type !== 'keydown') return true;
+      if (ev.metaKey) {
+        if (ev.key === 'ArrowLeft') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x01' }); return false; }   // Home (Ctrl+A)
+        if (ev.key === 'ArrowRight') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x05' }); return false; }  // End (Ctrl+E)
+        if (ev.key === 'Backspace') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x15' }); return false; }   // Kill line (Ctrl+U)
+        if (ev.key === 'ArrowUp') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x1b[1;5A' }); return false; }   // Beginning of input
+        if (ev.key === 'ArrowDown') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x1b[1;5B' }); return false; } // End of input
+      }
+      return true;
+    });
     term.onData(function(data) { wsSend({ type: 'input', sessionId: activeSessionId.value, data: data }); });
     term.onResize(function(size) { wsSend({ type: 'resize', sessionId: activeSessionId.value, cols: size.cols, rows: size.rows }); });
     term.onTitleChange(function(title) { termTitle.value = title || ''; });
@@ -143,10 +156,37 @@ function TerminalStatusBar() {
     ioText = '\\u2191' + fmtBytes(bw) + ' \\u2193' + fmtBytes(br);
   }
 
+  // Session duration (live timer)
+  var now = statusBarTick.value;
+  var durationText = '';
+  if (activeSession.createdAt) {
+    var elapsed = Math.floor((now - new Date(activeSession.createdAt).getTime()) / 1000);
+    if (elapsed < 0) elapsed = 0;
+    var h = Math.floor(elapsed / 3600);
+    var m = Math.floor((elapsed % 3600) / 60);
+    var s = elapsed % 60;
+    durationText = h > 0 ? h + 'h ' + m + 'm' : m > 0 ? m + 'm ' + s + 's' : s + 's';
+  }
+
+  // Last activity indicator
+  var activityText = '';
+  var lastActivity = sessionLastActivity.value[activeSession.id];
+  if (lastActivity && activeSession.status === 'running') {
+    var idleSec = Math.floor((now - lastActivity) / 1000);
+    if (idleSec <= 5) {
+      activityText = 'Active';
+    } else {
+      var im = Math.floor(idleSec / 60);
+      activityText = 'Idle ' + (im > 0 ? im + 'm' : idleSec + 's');
+    }
+  }
+
   return html\`
     <div id="terminal-status-bar">
       <span class="status-bar-item" title=\${cwd}>\u{1F4C2} \${home}</span>
       \${ioText ? html\`<span class="status-bar-item" style="color:#7dcfff">\${ioText}</span>\` : null}
+      \${durationText ? html\`<span class="status-bar-item" style="color:#565f89">\u23f1 \${durationText}</span>\` : null}
+      \${activityText ? html\`<span class="status-bar-item \${'activity-' + (activityText === 'Active' ? 'active' : 'idle')}">\${activityText}</span>\` : null}
       <span class="status-bar-spacer"></span>
       <span class="status-bar-item">\${activeSession.id}</span>
       <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>

@@ -17,6 +17,8 @@ const collapsedGroups = signal({});
 const collapsedTermGroups = signal({});
 const streamJsonSessions = signal({});
 const activeGroupPopover = signal(null);
+const statusBarTick = signal(Date.now());
+const sessionLastActivity = signal({}); // sessionId -> timestamp
 const wsConnected = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
@@ -128,9 +130,17 @@ function handleMessage(msg) {
       }
       break;
     case 'output':
+      if (msg.sessionId) {
+        var la = Object.assign({}, sessionLastActivity.value);
+        la[msg.sessionId] = Date.now();
+        sessionLastActivity.value = la;
+      }
       if (msg.sessionId === activeSessionId.value && termInstance.value) {
         termInstance.value.write(msg.data);
-        termInstance.value.scrollToBottom();
+        // Only auto-scroll if user is near the bottom (not reading scrollback)
+        var vp = termInstance.value.buffer.active;
+        var atBottom = vp.baseY + termInstance.value.rows >= vp.length - 5;
+        if (atBottom) termInstance.value.scrollToBottom();
       }
       break;
     case 'history':
@@ -323,6 +333,9 @@ function createTerminal(opts) {
     activeModal.value = null;
   }).catch(function(err) { console.error('Create terminal failed', err); });
 }
+
+// Tick every second for live duration timer
+setInterval(function() { statusBarTick.value = Date.now(); }, 1000);
 
 function createTerminalInDir(cwd) {
   createTerminal({ cwd: cwd });

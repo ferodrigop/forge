@@ -212,7 +212,11 @@ export const CSS_STYLES = `
   .chat-project-group:hover .group-action-btn { opacity: 1; }
   .chat-project-group .group-action-btn:hover { background: #292e42; color: #7aa2f7; }
 
-  .chat-project-group .group-copy-btn.copied { color: #9ece6a; opacity: 1; }
+  .group-copy-btn .check-icon { display: none; color: #9ece6a; font-size: 10px; white-space: nowrap; }
+  .group-copy-btn .copy-icon { display: inline; }
+  .group-copy-btn.copied .check-icon { display: inline; }
+  .group-copy-btn.copied .copy-icon { display: none; }
+  .group-copy-btn.copied { color: #9ece6a; opacity: 1; }
 
   .group-popover-anchor { display: flex; align-items: center; }
 
@@ -270,6 +274,8 @@ export const CSS_STYLES = `
   }
   #terminal-status-bar .status-badge.running { background: #1a3a2a; color: #9ece6a; }
   #terminal-status-bar .status-badge.exited { background: #292e42; color: #565f89; }
+  #terminal-status-bar .activity-active { color: #9ece6a; font-size: 11px; }
+  #terminal-status-bar .activity-idle { color: #565f89; font-size: 11px; }
 
   #activity-log {
     max-height: 200px; overflow-y: auto; border-top: 1px solid #292e42;
