@@ -235,7 +235,7 @@ export const CSS_STYLES = `
   .group-popover-item .claude-icon { font-size: 14px; color: #e0af68; width: 14px; text-align: center; }
 
   #main {
-    flex: 1; display: flex; flex-direction: column; height: 100vh; min-width: 0;
+    flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden;
   }
 
   #terminal-header {
@@ -260,7 +260,7 @@ export const CSS_STYLES = `
   }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-  #terminal-container { flex: 1; padding: 8px; min-height: 0; }
+  #terminal-container { flex: 1; padding: 8px; min-height: 0; overflow: hidden; }
 
   #terminal-status-bar {
     display: flex; align-items: center; gap: 8px;

@@ -138,11 +138,11 @@ function handleMessage(msg) {
         sessionLastActivity.value = la;
       }
       if (msg.sessionId === activeSessionId.value && termInstance.value) {
-        termInstance.value.write(msg.data);
-        // Only auto-scroll if user is near the bottom (not reading scrollback)
+        // Capture scroll position BEFORE write (write updates buffer synchronously)
         var vp = termInstance.value.buffer.active;
-        var atBottom = vp.baseY + termInstance.value.rows >= vp.length - 5;
-        if (atBottom) termInstance.value.scrollToBottom();
+        var wasAtBottom = vp.baseY + termInstance.value.rows >= vp.length - 5;
+        termInstance.value.write(msg.data);
+        if (wasAtBottom) termInstance.value.scrollToBottom();
       }
       break;
     case 'history':
