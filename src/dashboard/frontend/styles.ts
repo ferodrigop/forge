@@ -97,6 +97,27 @@ export const CSS_STYLES = `
   #chat-search:focus { border-color: #7aa2f7; }
   #chat-search::placeholder { color: #3b4261; }
 
+  .chat-source-toggle {
+    display: flex;
+    margin: 8px 8px 0;
+    gap: 0;
+    border: 1px solid #292e42;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .chat-source-btn {
+    flex: 1;
+    padding: 4px 0;
+    background: #1a1b26;
+    border: none;
+    color: #565f89;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .chat-source-btn:hover { background: #292e42; color: #c0caf5; }
+  .chat-source-btn.active { background: #292e42; color: #7aa2f7; font-weight: 600; }
+
   .session-item {
     padding: 10px 12px;
     border-radius: 6px;

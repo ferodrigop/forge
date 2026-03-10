@@ -1193,7 +1193,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
   // --- get_session_history ---
   server.tool(
     "get_session_history",
-    "Get the command/tool call history for a Claude agent session. Returns timestamped tool calls.",
+    "Get the command/tool call history for a Claude or Codex agent session. Returns timestamped tool calls.",
     {
       id: z.string().describe("Session ID"),
       limit: z.number().int().min(1).max(500).optional().describe("Max events to return (default: all)"),

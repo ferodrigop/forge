@@ -56,17 +56,19 @@
 
 ## Follow-up Roadmap (scoped out of this iteration)
 
-### Codex chat/history parsing
-- Add a Codex-specific stream parser (equivalent to `StreamJsonParser` for Claude).
-- Wire it into `session-manager.ts` for sessions tagged `codex-agent`.
-- Enable the activity log and `get_session_history` MCP tool for Codex sessions.
-- Requires understanding Codex's output format (may differ from Claude's `--output-format stream-json`).
+### ~~Codex chat/history parsing~~ DONE
+- ~~Add a Codex-specific stream parser (equivalent to `StreamJsonParser` for Claude).~~
+- ~~Wire it into `session-manager.ts` for sessions tagged `codex-agent`.~~
+- ~~Enable the activity log and `get_session_history` MCP tool for Codex sessions.~~
+- ~~Requires understanding Codex's output format (may differ from Claude's `--output-format stream-json`).~~
+- Shipped: `CodexStreamParser` parses Codex JSONL events (`thread.started`, `item.started/completed`, `response_item`, `session_meta`). Wired into `session-manager.ts` for `codex-agent` sessions. Activity log and history work for both Claude and Codex.
 
-### Codex chat browser in dashboard
-- Scan Codex chat session files on disk (equivalent to `ClaudeChats` for Claude).
-- Add `/api/codex-chats` REST endpoints for listing, reading, and deleting Codex sessions.
-- Add a "Codex Chats" tab or filter in the dashboard Chats panel.
-- Support `/api/codex-chats/:id/continue` for resuming Codex sessions.
+### ~~Codex chat browser in dashboard~~ DONE
+- ~~Scan Codex chat session files on disk (equivalent to `ClaudeChats` for Claude).~~
+- ~~Add `/api/codex-chats` REST endpoints for listing, reading, and deleting Codex sessions.~~
+- ~~Add a "Codex Chats" tab or filter in the dashboard Chats panel.~~
+- ~~Support `/api/codex-chats/:id/continue` for resuming Codex sessions.~~
+- Shipped: `CodexChats` scans `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. REST endpoints: `GET/DELETE /api/codex-chats/:id`, `GET /api/codex-chats`. Dashboard Chats panel has Claude/Codex toggle with dedicated `CodexChatBubble` renderer. Continue not yet supported (Codex resume semantics TBD).
 
 ### ~~Codex status detection (blocked state)~~ DONE
 - ~~Detect when a Codex session is waiting for user input (equivalent to `claudeState: "blocked"`).~~

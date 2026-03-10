@@ -8,6 +8,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { SessionManager } from "../core/session-manager.js";
 import type { ForgeConfig } from "../core/types.js";
 import { ClaudeChats } from "../core/claude-chats.js";
+import { CodexChats } from "../core/codex-chats.js";
 import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML, LOGO_PNG_BASE64 } from "./dashboard-html.js";
@@ -21,6 +22,7 @@ export class DashboardServer {
   private wsHandler: WsHandler;
   private transports = new Map<string, StreamableHTTPServerTransport>();
   private claudeChats = new ClaudeChats();
+  private codexChats = new CodexChats();
 
   constructor(
     private manager: SessionManager,
@@ -195,6 +197,37 @@ export class DashboardServer {
           res.end(JSON.stringify({ error: (err as Error).message }));
         }
         return;
+      }
+
+      // Codex chat session endpoints
+      if (req.method === "GET" && pathname === "/api/codex-chats") {
+        const project = parsedUrl.searchParams.get("project") || undefined;
+        const search = parsedUrl.searchParams.get("search") || undefined;
+        const limit = parsedUrl.searchParams.has("limit") ? Number(parsedUrl.searchParams.get("limit")) : undefined;
+        const offset = parsedUrl.searchParams.has("offset") ? Number(parsedUrl.searchParams.get("offset")) : undefined;
+        const result = await this.codexChats.listSessions({ project, search, limit, offset });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      const codexChatIdMatch = pathname.match(/^\/api\/codex-chats\/([^/]+)$/);
+      if (codexChatIdMatch) {
+        const chatId = decodeURIComponent(codexChatIdMatch[1]);
+
+        if (req.method === "GET") {
+          const messages = await this.codexChats.getMessages(chatId);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ messages }));
+          return;
+        }
+
+        if (req.method === "DELETE") {
+          const deleted = await this.codexChats.deleteSession(chatId);
+          res.writeHead(deleted ? 200 : 404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ deleted }));
+          return;
+        }
       }
 
       // Serve logo PNG

@@ -209,12 +209,12 @@ function ChatItem(props) {
   return html\`
     <div
       class=\${'chat-item' + (c.sessionId === activeChatId.value ? ' active' : '')}
-      onClick=\${function() { openChat(c.sessionId); }}
+      onClick=\${function() { openChat(c.sessionId, props.source); }}
     >
       <button
         class="close-btn"
         title="Delete chat"
-        onClick=\${function(e) { e.stopPropagation(); activeModal.value = { type: 'deleteChat', chatId: c.sessionId }; }}
+        onClick=\${function(e) { e.stopPropagation(); activeModal.value = { type: 'deleteChat', chatId: c.sessionId, source: props.source }; }}
       >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4h9.34z"/></svg>
       </button>
@@ -253,7 +253,7 @@ function ChatProjectGroup(props) {
         <span class="group-stats">\${items.length + ' chat' + (items.length !== 1 ? 's' : '') + ' \\u00b7 ' + formatSize(totalBytes)}</span>
       </div>
       \${!isCollapsed ? items.map(function(c) {
-        return html\`<\${ChatItem} key=\${c.sessionId} chat=\${c} />\`;
+        return html\`<\${ChatItem} key=\${c.sessionId} chat=\${c} source=\${props.source} />\`;
       }) : null}
     </div>
   \`;
@@ -266,7 +266,8 @@ function ChatsPanel() {
     __chatSearchTimer = setTimeout(function() { loadChats(e.target.value); }, 300);
   }
 
-  var cs = chatSessions.value;
+  var source = chatSource.value;
+  var cs = source === 'codex' ? codexChatSessions.value : chatSessions.value;
   var loading = chatLoading.value;
   var content;
   if (loading && cs.length === 0) {
@@ -280,12 +281,16 @@ function ChatsPanel() {
       groups[c.project].push(c);
     });
     content = Object.keys(groups).map(function(project) {
-      return html\`<\${ChatProjectGroup} key=\${project} project=\${project} items=\${groups[project]} />\`;
+      return html\`<\${ChatProjectGroup} key=\${project} project=\${project} items=\${groups[project]} source=\${source} />\`;
     });
   }
 
   return html\`
     <div id="chats-panel">
+      <div class="chat-source-toggle">
+        <button class=\${'chat-source-btn' + (source === 'claude' ? ' active' : '')} onClick=\${function() { chatSource.value = 'claude'; }}>Claude</button>
+        <button class=\${'chat-source-btn' + (source === 'codex' ? ' active' : '')} onClick=\${function() { chatSource.value = 'codex'; }}>Codex</button>
+      </div>
       <input type="text" id="chat-search" placeholder="Search chats..." onInput=\${onInput} />
       <div id="chat-list">\${content}</div>
     </div>

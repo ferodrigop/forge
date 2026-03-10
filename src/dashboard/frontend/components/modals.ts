@@ -51,7 +51,7 @@ function DeleteChatModal(props) {
       <div class="modal-actions">
         <button class="modal-cancel" onClick=\${function() { activeModal.value = null; }}>Cancel</button>
         <button class="modal-delete" onClick=\${function() {
-          deleteChat(props.chatId);
+          deleteChat(props.chatId, props.source);
           activeModal.value = null;
         }}>Delete</button>
       </div>
@@ -69,7 +69,7 @@ function ModalOverlay() {
 
   var content;
   if (modal.type === 'newTerminal') content = html\`<\${NewTerminalModal} />\`;
-  else if (modal.type === 'deleteChat') content = html\`<\${DeleteChatModal} chatId=\${modal.chatId} />\`;
+  else if (modal.type === 'deleteChat') content = html\`<\${DeleteChatModal} chatId=\${modal.chatId} source=\${modal.source} />\`;
   else return null;
 
   return html\`<div class="modal-overlay" onClick=\${onOverlayClick}>\${content}</div>\`;

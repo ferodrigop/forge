@@ -12,6 +12,8 @@ const totalMemoryMB = signal(0);
 const activityEvents = signal({}); // sessionId -> events[]
 const activityLogOpen = signal(true);
 const chatSessions = signal([]);
+const codexChatSessions = signal([]);
+const chatSource = signal('claude'); // 'claude' | 'codex'
 const activeChatId = signal(null);
 const collapsedGroups = signal({});
 const collapsedTermGroups = signal({});
@@ -182,7 +184,7 @@ function selectSession(id) {
 function completeSubscribe(id) {
   wsSend({ type: 'subscribe', sessionId: id });
   var s = sessions.value.find(function(s) { return s.id === id; });
-  if (s && s.tags && s.tags.indexOf('claude-agent') >= 0) {
+  if (s && s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0)) {
     wsSend({ type: 'get_history', sessionId: id });
   }
 }
@@ -287,9 +289,16 @@ function loadChats(searchQuery) {
     chatSessions.value = [];
     chatLoading.value = false;
   });
+  // Also load codex chats
+  var codexUrl = '/api/codex-chats?limit=100' + (searchQuery ? '&search=' + encodeURIComponent(searchQuery) : '');
+  fetch(codexUrl, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
+    codexChatSessions.value = data.sessions || [];
+  }).catch(function() {
+    codexChatSessions.value = [];
+  });
 }
 
-function openChat(chatId) {
+function openChat(chatId, source) {
   activeChatId.value = chatId;
   activeSessionId.value = null;
   chatMessages.value = [];
@@ -299,7 +308,8 @@ function openChat(chatId) {
     termInstance.value.dispose();
     termInstance.value = null;
   }
-  fetch('/api/chats/' + chatId, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
+  var endpoint = source === 'codex' ? '/api/codex-chats/' : '/api/chats/';
+  fetch(endpoint + encodeURIComponent(chatId), { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
     chatMessages.value = data.messages || [];
     chatLoading.value = false;
   }).catch(function() {
@@ -319,8 +329,9 @@ function continueChat(chatId) {
   }).catch(function(err) { alert(err.message || 'Continue failed'); });
 }
 
-function deleteChat(chatId) {
-  fetch('/api/chats/' + chatId, { method: 'DELETE', headers: authHeaders() }).then(function() {
+function deleteChat(chatId, source) {
+  var endpoint = source === 'codex' ? '/api/codex-chats/' : '/api/chats/';
+  fetch(endpoint + encodeURIComponent(chatId), { method: 'DELETE', headers: authHeaders() }).then(function() {
     if (activeChatId.value === chatId) activeChatId.value = null;
     loadChats();
   });
