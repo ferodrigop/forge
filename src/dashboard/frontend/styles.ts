@@ -176,6 +176,16 @@ export const CSS_STYLES = `
     display: flex; align-items: center; gap: 6px;
   }
   .session-item .session-cmd .ram { font-size: 11px; color: #7dcfff; font-weight: 400; flex-shrink: 0; }
+  .session-item .session-cmd .delegate-badge {
+    font-size: 9px; font-weight: 500; padding: 1px 5px; border-radius: 3px;
+    flex-shrink: 0; letter-spacing: 0.3px; line-height: 1.3;
+  }
+  .session-item .session-cmd .delegate-badge.oneshot {
+    background: #292e42; color: #565f89;
+  }
+  .session-item .session-cmd .delegate-badge.interactive {
+    background: #1a3a5c; color: #7aa2f7;
+  }
   .session-item .session-meta {
     font-size: 11px; color: #565f89; font-family: monospace;
     display: flex; align-items: center; gap: 6px;
@@ -455,6 +465,49 @@ export const CSS_STYLES = `
   }
   .modal-field input:focus { border-color: #7aa2f7; }
   .modal-field input::placeholder { color: #3b4261; }
+
+  /* CWD input row with browse button */
+  .cwd-input-row { display: flex; gap: 6px; align-items: center; }
+  .cwd-input-row input { flex: 1; }
+  .cwd-browse-btn {
+    background: #292e42; border: 1px solid #3b4261; border-radius: 4px;
+    color: #7aa2f7; cursor: pointer; padding: 5px 8px; display: flex;
+    align-items: center; flex-shrink: 0;
+  }
+  .cwd-browse-btn:hover { background: #343b58; border-color: #7aa2f7; }
+  .cwd-error { color: #f7768e; font-size: 11px; margin-top: 4px; }
+
+  /* Folder browser */
+  .folder-browser {
+    background: #1a1b26; border: 1px solid #292e42; border-radius: 6px;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .folder-browser-path {
+    padding: 8px 10px; border-bottom: 1px solid #292e42;
+    font-size: 11px; color: #7aa2f7; font-family: monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .folder-browser-list {
+    max-height: 200px; overflow-y: auto;
+  }
+  .folder-browser-item {
+    padding: 6px 10px; font-size: 12px; color: #a9b1d6; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; font-family: monospace;
+  }
+  .folder-browser-item:hover { background: #292e42; }
+  .folder-browser-item svg { color: #7aa2f7; flex-shrink: 0; }
+  .folder-browser-parent { color: #565f89; }
+  .folder-browser-parent svg { color: #565f89; }
+  .folder-browser-loading, .folder-browser-empty {
+    padding: 12px 10px; font-size: 11px; color: #565f89; text-align: center;
+  }
+  .folder-browser-actions {
+    padding: 8px 10px; border-top: 1px solid #292e42;
+    display: flex; justify-content: flex-end; gap: 6px;
+  }
+  .folder-browser-actions button { font-size: 11px; padding: 4px 10px; }
+  .folder-browser-list::-webkit-scrollbar { width: 4px; }
+  .folder-browser-list::-webkit-scrollbar-thumb { background: #3b4261; border-radius: 2px; }
 
   #new-terminal-btn {
     font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px;

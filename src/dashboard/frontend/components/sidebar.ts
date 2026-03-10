@@ -45,6 +45,11 @@ function SessionItem(props) {
   var metaText = s.id;
   if (s.status === 'exited' && s.exitedAt) metaText += ' \\u00b7 exited ' + timeAgo(s.exitedAt);
 
+  var tags = s.tags || [];
+  var isDelegate = tags.indexOf('delegate-task') >= 0;
+  var isOneshot = tags.indexOf('mode:oneshot') >= 0;
+  var isInteractive = tags.indexOf('mode:interactive') >= 0;
+
   return html\`
     <div
       class=\${'session-item' + (s.id === activeSessionId.value ? ' active' : '')}
@@ -54,6 +59,8 @@ function SessionItem(props) {
       <div class="session-info">
         <div class="session-cmd">
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${s.name || s.command}</span>
+          \${isDelegate && isOneshot ? html\`<span class="delegate-badge oneshot">oneshot</span>\` : null}
+          \${isDelegate && isInteractive ? html\`<span class="delegate-badge interactive">interactive</span>\` : null}
           \${ramText ? html\`<span class="ram">\${ramText}</span>\` : null}
         </div>
         <div class="session-meta">\${metaText}</div>

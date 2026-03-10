@@ -1,5 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { resolve as resolvePath, sep as pathSep } from "node:path";
+import { homedir } from "node:os";
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer } from "ws";
@@ -128,6 +130,55 @@ export class DashboardServer {
         } catch (err) {
           this.respondBodyError(res, err);
         }
+        return;
+      }
+
+      // Browse directories endpoint — for folder picker in New Terminal modal
+      if (req.method === "GET" && pathname === "/api/browse") {
+        try {
+          const rawPath = parsedUrl.searchParams.get("path") || homedir();
+          const targetPath = resolvePath(rawPath.replace(/^~/, homedir()));
+
+          if (!existsSync(targetPath)) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Path does not exist", path: targetPath }));
+            return;
+          }
+
+          const stat = statSync(targetPath);
+          if (!stat.isDirectory()) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Path is not a directory", path: targetPath }));
+            return;
+          }
+
+          const entries = readdirSync(targetPath, { withFileTypes: true });
+          const dirs = entries
+            .filter(e => e.isDirectory() && !e.name.startsWith("."))
+            .map(e => e.name)
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+
+          // Compute parent
+          const parts = targetPath.split(pathSep);
+          const parent = parts.length > 1 ? parts.slice(0, -1).join(pathSep) || "/" : null;
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ path: targetPath, parent, dirs }));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+        return;
+      }
+
+      // Validate path exists endpoint
+      if (req.method === "GET" && pathname === "/api/validate-path") {
+        const rawPath = parsedUrl.searchParams.get("path") || "";
+        const targetPath = resolvePath(rawPath.replace(/^~/, homedir()));
+        const exists = existsSync(targetPath);
+        const isDir = exists && statSync(targetPath).isDirectory();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ path: targetPath, exists, isDirectory: isDir }));
         return;
       }
 
