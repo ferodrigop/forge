@@ -161,11 +161,11 @@ function TerminalGroup(props) {
                 <span>Terminal</span>
               </button>
               <button class="group-popover-item" onClick=\${onNewClaude}>
-                <span class="claude-icon">\u2726</span>
+                <svg class="agent-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12l-1.5-3.5L3 7l3.5-1.5z"/><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/></svg>
                 <span>Claude Code</span>
               </button>
               <button class="group-popover-item" onClick=\${onNewCodex}>
-                <span class="codex-icon">\u25c8</span>
+                <svg class="agent-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12l-1.5-3.5L3 7l3.5-1.5z"/><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/></svg>
                 <span>Codex</span>
               </button>
             </div>

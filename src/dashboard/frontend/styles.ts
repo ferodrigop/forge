@@ -232,7 +232,7 @@ export const CSS_STYLES = `
     text-align: left; white-space: nowrap;
   }
   .group-popover-item:hover { background: #292e42; color: #c0caf5; }
-  .group-popover-item .claude-icon { font-size: 14px; color: #e0af68; width: 14px; text-align: center; }
+  .group-popover-item .agent-icon { color: #e0af68; flex-shrink: 0; }
 
   #main {
     flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden;
