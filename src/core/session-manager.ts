@@ -199,9 +199,10 @@ export class SessionManager {
     return this.staleEntries.find((s) => s.id === id);
   }
 
-  /** Remove a stale entry by ID (used after reviving) */
+  /** Remove a stale entry by ID (used after reviving or deleting ghost sessions) */
   removeStale(id: string): void {
     // Remove from stale entries
+    const staleEntry = this.staleEntries.find((s) => s.id === id);
     this.staleEntries = this.staleEntries.filter((s) => s.id !== id);
     // Remove from active sessions if exited
     const session = this.sessions.get(id);
@@ -209,7 +210,11 @@ export class SessionManager {
       session.close();
       this.sessions.delete(id);
       this.emitter.emit("sessionClosed", { ...session.getInfo(), status: "exited" });
+    } else if (staleEntry) {
+      // Pure stale entry — still emit so dashboard removes it from the list
+      this.emitter.emit("sessionClosed", staleEntry);
     }
+    this.persistState();
   }
 
   /** Clear persisted stale entries */

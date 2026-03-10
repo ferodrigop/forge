@@ -113,8 +113,15 @@ export class WsHandler {
         try {
           this.manager.close(sessionId);
           logger.info("Session closed via dashboard", { id: sessionId });
-        } catch (err) {
-          this.send(client.ws, { type: "error", message: `Failed to close session: ${(err as Error).message}` });
+        } catch {
+          // Not in active sessions — try removing as stale/exited entry
+          const stale = this.manager.findExited(sessionId);
+          if (stale) {
+            this.manager.removeStale(sessionId);
+            logger.info("Stale session removed via dashboard", { id: sessionId });
+          } else {
+            this.send(client.ws, { type: "error", message: `Session "${sessionId}" not found` });
+          }
         }
         break;
       }
