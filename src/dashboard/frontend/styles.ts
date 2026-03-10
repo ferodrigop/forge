@@ -435,7 +435,7 @@ export const CSS_STYLES = `
   }
   .modal-box {
     background: #1e2030; border: 1px solid #292e42; border-radius: 8px;
-    padding: 20px 24px; min-width: 320px; max-width: 400px;
+    padding: 20px 24px; min-width: 320px; max-width: 440px; width: 90vw;
   }
   .modal-box h3 { font-size: 14px; color: #c0caf5; margin-bottom: 8px; font-weight: 600; }
   .modal-box p { font-size: 12px; color: #565f89; margin-bottom: 16px; }
@@ -472,42 +472,78 @@ export const CSS_STYLES = `
   .cwd-browse-btn {
     background: #292e42; border: 1px solid #3b4261; border-radius: 4px;
     color: #7aa2f7; cursor: pointer; padding: 5px 8px; display: flex;
-    align-items: center; flex-shrink: 0;
+    align-items: center; flex-shrink: 0; transition: all 0.15s;
   }
-  .cwd-browse-btn:hover { background: #343b58; border-color: #7aa2f7; }
+  .cwd-browse-btn:hover, .cwd-browse-btn.active { background: #343b58; border-color: #7aa2f7; }
   .cwd-error { color: #f7768e; font-size: 11px; margin-top: 4px; }
 
-  /* Folder browser */
-  .folder-browser {
-    background: #1a1b26; border: 1px solid #292e42; border-radius: 6px;
+  /* Folder tree browser (ForkLift-style) */
+  .folder-tree {
+    background: #13141c; border: 1px solid #292e42; border-radius: 6px;
     margin-bottom: 12px; overflow: hidden;
   }
-  .folder-browser-path {
-    padding: 8px 10px; border-bottom: 1px solid #292e42;
+  .ft-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; border-bottom: 1px solid #292e42;
+    background: #1a1b26; min-height: 30px;
+  }
+  .ft-header-path {
     font-size: 11px; color: #7aa2f7; font-family: monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+  }
+  .ft-header-icon { color: #7aa2f7; display: flex; align-items: center; }
+  .ft-header-name {
+    font-size: 12px; color: #c0caf5; font-weight: 600; flex: 1;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .folder-browser-list {
-    max-height: 200px; overflow-y: auto;
+  .ft-header-count { font-size: 10px; color: #565f89; white-space: nowrap; }
+  .ft-back-btn {
+    background: none; border: 1px solid #3b4261; border-radius: 4px;
+    color: #7aa2f7; cursor: pointer; padding: 2px 5px; display: flex;
+    align-items: center; flex-shrink: 0;
   }
-  .folder-browser-item {
-    padding: 6px 10px; font-size: 12px; color: #a9b1d6; cursor: pointer;
-    display: flex; align-items: center; gap: 6px; font-family: monospace;
+  .ft-back-btn:hover { background: #292e42; }
+  .ft-back-btn:disabled { opacity: 0.3; cursor: default; }
+  .ft-scroll {
+    max-height: 260px; overflow-y: auto; padding: 4px 0;
   }
-  .folder-browser-item:hover { background: #292e42; }
-  .folder-browser-item svg { color: #7aa2f7; flex-shrink: 0; }
-  .folder-browser-parent { color: #565f89; }
-  .folder-browser-parent svg { color: #565f89; }
-  .folder-browser-loading, .folder-browser-empty {
-    padding: 12px 10px; font-size: 11px; color: #565f89; text-align: center;
+  .ft-scroll::-webkit-scrollbar { width: 6px; }
+  .ft-scroll::-webkit-scrollbar-track { background: transparent; }
+  .ft-scroll::-webkit-scrollbar-thumb { background: #292e42; border-radius: 3px; }
+  .ft-scroll::-webkit-scrollbar-thumb:hover { background: #3b4261; }
+
+  .ft-row {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 8px; cursor: pointer; user-select: none;
+    font-size: 12px; color: #c0caf5; border-radius: 4px;
+    margin: 0 4px; min-height: 24px;
   }
-  .folder-browser-actions {
-    padding: 8px 10px; border-top: 1px solid #292e42;
-    display: flex; justify-content: flex-end; gap: 6px;
+  .ft-row:hover { background: #1a1f36; }
+  .ft-selected { background: #264f78 !important; color: #fff; }
+  .ft-selected .ft-folder-icon { color: #7dcfff; }
+
+  .ft-chevron-wrap {
+    width: 14px; height: 14px; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .folder-browser-actions button { font-size: 11px; padding: 4px 10px; }
-  .folder-browser-list::-webkit-scrollbar { width: 4px; }
-  .folder-browser-list::-webkit-scrollbar-thumb { background: #3b4261; border-radius: 2px; }
+  .ft-chevron { color: #565f89; transition: transform 0.12s; }
+  .ft-chevron.open { color: #7aa2f7; }
+
+  .ft-row-body {
+    display: flex; align-items: center; gap: 4px; flex: 1;
+    overflow: hidden;
+  }
+  .ft-folder-icon { color: #7aa2f7; flex-shrink: 0; }
+
+  .ft-name {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 12px; line-height: 1;
+  }
+
+  .ft-loading, .ft-empty {
+    font-size: 11px; color: #565f89; padding: 4px 8px;
+  }
 
   #new-terminal-btn {
     font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px;
