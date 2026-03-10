@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -278,7 +278,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           // Get the git repo root
           let repoRoot: string;
           try {
-            repoRoot = execSync("git rev-parse --show-toplevel", { cwd: baseCwd, encoding: "utf-8" }).trim();
+            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
           } catch {
             return {
               content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
@@ -292,7 +292,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
 
           try {
-            execSync(`git worktree add "${worktreePath}" -b "${params.branch}"`, {
+            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
               cwd: repoRoot,
               encoding: "utf-8",
               stdio: "pipe",
@@ -302,7 +302,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
             // Branch might already exist — try without -b
             if (msg.includes("already exists")) {
               try {
-                execSync(`git worktree add "${worktreePath}" "${params.branch}"`, {
+                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
                   cwd: repoRoot,
                   encoding: "utf-8",
                   stdio: "pipe",
@@ -398,16 +398,23 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
   // --- write_terminal ---
   server.tool(
     "write_terminal",
-    "Send input to a terminal session. Appends newline by default.",
+    "Send input to a terminal session. Appends newline by default. Use submit=true for Claude Code sessions (sends Escape+Enter to exit multi-line mode and submit).",
     {
       id: z.string().describe("Session ID"),
       input: z.string().describe("Text to send"),
       newline: z.boolean().optional().describe("Append newline (default: true)"),
+      submit: z.boolean().optional().describe("Submit input in Claude Code sessions (sends Escape then Enter after text). Overrides newline."),
     },
     async (params) => {
       try {
         const session = manager.getOrThrow(params.id);
-        const data = params.newline === false ? params.input : params.input + "\n";
+        let data: string;
+        if (params.submit) {
+          // Claude Code multi-line input: Escape exits multi-line mode, Enter submits
+          data = params.input + "\x1B" + "\r";
+        } else {
+          data = params.newline === false ? params.input : params.input + "\n";
+        }
         session.write(data);
         return {
           content: [{ type: "text" as const, text: `Sent ${data.length} bytes to session ${params.id}` }],
@@ -499,7 +506,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     "Search terminal output buffer with a regex pattern. Returns matching lines with optional context.",
     {
       id: z.string().describe("Session ID"),
-      pattern: z.string().describe("Regex pattern to search for"),
+      pattern: z.string().max(500).describe("Regex pattern to search for"),
       context: z.number().int().min(0).max(10).optional().describe("Lines of context around each match (default: 0)"),
     },
     async (params) => {
@@ -558,7 +565,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     "Wait for a regex pattern to appear in terminal output, OR wait for the process to exit. Checks existing buffer/status first, then watches live. Use waitForExit: true for commands that terminate (builds, tests, installs).",
     {
       id: z.string().describe("Session ID"),
-      pattern: z.string().optional().describe("Regex pattern to wait for (required unless waitForExit is true)"),
+      pattern: z.string().max(500).optional().describe("Regex pattern to wait for (required unless waitForExit is true)"),
       waitForExit: z.boolean().optional().describe("Wait for the process to exit instead of matching a pattern"),
       timeout: z.number().int().min(100).max(300_000).optional().describe("Timeout in ms (default: 30000)"),
     },
@@ -699,7 +706,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     {
       id: z.string().describe("Session ID"),
       events: z.array(z.enum(["exit", "pattern_match"])).min(1).describe("Events to subscribe to"),
-      pattern: z.string().optional().describe("Regex pattern (required if pattern_match is in events)"),
+      pattern: z.string().max(500).optional().describe("Regex pattern (required if pattern_match is in events)"),
     },
     async (params) => {
       try {

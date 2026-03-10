@@ -202,6 +202,34 @@ export const CSS_STYLES = `
     font-weight: 400; color: #565f89; font-size: 10px; flex-shrink: 0;
   }
 
+  .chat-project-group .group-action-btn {
+    flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
+    border: none; background: transparent; color: #565f89;
+    font-size: 14px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
+    padding: 0; line-height: 1;
+  }
+  .chat-project-group:hover .group-action-btn { opacity: 1; }
+  .chat-project-group .group-action-btn:hover { background: #292e42; color: #7aa2f7; }
+
+  .chat-project-group .group-copy-btn.copied { color: #9ece6a; opacity: 1; }
+
+  .group-popover-anchor { display: flex; align-items: center; }
+
+  .group-popover {
+    position: absolute; top: 100%; right: 0; margin-top: 4px; z-index: 100;
+    background: #1e2030; border: 1px solid #292e42; border-radius: 6px;
+    padding: 4px; min-width: 140px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .group-popover-item {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 6px 10px; border: none; background: transparent;
+    color: #a9b1d6; font-size: 12px; cursor: pointer; border-radius: 4px;
+    text-align: left; white-space: nowrap;
+  }
+  .group-popover-item:hover { background: #292e42; color: #c0caf5; }
+  .group-popover-item .claude-icon { font-size: 14px; color: #e0af68; width: 14px; text-align: center; }
+
   #main {
     flex: 1; display: flex; flex-direction: column; height: 100vh; min-width: 0;
   }

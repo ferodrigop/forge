@@ -16,6 +16,7 @@ const activeChatId = signal(null);
 const collapsedGroups = signal({});
 const collapsedTermGroups = signal({});
 const streamJsonSessions = signal({});
+const activeGroupPopover = signal(null);
 const wsConnected = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
@@ -32,6 +33,11 @@ var authToken = null;
   var stored = sessionStorage.getItem('forgeAuthToken') || localStorage.getItem('forgeAuthToken');
   authToken = fromUrl || stored;
   if (authToken) sessionStorage.setItem('forgeAuthToken', authToken);
+  if (fromUrl) {
+    p.delete('token');
+    var clean = p.toString();
+    history.replaceState(null, '', location.pathname + (clean ? '?' + clean : ''));
+  }
 })();
 
 function authHeaders(extra) {
@@ -316,5 +322,13 @@ function createTerminal(opts) {
   }).then(function(r) { return r.json(); }).then(function() {
     activeModal.value = null;
   }).catch(function(err) { console.error('Create terminal failed', err); });
+}
+
+function createTerminalInDir(cwd) {
+  createTerminal({ cwd: cwd });
+}
+
+function createClaudeSession(cwd) {
+  createTerminal({ command: 'claude', cwd: cwd, tags: ['claude-agent'] });
 }
 `;

@@ -79,12 +79,58 @@ function TerminalGroup(props) {
   var isCollapsed = !!collapsedTermGroups.value[label];
   var running = items.filter(function(s) { return s.status === 'running'; }).length;
   var stats = running + '/' + items.length;
+  var cwd = items[0] && items[0].cwd ? items[0].cwd : '';
+  var copiedRef = preact.createRef();
+  var popoverOpen = activeGroupPopover.value === label;
+
+  function onCopy(e) {
+    e.stopPropagation();
+    if (cwd) {
+      navigator.clipboard.writeText(cwd).then(function() {
+        if (copiedRef.current) {
+          copiedRef.current.classList.add('copied');
+          setTimeout(function() {
+            if (copiedRef.current) copiedRef.current.classList.remove('copied');
+          }, 1200);
+        }
+      });
+    }
+  }
+
+  function onPlusClick(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = popoverOpen ? null : label;
+  }
+
+  function onNewTerminal(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createTerminalInDir(cwd);
+  }
+
+  function onNewClaude(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createClaudeSession(cwd);
+  }
+
+  // Close popover on outside click
+  preactHooks.useEffect(function() {
+    if (!popoverOpen) return;
+    function handler(e) {
+      if (!e.target.closest('.group-popover-anchor')) {
+        activeGroupPopover.value = null;
+      }
+    }
+    document.addEventListener('click', handler, true);
+    return function() { document.removeEventListener('click', handler, true); };
+  }, [popoverOpen]);
 
   return html\`
     <div>
       <div
         class="chat-project-group"
-        title=\${items[0] && items[0].cwd ? items[0].cwd : ''}
+        title=\${cwd}
         onClick=\${function() {
           var cg = Object.assign({}, collapsedTermGroups.value);
           cg[label] = !cg[label];
@@ -94,6 +140,24 @@ function TerminalGroup(props) {
         <span class=\${'chevron' + (isCollapsed ? ' collapsed' : '')}>\u25bc</span>
         <span class="group-name">\${label}</span>
         <span class="group-stats">\${stats}</span>
+        <button ref=\${copiedRef} class="group-action-btn group-copy-btn" title="Copy path" onClick=\${onCopy}>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>
+        </button>
+        <div class="group-popover-anchor" style="position:relative">
+          <button class="group-action-btn group-add-btn" title="New session in this directory" onClick=\${onPlusClick}>+</button>
+          \${popoverOpen ? html\`
+            <div class="group-popover">
+              <button class="group-popover-item" onClick=\${onNewTerminal}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="2" width="14" height="12" rx="2"/><path d="M4 6l3 2-3 2"/><path d="M9 10h3"/></svg>
+                <span>Terminal</span>
+              </button>
+              <button class="group-popover-item" onClick=\${onNewClaude}>
+                <span class="claude-icon">\u2726</span>
+                <span>Claude Code</span>
+              </button>
+            </div>
+          \` : null}
+        </div>
       </div>
       \${!isCollapsed ? items.map(function(s) {
         return html\`<\${SessionItem} key=\${s.id} session=\${s} />\`;
