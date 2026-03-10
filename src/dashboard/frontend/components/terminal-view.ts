@@ -133,24 +133,20 @@ function TerminalStatusBar() {
   var home = '';
   try { home = cwd.replace(/^\\/Users\\/[^/]+/, '~').replace(/^\\/home\\/[^/]+/, '~'); } catch(e) { home = cwd; }
 
-  // Token usage from live stats
+  // I/O stats from live stats
   var tok = sessionTokens.value[activeSession.id];
-  var tokenText = '';
+  var ioText = '';
   if (tok) {
-    var t = tok.estimatedTokens || 0;
-    tokenText = t >= 1000000 ? (t / 1000000).toFixed(1) + 'M tokens'
-      : t >= 1000 ? (t / 1000).toFixed(1) + 'k tokens'
-      : t + ' tokens';
     var bw = tok.totalBytesWritten || 0;
     var br = tok.totalBytesRead || 0;
     var fmtBytes = function(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' B'; };
-    tokenText += ' (\\u2191' + fmtBytes(bw) + ' \\u2193' + fmtBytes(br) + ')';
+    ioText = '\\u2191' + fmtBytes(bw) + ' \\u2193' + fmtBytes(br);
   }
 
   return html\`
     <div id="terminal-status-bar">
       <span class="status-bar-item" title=\${cwd}>\u{1F4C2} \${home}</span>
-      \${tokenText ? html\`<span class="status-bar-item" style="color:#7dcfff">\${tokenText}</span>\` : null}
+      \${ioText ? html\`<span class="status-bar-item" style="color:#7dcfff">\${ioText}</span>\` : null}
       <span class="status-bar-spacer"></span>
       <span class="status-bar-item">\${activeSession.id}</span>
       <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>
