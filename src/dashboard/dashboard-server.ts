@@ -12,6 +12,7 @@ import { CodexChats } from "../core/codex-chats.js";
 import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML, LOGO_PNG_BASE64 } from "./dashboard-html.js";
+export { DASHBOARD_HTML, LOGO_PNG_BASE64 };
 import { logger } from "../utils/logger.js";
 
 const MAX_BODY_BYTES = 1_048_576; // 1MB

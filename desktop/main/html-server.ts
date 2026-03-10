@@ -1,6 +1,5 @@
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
-import { join } from "node:path";
-import { app } from "electron";
+import { DASHBOARD_HTML, LOGO_PNG_BASE64 } from "../../src/dashboard/dashboard-html.js";
 
 /**
  * Minimal HTTP server that serves only the dashboard HTML and logo.
@@ -12,9 +11,8 @@ export class DesktopHtmlServer {
   private _port = 0;
 
   constructor() {
-    this.server = createHttpServer(async (req, res) => {
+    this.server = createHttpServer((req, res) => {
       if (req.method === "GET" && req.url === "/logo.png") {
-        const { LOGO_PNG_BASE64 } = await this.loadDashboardModule();
         const buf = Buffer.from(LOGO_PNG_BASE64, "base64");
         res.writeHead(200, {
           "Content-Type": "image/png",
@@ -26,7 +24,6 @@ export class DesktopHtmlServer {
       }
 
       // Serve dashboard HTML for everything else
-      const { DASHBOARD_HTML } = await this.loadDashboardModule();
       res.writeHead(200, {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Security-Policy": [
@@ -39,13 +36,6 @@ export class DesktopHtmlServer {
       });
       res.end(DASHBOARD_HTML);
     });
-  }
-
-  private async loadDashboardModule() {
-    const forgeDist = app.isPackaged
-      ? join(process.resourcesPath, "forge-dist")
-      : join(__dirname, "..", "..", "..", "dist");
-    return import(join(forgeDist, "dashboard", "dashboard-server.js"));
   }
 
   async start(): Promise<number> {

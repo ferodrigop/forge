@@ -1,7 +1,8 @@
-import { BrowserWindow, screen, shell, app } from "electron";
+import { BrowserWindow, nativeImage, screen, shell, app } from "electron";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { LOGO_PNG_BASE64 } from "./logo.js";
 // __dirname is available natively in CJS (tsup bundles as CJS for Electron)
 
 const WINDOW_STATE_FILE = join(homedir(), ".forge", "window-state.json");
@@ -47,7 +48,10 @@ async function saveWindowState(win: BrowserWindow): Promise<void> {
  * @param daemonPort - Port of the daemon API/WS (if different from dashboardPort)
  */
 export function createWindow(dashboardPort: number, daemonPort?: number): BrowserWindow {
+  const appIcon = nativeImage.createFromBuffer(Buffer.from(LOGO_PNG_BASE64, "base64"));
+
   const win = new BrowserWindow({
+    icon: appIcon,
     width: 1200,
     height: 800,
     minWidth: 800,
