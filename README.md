@@ -343,6 +343,8 @@ Open `http://localhost:3141` to see:
 - **Auto-follow mode** — automatically switch to newly created sessions
 - **Memory monitoring** — per-session and total RAM usage
 
+If `--auth-token` is enabled, open the dashboard with `?token=YOUR_TOKEN` so browser API/WebSocket calls are authorized.
+
 The dashboard is built with Preact + htm + Preact Signals, loaded from CDN with zero build step. All UI code is bundled as string constants inside the server binary.
 
 ## Configuration
@@ -356,6 +358,7 @@ All settings follow the precedence: **CLI flag > environment variable > default*
 | `--buffer-size` | `FORGE_BUFFER_SIZE` | 1048576 | Ring buffer size per session (1 MB) |
 | `--shell` | `SHELL` | `/bin/bash` | Default shell for `create_terminal` |
 | `--claude-path` | `FORGE_CLAUDE_PATH` | `claude` | Path to Claude CLI binary |
+| `--auth-token` | `FORGE_AUTH_TOKEN` | unset | Require Bearer token for `/mcp`, `/api`, and `/ws` |
 | `--dashboard` | `FORGE_DASHBOARD` | off | Enable web dashboard |
 | `--port` | `FORGE_DASHBOARD_PORT` | 3141 | Dashboard port |
 | `--verbose` | — | off | Enable debug logging to stderr |

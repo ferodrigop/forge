@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
+import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer } from "ws";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -12,6 +12,8 @@ import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML, LOGO_PNG_BASE64 } from "./dashboard-html.js";
 import { logger } from "../utils/logger.js";
+
+const MAX_BODY_BYTES = 1_048_576; // 1MB
 
 export class DashboardServer {
   private httpServer: HttpServer;
@@ -28,26 +30,29 @@ export class DashboardServer {
     this.wsHandler = new WsHandler(manager);
 
     this.httpServer = createHttpServer(async (req, res) => {
+      const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
+      const pathname = parsedUrl.pathname;
+      const protectedPath = pathname === "/mcp" || pathname.startsWith("/api/");
+      if (protectedPath && !this.isAuthorized(req)) {
+        this.respondUnauthorized(res);
+        return;
+      }
+
       // MCP endpoint — handle POST, GET, DELETE on /mcp
-      if (req.url === "/mcp" && this.config) {
+      if (pathname === "/mcp" && this.config) {
         await this.handleMcp(req, res);
         return;
       }
 
-      if (req.method === "GET" && req.url === "/api/sessions") {
+      if (req.method === "GET" && pathname === "/api/sessions") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(manager.list()));
         return;
       }
 
-      if (req.method === "POST" && req.url === "/api/sessions") {
+      if (req.method === "POST" && pathname === "/api/sessions") {
         try {
-          const body = await new Promise<string>((resolve, reject) => {
-            let data = "";
-            req.on("data", (chunk) => { data += chunk; });
-            req.on("end", () => resolve(data));
-            req.on("error", reject);
-          });
+          const body = await this.readBody(req);
           const opts = body ? JSON.parse(body) : {};
           const session = manager.create({
             command: opts.command || this.config?.shell || "/bin/sh",
@@ -61,23 +66,17 @@ export class DashboardServer {
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(session.getInfo()));
         } catch (err) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: (err as Error).message }));
+          this.respondBodyError(res, err);
         }
         return;
       }
 
       // Write to session endpoint
-      const writeMatch = req.method === "POST" && req.url?.match(/^\/api\/sessions\/([^/]+)\/write$/);
+      const writeMatch = req.method === "POST" && pathname.match(/^\/api\/sessions\/([^/]+)\/write$/);
       if (writeMatch) {
         try {
           const sessionId = writeMatch[1];
-          const body = await new Promise<string>((resolve, reject) => {
-            let data = "";
-            req.on("data", (chunk) => { data += chunk; });
-            req.on("end", () => resolve(data));
-            req.on("error", reject);
-          });
+          const body = await this.readBody(req);
           const opts = body ? JSON.parse(body) : {};
           const session = manager.getOrThrow(sessionId);
           const input = opts.newline === false ? opts.input : (opts.input || "") + "\n";
@@ -85,14 +84,13 @@ export class DashboardServer {
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ sent: input.length }));
         } catch (err) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: (err as Error).message }));
+          this.respondBodyError(res, err);
         }
         return;
       }
 
       // Session history endpoint
-      const historyMatch = req.method === "GET" && req.url?.match(/^\/api\/sessions\/([^/]+)\/history$/);
+      const historyMatch = req.method === "GET" && pathname.match(/^\/api\/sessions\/([^/]+)\/history$/);
       if (historyMatch) {
         const sessionId = historyMatch[1];
         const events = await manager.commandHistory.getHistory(sessionId);
@@ -102,9 +100,6 @@ export class DashboardServer {
       }
 
       // Chat session endpoints
-      const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
-      const pathname = parsedUrl.pathname;
-
       if (req.method === "GET" && pathname === "/api/chats") {
         const project = parsedUrl.searchParams.get("project") || undefined;
         const search = parsedUrl.searchParams.get("search") || undefined;
@@ -181,7 +176,11 @@ export class DashboardServer {
     });
 
     this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws" });
-    this.wss.on("connection", (ws) => {
+    this.wss.on("connection", (ws, req) => {
+      if (!this.isAuthorized(req)) {
+        ws.close(1008, "Unauthorized");
+        return;
+      }
       this.wsHandler.handleConnection(ws);
     });
   }
@@ -192,12 +191,7 @@ export class DashboardServer {
     try {
       if (req.method === "POST") {
         // Parse body
-        const body = await new Promise<string>((resolve, reject) => {
-          let data = "";
-          req.on("data", (chunk) => { data += chunk; });
-          req.on("end", () => resolve(data));
-          req.on("error", reject);
-        });
+        const body = await this.readBody(req);
         let parsedBody: unknown;
         try {
           parsedBody = JSON.parse(body);
@@ -305,12 +299,69 @@ export class DashboardServer {
       res.writeHead(405, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed" }, id: null }));
     } catch (err) {
+      if ((err as Error).message === "PAYLOAD_TOO_LARGE") {
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Payload too large" }, id: null }));
+        return;
+      }
       logger.error("MCP transport error", { error: String(err) });
       if (!res.headersSent) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: "Internal server error" }, id: null }));
       }
     }
+  }
+
+  private isAuthorized(req: IncomingMessage): boolean {
+    const token = this.config?.authToken;
+    if (!token) return true;
+    const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
+    const queryToken = parsedUrl.searchParams.get("token");
+    if (queryToken === token) return true;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return false;
+    if (authHeader.startsWith("Bearer ")) {
+      return authHeader.slice("Bearer ".length) === token;
+    }
+    return authHeader === token;
+  }
+
+  private respondUnauthorized(res: ServerResponse): void {
+    res.writeHead(401, {
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer",
+    });
+    res.end(JSON.stringify({ error: "Unauthorized" }));
+  }
+
+  private respondBodyError(res: ServerResponse, err: unknown): void {
+    const message = (err as Error).message;
+    if (message === "PAYLOAD_TOO_LARGE") {
+      res.writeHead(413, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Payload too large" }));
+      return;
+    }
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: message }));
+  }
+
+  private async readBody(req: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let total = 0;
+      let data = "";
+      req.on("data", (chunk: Buffer | string) => {
+        const size = typeof chunk === "string" ? Buffer.byteLength(chunk) : chunk.length;
+        total += size;
+        if (total > maxBytes) {
+          reject(new Error("PAYLOAD_TOO_LARGE"));
+          req.destroy();
+          return;
+        }
+        data += chunk.toString();
+      });
+      req.on("end", () => resolve(data));
+      req.on("error", reject);
+    });
   }
 
   async start(): Promise<void> {

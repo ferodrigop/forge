@@ -60,6 +60,10 @@ export function parseConfig(argv: string[] = process.argv.slice(2)): ForgeConfig
       strArg(argv, "--claude-path") ??
       process.env.FORGE_CLAUDE_PATH ??
       DEFAULT_CONFIG.claudePath,
+    authToken:
+      strArg(argv, "--auth-token") ??
+      process.env.FORGE_AUTH_TOKEN ??
+      DEFAULT_CONFIG.authToken,
     exitedTtl:
       intArg(argv, "--exited-ttl") ??
       envInt("FORGE_EXITED_TTL") ??

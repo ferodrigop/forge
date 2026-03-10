@@ -1,4 +1,4 @@
-import { spawn, execSync } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { readFile, writeFile, mkdir, unlink, access } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -57,7 +57,7 @@ async function cleanDaemonFiles(): Promise<void> {
 
 async function getPortPid(port: number): Promise<number | null> {
   try {
-    const out = execSync(`lsof -i :${port} -sTCP:LISTEN -t 2>/dev/null`, { encoding: "utf-8" });
+    const out = execFileSync("lsof", ["-i", `:${port}`, "-sTCP:LISTEN", "-t"], { encoding: "utf-8" });
     const pid = parseInt(out.trim().split("\n")[0], 10);
     return Number.isNaN(pid) ? null : pid;
   } catch {
@@ -311,6 +311,7 @@ Daemon options (forge start):
   --buffer-size <n>    Ring buffer size in bytes (default: 1048576)
   --shell <path>       Default shell (default: $SHELL)
   --claude-path <path> Path to claude CLI (default: claude)
+  --auth-token <token> Require Bearer token for /mcp, /api, /ws
   --port <n>           HTTP port (default: 3141)
   --verbose            Enable debug logging
   -d, --detach         Run as background daemon

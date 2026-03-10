@@ -1,5 +1,5 @@
 import * as pty from "node-pty";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { Terminal } from "@xterm/headless";
 import { RingBuffer } from "./ring-buffer.js";
 import { logger } from "../utils/logger.js";
@@ -115,12 +115,15 @@ export class TerminalSession {
     if (!t || !t.includes("Claude")) return null;
     // Only check when idle (✳ in title). Spinner = actively working, no alert needed.
     if (!t.includes("\u2733")) return null;
-    // Check screen for permission/question prompts
+    // Check only the bottom portion of the screen for active permission prompts.
+    // Old prompts scroll up but the active one is always near the bottom.
     const screen = this.readScreen();
+    const lines = screen.split("\n");
+    const bottom = lines.slice(-10).join("\n");
     if (
-      screen.includes("Do you want to proceed?") ||
-      screen.includes("Yes, allow") ||
-      screen.includes("Needs permission")
+      bottom.includes("Do you want to proceed?") ||
+      bottom.includes("Yes, allow") ||
+      bottom.includes("Needs permission")
     ) {
       return "blocked";
     }
@@ -243,7 +246,7 @@ export class TerminalSession {
   getMemoryMB(): number | null {
     if (this._status !== "running") return null;
     try {
-      const out = execSync(`ps -o rss= -p ${this.pid}`, { encoding: "utf-8", timeout: 1000 });
+      const out = execFileSync("ps", ["-o", "rss=", "-p", String(this.pid)], { encoding: "utf-8", timeout: 1000 });
       return Math.round(parseInt(out.trim(), 10) / 1024);
     } catch {
       return null;

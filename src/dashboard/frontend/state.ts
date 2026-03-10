@@ -24,10 +24,26 @@ var jsonBuf = '';
 
 // --- WebSocket ---
 var ws = null;
+var authToken = null;
+
+(function initAuthToken() {
+  var p = new URLSearchParams(location.search);
+  var fromUrl = p.get('token');
+  var stored = sessionStorage.getItem('forgeAuthToken') || localStorage.getItem('forgeAuthToken');
+  authToken = fromUrl || stored;
+  if (authToken) sessionStorage.setItem('forgeAuthToken', authToken);
+})();
+
+function authHeaders(extra) {
+  var headers = Object.assign({}, extra || {});
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  return headers;
+}
 
 function connect() {
   var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(proto + '//' + location.host + '/ws');
+  var wsUrl = proto + '//' + location.host + '/ws' + (authToken ? ('?token=' + encodeURIComponent(authToken)) : '');
+  ws = new WebSocket(wsUrl);
   ws.onopen = function() {
     wsConnected.value = true;
     wsSend({ type: 'list' });
@@ -246,7 +262,7 @@ function renderToolUse(p) {
 function loadChats(searchQuery) {
   chatLoading.value = true;
   var url = '/api/chats?limit=100' + (searchQuery ? '&search=' + encodeURIComponent(searchQuery) : '');
-  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+  fetch(url, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
     chatSessions.value = data.sessions || [];
     chatLoading.value = false;
   }).catch(function() {
@@ -265,7 +281,7 @@ function openChat(chatId) {
     termInstance.value.dispose();
     termInstance.value = null;
   }
-  fetch('/api/chats/' + chatId).then(function(r) { return r.json(); }).then(function(data) {
+  fetch('/api/chats/' + chatId, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
     chatMessages.value = data.messages || [];
     chatLoading.value = false;
   }).catch(function() {
@@ -275,7 +291,7 @@ function openChat(chatId) {
 }
 
 function continueChat(chatId) {
-  fetch('/api/chats/' + chatId + '/continue', { method: 'POST' }).then(function(r) {
+  fetch('/api/chats/' + chatId + '/continue', { method: 'POST', headers: authHeaders() }).then(function(r) {
     if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Continue failed'); });
     return r.json();
   }).then(function(data) {
@@ -286,7 +302,7 @@ function continueChat(chatId) {
 }
 
 function deleteChat(chatId) {
-  fetch('/api/chats/' + chatId, { method: 'DELETE' }).then(function() {
+  fetch('/api/chats/' + chatId, { method: 'DELETE', headers: authHeaders() }).then(function() {
     if (activeChatId.value === chatId) activeChatId.value = null;
     loadChats();
   });
@@ -295,7 +311,7 @@ function deleteChat(chatId) {
 function createTerminal(opts) {
   fetch('/api/sessions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(opts),
   }).then(function(r) { return r.json(); }).then(function() {
     activeModal.value = null;

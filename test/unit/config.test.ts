@@ -47,13 +47,21 @@ describe("parseConfig", () => {
   it("falls back to env vars", () => {
     process.env.FORGE_MAX_SESSIONS = "20";
     process.env.FORGE_DASHBOARD = "true";
+    process.env.FORGE_AUTH_TOKEN = "env-secret";
     const config = parseConfig([]);
     expect(config.maxSessions).toBe(20);
     expect(config.dashboard).toBe(true);
+    expect(config.authToken).toBe("env-secret");
   });
 
   it("ignores invalid numbers", () => {
     const config = parseConfig(["--max-sessions", "abc"]);
     expect(config.maxSessions).toBe(10); // default
+  });
+
+  it("prefers auth token from CLI over env", () => {
+    process.env.FORGE_AUTH_TOKEN = "env-secret";
+    const config = parseConfig(["--auth-token", "cli-secret"]);
+    expect(config.authToken).toBe("cli-secret");
   });
 });
