@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
+  <defs>
+    <!-- Background gradient matching landing page -->
+    <radialGradient id="glow1" cx="30%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#4a9eff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#4a9eff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="70%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#7ee787" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#7ee787" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Dot grid pattern -->
+    <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="0.7" fill="#21262d"/>
+    </pattern>
+  </defs>
+
+  <!-- Base background -->
+  <rect width="660" height="400" fill="#06090f"/>
+
+  <!-- Subtle gradient orbs -->
+  <rect width="660" height="400" fill="url(#glow1)"/>
+  <rect width="660" height="400" fill="url(#glow2)"/>
+
+  <!-- Dot grid overlay -->
+  <rect width="660" height="400" fill="url(#dots)" opacity="0.8"/>
+
+  <!-- Top accent line -->
+  <line x1="0" y1="0.5" x2="660" y2="0.5" stroke="#21262d" stroke-width="1"/>
+
+  <!-- Bottom accent line with gradient -->
+  <linearGradient id="bottomLine" x1="0" y1="0" x2="660" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-color="transparent"/>
+    <stop offset="20%" stop-color="#21262d"/>
+    <stop offset="50%" stop-color="#30363d"/>
+    <stop offset="80%" stop-color="#21262d"/>
+    <stop offset="100%" stop-color="transparent"/>
+  </linearGradient>
+  <line x1="0" y1="399.5" x2="660" y2="399.5" stroke="url(#bottomLine)" stroke-width="1"/>
+
+  <!-- "Drag to install" hint text -->
+  <text x="270" y="340" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="13" fill="#7d8590" text-anchor="middle">
+    <tspan x="330" dy="0">Drag Forge to Applications to install</tspan>
+  </text>
+
+  <!-- Arrow hint -->
+  <line x1="220" y1="260" x2="350" y2="260" stroke="#30363d" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <polygon points="350,255 362,260 350,265" fill="#30363d"/>
+</svg>

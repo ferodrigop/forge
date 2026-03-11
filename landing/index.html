@@ -247,6 +247,9 @@
   <!-- CRT Scanline overlay -->
   <div class="crt-overlay"></div>
 
+  <!-- Interactive dot grid canvas -->
+  <canvas id="dot-grid" style="position:fixed;inset:0;z-index:0;pointer-events:none;"></canvas>
+
   <!-- ====== NAV ====== -->
   <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
     <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -269,7 +272,7 @@
   </nav>
 
   <!-- ====== HERO ====== -->
-  <section class="relative min-h-screen flex items-center justify-center pt-14 dot-grid overflow-hidden">
+  <section class="relative min-h-screen flex items-center justify-center pt-14 overflow-hidden">
     <!-- Gradient orbs -->
     <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
     <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-glow/3 rounded-full blur-3xl"></div>
@@ -507,7 +510,7 @@
   </section>
 
   <!-- ====== HOW IT WORKS ====== -->
-  <section id="how-it-works" class="relative py-24 border-t border-border dot-grid">
+  <section id="how-it-works" class="relative py-24 border-t border-border">
     <div class="max-w-5xl mx-auto px-6">
       <div class="text-center mb-16 reveal">
         <p class="font-mono text-xs uppercase tracking-widest text-accent mb-3">Setup</p>
@@ -686,7 +689,7 @@
   </section>
 
   <!-- ====== QUICKSTART ====== -->
-  <section id="quickstart" class="relative py-24 border-t border-border dot-grid">
+  <section id="quickstart" class="relative py-24 border-t border-border">
     <div class="max-w-4xl mx-auto px-6">
       <div class="text-center mb-12 reveal">
         <p class="font-mono text-xs uppercase tracking-widest text-accent mb-3">Quickstart</p>
@@ -1011,6 +1014,182 @@
       }, { threshold: 0.3 });
 
       demoObserver.observe(document.getElementById('terminal-demo'));
+    })();
+
+    // === INTERACTIVE DOT GRID ===
+    (function() {
+      const canvas = document.getElementById('dot-grid');
+      const ctx = canvas.getContext('2d');
+
+      const SPACING = 24;
+      const DOT_RADIUS = 1;
+      const DOT_COLOR = [33, 38, 45]; // #21262d
+      const CURSOR_RADIUS = 80;
+      const CURSOR_FORCE = 8;
+      const CLICK_FORCE = 30;
+      const CLICK_WAVE_SPEED = 600;
+      const CLICK_WAVE_WIDTH = 60;
+      const DAMPING = 0.94;
+      const SPRING = 0.03;
+
+      let cols, rows, dots;
+      let mouse = { x: -1000, y: -1000 };
+      let ripples = [];
+      let dpr = window.devicePixelRatio || 1;
+      let animId;
+
+      function init() {
+        dpr = window.devicePixelRatio || 1;
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.scale(dpr, dpr);
+
+        cols = Math.ceil(window.innerWidth / SPACING) + 1;
+        rows = Math.ceil(window.innerHeight / SPACING) + 1;
+
+        dots = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            dots.push({
+              ox: c * SPACING,
+              oy: r * SPACING,
+              x: 0,  // displacement
+              y: 0,
+              vx: 0,
+              vy: 0,
+            });
+          }
+        }
+      }
+
+      function update() {
+        const now = performance.now();
+
+        for (let i = 0; i < dots.length; i++) {
+          const d = dots[i];
+          const px = d.ox + d.x;
+          const py = d.oy + d.y;
+
+          // Cursor repulsion
+          const dx = px - mouse.x;
+          const dy = py - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < CURSOR_RADIUS && dist > 0) {
+            const force = (1 - dist / CURSOR_RADIUS) * CURSOR_FORCE;
+            d.vx += (dx / dist) * force * 0.06;
+            d.vy += (dy / dist) * force * 0.06;
+          }
+
+          // Ripple waves — single expanding ring
+          for (let j = ripples.length - 1; j >= 0; j--) {
+            const rip = ripples[j];
+            const rdx = d.ox - rip.x;
+            const rdy = d.oy - rip.y;
+            const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+            const elapsed = now - rip.time;
+            const waveFront = elapsed * (CLICK_WAVE_SPEED / 1000);
+
+            // Only affect dots the wavefront is just now passing
+            const behind = waveFront - rdist;
+            if (behind > 0 && behind < CLICK_WAVE_WIDTH && !rip.hit.has(i)) {
+              rip.hit.add(i);
+              const intensity = (1 - behind / CLICK_WAVE_WIDTH) * rip.strength;
+              const fade = Math.max(0, 1 - rdist / rip.maxDist);
+              const pushX = rdist > 0 ? (rdx / rdist) : 0;
+              const pushY = rdist > 0 ? (rdy / rdist) : 0;
+              d.vx += pushX * intensity * fade * 0.12;
+              d.vy += pushY * intensity * fade * 0.12;
+            }
+          }
+
+          // Spring back to origin
+          d.vx -= d.x * SPRING;
+          d.vy -= d.y * SPRING;
+
+          // Damping
+          d.vx *= DAMPING;
+          d.vy *= DAMPING;
+
+          // Integrate
+          d.x += d.vx;
+          d.y += d.vy;
+        }
+
+        // Clean up old ripples
+        for (let j = ripples.length - 1; j >= 0; j--) {
+          if (now - ripples[j].time > 4000) ripples.splice(j, 1);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+        for (let i = 0; i < dots.length; i++) {
+          const d = dots[i];
+          const px = d.ox + d.x;
+          const py = d.oy + d.y;
+
+          // Displacement magnitude for glow effect
+          const disp = Math.sqrt(d.x * d.x + d.y * d.y);
+          const glow = Math.min(disp / 15, 1);
+
+          // Interpolate from base color to accent blue based on displacement
+          const r = DOT_COLOR[0] + (74 - DOT_COLOR[0]) * glow;
+          const g = DOT_COLOR[1] + (158 - DOT_COLOR[1]) * glow;
+          const b = DOT_COLOR[2] + (255 - DOT_COLOR[2]) * glow;
+          const alpha = 0.6 + glow * 0.4;
+
+          ctx.beginPath();
+          ctx.arc(px, py, DOT_RADIUS + glow * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${alpha})`;
+          ctx.fill();
+        }
+      }
+
+      function loop() {
+        update();
+        draw();
+        animId = requestAnimationFrame(loop);
+      }
+
+      // Event listeners - canvas has pointer-events:none so we listen on document
+      document.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+      });
+
+      document.addEventListener('click', (e) => {
+        // Calculate max distance to farthest corner so wave reaches everywhere
+        const mx = Math.max(e.clientX, window.innerWidth - e.clientX);
+        const my = Math.max(e.clientY, window.innerHeight - e.clientY);
+        ripples.push({
+          x: e.clientX,
+          y: e.clientY,
+          time: performance.now(),
+          strength: CLICK_FORCE,
+          hit: new Set(),
+          maxDist: Math.sqrt(mx * mx + my * my),
+        });
+      });
+
+      document.addEventListener('mouseleave', () => {
+        mouse.x = -1000;
+        mouse.y = -1000;
+      });
+
+      window.addEventListener('resize', () => {
+        cancelAnimationFrame(animId);
+        init();
+        loop();
+      });
+
+      // Reduce animation on mobile (performance)
+      if (window.innerWidth > 768) {
+        init();
+        loop();
+      }
     })();
   </script>
 

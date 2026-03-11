@@ -5,6 +5,7 @@ import { createTray, destroyTray } from "./tray.js";
 import { setupMenu } from "./menu.js";
 import { setupNotifications, teardownNotifications } from "./notifications.js";
 import { setupAutoLaunch } from "./auto-launch.js";
+import { setupAutoUpdater } from "./updater.js";
 import { LOGO_PNG_BASE64 } from "./logo.js";
 
 // Set app name (shows in Dock, menu bar, Activity Monitor)
@@ -42,6 +43,7 @@ app.whenReady().then(async () => {
   setupNotifications(daemon.manager || daemon.bridge);
 
   setupAutoLaunch();
+  setupAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
