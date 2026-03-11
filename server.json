@@ -3,16 +3,16 @@
   "name": "io.github.ferodrigop/forge-terminal",
   "title": "Forge",
   "description": "Terminal MCP server for AI coding agents — spawn, manage, and monitor persistent PTY sessions. Real terminals with node-pty, incremental reads via ring buffer, headless xterm screen capture, multi-agent orchestration (Claude Code + Codex), web dashboard, and desktop app.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "repository": {
-    "url": "https://github.com/ferodrigop/forge-terminal-mcp",
+    "url": "https://github.com/ferodrigop/forge",
     "source": "github"
   },
   "packages": [
     {
       "registryType": "npm",
       "identifier": "forge-terminal-mcp",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "transport": {
         "type": "stdio"
       },
