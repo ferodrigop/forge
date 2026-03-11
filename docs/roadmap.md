@@ -28,24 +28,28 @@ Core terminal engine, pattern matching, agent orchestration, dashboard, chat bro
 ## Next Up
 
 ### Quick Wins
-- [ ] Dynamic npm/CI badges in README
-- [ ] Branch protection on `main` with required status checks
+- [x] Dynamic npm/CI badges in README
+- [x] Branch protection on `main` with required status checks
+- [x] Favicon + OG image for landing page
+- [x] Enable GitHub Discussions
+- [x] Glama listing (claimed)
 - [ ] Publish to MCP Registry (`server.json` ready)
-- [ ] Favicon + OG image for landing page
-- [ ] Enable GitHub Discussions
 - [ ] Document `fromSession` param in README tools reference
 
 ### Desktop App
-- [ ] Auto-update via electron-updater + GitHub Releases
-- [ ] Code signing + notarization (requires Apple Developer $99/yr)
-- [ ] Homebrew Cask (`brew install --cask forge`)
+- [x] Auto-update via electron-updater + GitHub Releases
+- [ ] Code signing + notarization — **blocked: requires Apple Developer $99/yr**
+- [ ] Homebrew Cask (`brew install --cask forge`) — **blocked: requires code signing + notarization first**
 
 ### Documentation
 - [ ] Best practices guide (when to use `run_command` vs `create_terminal`, `waitForExit` patterns)
 - [ ] Demo video / GIF for README
 
 ### Promotion
-- [ ] Submit to awesome-mcp-servers list
+- [x] Submit to awesome-mcp-servers list (PR pending)
+- [x] Glama directory listing
+- [ ] Submit to mcp.so
+- [ ] Anthropic Claude Desktop directory (.mcpb packaging)
 - [ ] Post on HN, Reddit (r/LocalLLaMA, r/ClaudeAI), X/Twitter
 - [ ] Claude Code MCP template directory
 
@@ -54,7 +58,6 @@ Core terminal engine, pattern matching, agent orchestration, dashboard, chat bro
 ## Future
 
 ### Dashboard
-- [ ] Stream `spawn_claude` activity live (biggest UX gap — dashboard is blank during agent work)
 - [ ] Dashboard auth (optional password protection)
 - [ ] Session recording / replay (asciinema-style)
 - [ ] Notification sounds on session exit / pattern match
