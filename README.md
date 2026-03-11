@@ -9,13 +9,27 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.7.0-blue" alt="Version" />
-  <img src="https://img.shields.io/badge/tests-161%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/version-0.8.0-blue" alt="Version" />
+  <img src="https://img.shields.io/badge/tests-179%20passing-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/node-%3E%3D18-339933" alt="Node" />
 </p>
 
 ---
+
+<!-- Screenshots: replace these placeholders with actual screenshots -->
+<!-- Save screenshots to docs/ and reference them here -->
+<!--
+<p align="center">
+  <img src="docs/screenshot-terminal.png" alt="Terminal View" width="800" />
+</p>
+<p align="center">
+  <img src="docs/screenshot-code-review.png" alt="Code Review Panel" width="800" />
+</p>
+<p align="center">
+  <img src="docs/screenshot-chat-browser.png" alt="Chat Browser" width="800" />
+</p>
+-->
 
 ## Why
 

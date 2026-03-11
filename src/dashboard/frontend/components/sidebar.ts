@@ -29,15 +29,78 @@ function SessionItem(props) {
   var isOneshot = tags.indexOf('mode:oneshot') >= 0;
   var isInteractive = tags.indexOf('mode:interactive') >= 0;
 
+  var menuOpen = activeSessionMenu.value === s.id;
+  var isRenaming = renamingSessionId.value === s.id;
+  var inputRef = preactHooks.useRef(null);
+
+  function toggleMenu(e) {
+    e.stopPropagation();
+    activeSessionMenu.value = menuOpen ? null : s.id;
+  }
+
+  // Close menu on outside click
+  preactHooks.useEffect(function() {
+    if (!menuOpen) return;
+    function handler(e) {
+      if (!e.target.closest('.session-actions')) {
+        activeSessionMenu.value = null;
+      }
+    }
+    document.addEventListener('click', handler, true);
+    return function() { document.removeEventListener('click', handler, true); };
+  }, [menuOpen]);
+
+  // Focus and pre-fill input when rename mode activates
+  preactHooks.useEffect(function() {
+    if (isRenaming && inputRef.current) {
+      inputRef.current.value = s.name || s.command || '';
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  function startRename(e) {
+    e.stopPropagation();
+    activeSessionMenu.value = null;
+    renamingSessionId.value = s.id;
+  }
+
+  function finishRename() {
+    if (inputRef.current) {
+      var val = inputRef.current.value.trim();
+      if (val && val !== (s.name || '')) {
+        renameSession(s.id, val);
+      }
+    }
+    renamingSessionId.value = null;
+  }
+
+  function onRenameKeyDown(e) {
+    e.stopPropagation();
+    if (e.key === 'Enter') finishRename();
+    if (e.key === 'Escape') renamingSessionId.value = null;
+  }
+
+  var nameDisplay = isRenaming
+    ? html\`<input ref=\${inputRef} class="session-rename-input" onBlur=\${finishRename} onKeyDown=\${onRenameKeyDown} onClick=\${function(e) { e.stopPropagation(); }} />\`
+    : html\`<span class="session-name-text" onDblClick=\${function(e) { e.stopPropagation(); startRename(e); }}>\${s.name || s.command}</span>\`;
+
+  var menuEl = menuOpen ? html\`<div class="session-menu" onClick=\${function(e) { e.stopPropagation(); }}>
+    <button class="session-menu-item" onClick=\${startRename}>
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11.5 1.5l3 3L5 14H2v-3z"/><path d="M9.5 3.5l3 3"/></svg>
+      Rename
+    </button>
+  </div>\` : null;
+
   return html\`
     <div
       class=\${'session-item' + (s.id === activeSessionId.value ? ' active' : '')}
-      onClick=\${function() { selectSession(s.id); }}
+      onClick=\${function() { if (!isRenaming) selectSession(s.id); }}
     >
       <span class=\${'status-dot ' + s.status}></span>
       <div class="session-info">
         <div class="session-cmd">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${s.name || s.command}</span>
+          \${nameDisplay}
           \${isDelegate && isOneshot ? html\`<span class="delegate-badge oneshot">oneshot</span>\` : null}
           \${isDelegate && isInteractive ? html\`<span class="delegate-badge interactive">interactive</span>\` : null}
           \${ramText ? html\`<span class="ram">\${ramText}</span>\` : null}
@@ -45,11 +108,10 @@ function SessionItem(props) {
         <div class="session-meta">\${metaText}</div>
       </div>
       \${s.claudeState === 'blocked' && s.status === 'running' ? html\`<span class="blocked-icon" title="Needs attention">!</span>\` : null}
-      \${s.status === 'exited' && !(s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0)) ? html\`<button
-        class="revive-btn"
-        title="Revive session"
-        onClick=\${function(e) { e.stopPropagation(); reviveSession(s.id); }}
-      >\u21bb</button>\` : null}
+      <div class="session-actions">
+        <button class="session-dots-btn" title="Options" onClick=\${toggleMenu}>\u22ee</button>
+        \${menuEl}
+      </div>
       <button
         class="close-btn"
         title="Close session"

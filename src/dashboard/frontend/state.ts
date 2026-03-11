@@ -27,6 +27,8 @@ const codeReviewOpen = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
 const chatSearchQuery = signal('');
+const activeSessionMenu = signal(null);
+const renamingSessionId = signal(null);
 const chatMessages = signal([]);
 var jsonBuf = '';
 
@@ -205,6 +207,20 @@ function closeSession(id) {
 
 function reviveSession(id) {
   wsSend({ type: 'revive', sessionId: id });
+}
+
+function renameSession(id, newName) {
+  fetch(apiBase + '/api/sessions/' + id, {
+    method: 'PATCH',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+    body: JSON.stringify({ name: newName }),
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    var updated = sessions.value.map(function(s) {
+      if (s.id === id) return Object.assign({}, s, { name: data.name });
+      return s;
+    });
+    sessions.value = updated;
+  }).catch(function() {});
 }
 
 function isClaudeSession() {

@@ -102,6 +102,44 @@ export class DashboardServer {
         return;
       }
 
+      // Close (delete) a session
+      const deleteMatch = req.method === "DELETE" && pathname.match(/^\/api\/sessions\/([^/]+)$/);
+      if (deleteMatch) {
+        const sessionId = deleteMatch[1];
+        const session = manager.get(sessionId);
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: `Session "${sessionId}" not found` }));
+          return;
+        }
+        session.close();
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ closed: true, id: sessionId }));
+        return;
+      }
+
+      // Rename a session
+      const renameMatch = req.method === "PATCH" && pathname.match(/^\/api\/sessions\/([^/]+)$/);
+      if (renameMatch) {
+        const sessionId = renameMatch[1];
+        const session = manager.get(sessionId);
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: `Session "${sessionId}" not found` }));
+          return;
+        }
+        try {
+          const body = await this.readBody(req);
+          const { name } = JSON.parse(body || "{}");
+          if (name !== undefined) session.name = name;
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(session.getInfo()));
+        } catch (err) {
+          this.respondBodyError(res, err);
+        }
+        return;
+      }
+
       // Read session screen endpoint
       const screenMatch = req.method === "GET" && pathname.match(/^\/api\/sessions\/([^/]+)\/screen$/);
       if (screenMatch) {

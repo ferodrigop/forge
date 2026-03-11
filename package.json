@@ -1,6 +1,6 @@
 {
   "name": "forge-terminal-mcp",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Terminal MCP server for AI coding agents — spawn, manage, and monitor PTY sessions via MCP",
   "type": "module",
   "bin": {

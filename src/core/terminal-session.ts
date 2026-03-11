@@ -25,7 +25,7 @@ export class TerminalSession {
   readonly command: string;
   readonly cwd: string;
   readonly createdAt: Date;
-  readonly name?: string;
+  name?: string;
   readonly tags?: string[];
 
   private ptyProcess: pty.IPty;

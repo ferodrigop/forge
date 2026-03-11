@@ -227,15 +227,6 @@ export const CSS_STYLES = `
     display: flex; align-items: center; gap: 6px;
   }
 
-  .session-item .revive-btn {
-    flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
-    border: none; background: transparent; color: #565f89;
-    font-size: 14px; cursor: pointer; display: flex;
-    align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
-  }
-  .session-item:hover .revive-btn { opacity: 1; }
-  .session-item .revive-btn:hover { background: #9ece6a22; color: #9ece6a; }
-
   .session-item .close-btn {
     flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
     border: none; background: transparent; color: #565f89;
@@ -244,6 +235,48 @@ export const CSS_STYLES = `
   }
   .session-item:hover .close-btn { opacity: 1; }
   .session-item .close-btn:hover { background: #f7768e22; color: #f7768e; }
+
+  .session-actions {
+    position: relative; flex-shrink: 0;
+  }
+  .session-dots-btn {
+    width: 20px; height: 20px; border-radius: 4px;
+    border: none; background: transparent; color: #565f89;
+    font-size: 14px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
+    line-height: 1;
+  }
+  .session-item:hover .session-dots-btn { opacity: 1; }
+  .session-dots-btn:hover { background: #292e42; color: #c0caf5; }
+
+  .session-menu {
+    position: absolute; right: 0; top: 22px; z-index: 100;
+    background: #1a1b26; border: 1px solid #292e42; border-radius: 6px;
+    padding: 4px; min-width: 120px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .session-menu-item {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%; padding: 6px 8px; border: none; background: none;
+    color: #a9b1d6; font-size: 12px; cursor: pointer; border-radius: 4px;
+    text-align: left;
+  }
+  .session-menu-item:hover { background: #292e42; color: #c0caf5; }
+  .session-menu-item svg { flex-shrink: 0; }
+
+  .session-name-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: default; border-radius: 3px; padding: 0 2px; margin: -1px -2px;
+  }
+  .session-rename-input {
+    background: none; border: none; border-bottom: 1px solid #7aa2f744;
+    color: #c0caf5; font-size: 13px; font-weight: 500; font-family: inherit;
+    padding: 0; margin: 0; line-height: inherit;
+    outline: none; width: 100%; min-width: 0;
+    caret-color: #7aa2f7; border-radius: 0;
+  }
+  .session-rename-input:focus {
+    border-bottom-color: #7aa2f7;
+  }
 
   .chat-item {
     padding: 8px 12px; border-radius: 6px; cursor: pointer;
