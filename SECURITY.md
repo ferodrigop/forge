@@ -5,10 +5,8 @@
 If you discover a security vulnerability in Forge, please report it responsibly:
 
 1. **Do not** open a public GitHub issue
-2. Email **rpindv@gmail.com** with:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
+2. Use [GitHub's Security Advisory feature](https://github.com/ferodrigop/forge/security/advisories/new) to report privately
+3. Include: description, steps to reproduce, and potential impact
 
 You should receive a response within 48 hours. We will work with you to understand and address the issue before any public disclosure.
 
