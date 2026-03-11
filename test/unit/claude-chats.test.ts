@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { ClaudeChats } from "../../src/core/claude-chats.js";
+
+// decodeProjectPath resolves greedily against the filesystem.
+// On macOS /Users exists so the first segment resolves; on Linux it doesn't.
+const hasUsersDir = existsSync("/Users");
 
 let tempDir: string;
 let origHome: string | undefined;
@@ -43,10 +48,12 @@ describe("ClaudeChats", () => {
     expect(total).toBe(1);
     expect(sessions).toHaveLength(1);
     expect(sessions[0].sessionId).toBe(SESSION_ID);
-    // decodeProjectPath resolves greedily against filesystem; /Users exists but
-    // /Users/testuser doesn't, so remaining segments join with hyphens as fallback
-    expect(sessions[0].project).toBe("Users/testuser-projects-my-api");
-    expect(sessions[0].fullPath).toBe("/Users/testuser-projects-my-api");
+    // decodeProjectPath resolves greedily against filesystem; on macOS /Users exists
+    // so the first segment resolves, on Linux it doesn't — all segments join with hyphens
+    const expectedProject = hasUsersDir ? "Users/testuser-projects-my-api" : "Users-testuser-projects-my-api";
+    const expectedFullPath = hasUsersDir ? "/Users/testuser-projects-my-api" : "/Users-testuser-projects-my-api";
+    expect(sessions[0].project).toBe(expectedProject);
+    expect(sessions[0].fullPath).toBe(expectedFullPath);
     expect(sessions[0].firstMessage).toBe("Help me build a REST API for user authentication");
     expect(sessions[0].model).toBe("claude-sonnet");
     expect(sessions[0].messageCount).toBe(3); // 2 user + 1 assistant
