@@ -247,10 +247,16 @@ export class CodexChats {
                 if (Array.isArray(content)) {
                   const textPart = content.find((c: Record<string, unknown>) => c.type === "input_text" || c.type === "text");
                   if (textPart) {
-                    firstMessage = String((textPart as Record<string, unknown>).text || "").slice(0, 80);
+                    const txt = String((textPart as Record<string, unknown>).text || "");
+                    // Skip Codex-injected AGENTS.md / environment context messages
+                    if (!txt.startsWith("# AGENTS.md") && !txt.startsWith("<INSTRUCTIONS") && !txt.startsWith("<environment_context")) {
+                      firstMessage = txt.slice(0, 80);
+                    }
                   }
                 } else if (typeof content === "string") {
-                  firstMessage = content.slice(0, 80);
+                  if (!content.startsWith("# AGENTS.md") && !content.startsWith("<INSTRUCTIONS")) {
+                    firstMessage = content.slice(0, 80);
+                  }
                 }
               }
             }

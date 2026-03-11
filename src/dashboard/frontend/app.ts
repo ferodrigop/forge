@@ -66,7 +66,7 @@ function TopBar() {
       \${activeSessionId.value ? html\`
         <button
           class=\${'topbar-toggle topbar-toggle-right' + (codeReviewOpen.value ? ' active' : '')}
-          title=\${codeReviewOpen.value ? 'Hide code review (⌘⇧B)' : 'Show code review (⌘⇧B)'}
+          title=\${codeReviewOpen.value ? 'Hide changes (⌘⇧B)' : 'Show changes (⌘⇧B)'}
           onClick=\${function() { codeReviewOpen.value = !codeReviewOpen.value; }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">

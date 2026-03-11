@@ -222,7 +222,7 @@ export class DashboardServer {
         return;
       }
 
-      // ---- Git API endpoints for Code Review ----
+      // ---- Git API endpoints for Changes panel ----
 
       if (req.method === "GET" && pathname === "/api/git-status") {
         const cwd = parsedUrl.searchParams.get("cwd") || "";

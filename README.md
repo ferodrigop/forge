@@ -17,19 +17,12 @@
 
 ---
 
-<!-- Screenshots: replace these placeholders with actual screenshots -->
-<!-- Save screenshots to docs/ and reference them here -->
-<!--
 <p align="center">
-  <img src="docs/screenshot-terminal.png" alt="Terminal View" width="800" />
+  <img src="docs/screenshot-terminal.png" alt="Terminal View with Changes Panel" width="800" />
 </p>
 <p align="center">
-  <img src="docs/screenshot-code-review.png" alt="Code Review Panel" width="800" />
+  <img src="docs/screenshot-chats.png" alt="Chat Browser" width="800" />
 </p>
-<p align="center">
-  <img src="docs/screenshot-chat-browser.png" alt="Chat Browser" width="800" />
-</p>
--->
 
 ## Why
 

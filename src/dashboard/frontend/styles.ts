@@ -452,7 +452,7 @@ export const CSS_STYLES = `
   .status-bar-btn:hover { color: #7aa2f7; border-color: #7aa2f7; }
   .status-bar-btn.active { color: #7aa2f7; background: #1a1f36; border-color: #7aa2f7; }
 
-  /* Code Review Panel */
+  /* Changes Panel */
   .cr-panel {
     width: 420px; min-width: 320px; max-width: 50vw;
     background: #16161e; border-left: 1px solid #292e42;
