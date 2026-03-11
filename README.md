@@ -9,8 +9,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.8.0-blue" alt="Version" />
-  <img src="https://img.shields.io/badge/tests-179%20passing-brightgreen" alt="Tests" />
+  <a href="https://www.npmjs.com/package/forge-terminal-mcp"><img src="https://img.shields.io/npm/v/forge-terminal-mcp?color=blue" alt="npm version" /></a>
+  <a href="https://github.com/ferodrigop/forge/actions/workflows/ci.yml"><img src="https://github.com/ferodrigop/forge/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/forge-terminal-mcp"><img src="https://img.shields.io/npm/dm/forge-terminal-mcp?color=brightgreen" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/node-%3E%3D18-339933" alt="Node" />
 </p>
