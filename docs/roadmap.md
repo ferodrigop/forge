@@ -64,6 +64,9 @@ Core terminal engine, pattern matching, agent orchestration, dashboard, chat bro
 - [ ] One-shot prompt form in dashboard UI
 - [ ] Custom user templates via `~/.forge/templates.json`
 
+### Agents
+- [ ] Gemini CLI support (spawn, chat browser, stream parser — same integration as Codex)
+
 ### Platform
 - [ ] Windows ConPTY support
 - [ ] Docker support
