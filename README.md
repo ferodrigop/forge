@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="https://forgemcp.dev"><strong>forgemcp.dev</strong></a>
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/forge-terminal-mcp"><img src="https://img.shields.io/npm/v/forge-terminal-mcp?color=blue" alt="npm version" /></a>
   <a href="https://github.com/ferodrigop/forge/actions/workflows/ci.yml"><img src="https://github.com/ferodrigop/forge/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/forge-terminal-mcp"><img src="https://img.shields.io/npm/dm/forge-terminal-mcp?color=brightgreen" alt="npm downloads" /></a>
@@ -507,6 +511,8 @@ If `--auth-token` is enabled, open the dashboard with `?token=YOUR_TOKEN` so bro
 The dashboard is built with Preact + htm + Preact Signals, loaded from CDN with zero build step. All UI code is bundled as string constants inside the server binary.
 
 ## Desktop App (macOS)
+
+> **Note**: The pre-built macOS app is currently unavailable for general download. macOS requires apps to be code-signed with an Apple Developer certificate ($99/year) before they can be opened without security warnings. We're working on getting this set up — in the meantime, you can run the desktop app from source (see below) or use the CLI via `npx forge-terminal-mcp`.
 
 Forge includes an Electron-based desktop app for macOS with native window management, system tray, and notifications.
 
