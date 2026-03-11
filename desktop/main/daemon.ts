@@ -29,6 +29,13 @@ function getForgeDistPath(): string {
   return join(__dirname, "..", "..", "..", "dist");
 }
 
+function getVendorDir(): string {
+  if (app.isPackaged) {
+    return join(process.resourcesPath, "vendor");
+  }
+  return join(__dirname, "..", "..", "resources", "vendor");
+}
+
 async function detectExistingDaemon(): Promise<{ running: boolean; port: number }> {
   try {
     const res = await fetch(`http://127.0.0.1:${DEFAULT_PORT}/api/sessions`);
@@ -91,7 +98,8 @@ export async function createDaemon(): Promise<DaemonHandle> {
   const { manager } = createServer(config);
   await manager.init();
 
-  const ds = new DashboardServer(manager, config.dashboardPort, config);
+  const vendorDir = getVendorDir();
+  const ds = new DashboardServer(manager, config.dashboardPort, config, vendorDir);
   await ds.start();
 
   console.log(`[forge-desktop] Forge server running on http://127.0.0.1:${config.dashboardPort}`);

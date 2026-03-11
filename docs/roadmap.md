@@ -76,6 +76,32 @@
 
 ---
 
+# March 2026 — V0.8 (Completed)
+
+> Dashboard UX overhaul: collapsible sidebar, code review panel, folder picker tree, keyboard shortcuts, chat search fix.
+
+---
+
+## Dashboard UX
+
+61. [x] Folder Picker Tree — Redesigned New Terminal modal folder picker as ForkLift-style expandable tree. Chevron click expands/collapses subtree, single click selects path, double-click on name opens folder as new root. `M`
+
+62. [x] Collapsible Sidebar — Persistent top bar with sidebar toggle button (detached from sidebar). Sidebar fully hides at 0px width. Toggle via button or `⌘B`. `M`
+
+63. [x] Code Review Panel — Right-side panel with full git integration: diff viewer with syntax-colored lines, stage/unstage individual or all files, discard changes, commit form, stash push/pop/list, branch info with ahead/behind counts. Toggle via top bar button or `⌘⇧B`. `L`
+
+64. [x] Git API Endpoints — Backend endpoints for code review: `git-status`, `git-diff`, `git-stage`, `git-discard`, `git-commit`, `git-stash`. All use `execFileSync` with array args (no shell injection). `M`
+
+65. [x] File Status Badges — Visual badges in code review for untracked ("New", green), deleted ("Deleted", red), and renamed ("Renamed", cyan) files. Untracked files render as all-green added lines. `S`
+
+66. [x] Delegate Session Badges — Sidebar badges showing oneshot/interactive mode for delegate_task sessions. Agent type (Claude/Codex) displayed with color coding. `S`
+
+67. [x] Keyboard Shortcuts — `⌘B` toggle sidebar, `⌘⇧B` toggle code review panel, `Escape` close modals. `S`
+
+68. [x] Chat Search Fix — Fixed broken debounced search (stale event reference). Replaced with Enter-to-search. Added search icon, clear button (X/Esc), results count with folder grouping, contextual loading text. `S`
+
+---
+
 # Next — Publishing & Polish
 
 > Preparing Forge for public release on npm.
@@ -103,30 +129,6 @@
 37. [ ] Document `fromSession` Param — `spawn_claude` has undocumented `fromSession` parameter (inherit cwd from existing session). Add to README tools reference. `S`
 
 38. [ ] Best Practices Guide — Document patterns discovered during benchmarking: use `run_command` for short-lived commands, `waitForExit` over pattern guessing, `&&` chaining, when to use `create_terminal` vs `run_command`. `M`
-
----
-
-# March 2026 — V0.8 (Completed)
-
-> Dashboard UX overhaul: collapsible sidebar, code review panel, folder picker tree, keyboard shortcuts.
-
----
-
-## Dashboard UX
-
-61. [x] Folder Picker Tree — Redesigned New Terminal modal folder picker as ForkLift-style expandable tree. Chevron click expands/collapses subtree, single click selects path, double-click on name opens folder as new root. `M`
-
-62. [x] Collapsible Sidebar — Persistent top bar with sidebar toggle button (detached from sidebar). Sidebar fully hides at 0px width. Toggle via button or `⌘B`. `M`
-
-63. [x] Code Review Panel — Right-side panel with full git integration: diff viewer with syntax-colored lines, stage/unstage individual or all files, discard changes, commit form, stash push/pop/list, branch info with ahead/behind counts. Toggle via top bar button or `⌘⇧B`. `L`
-
-64. [x] Git API Endpoints — Backend endpoints for code review: `git-status`, `git-diff`, `git-stage`, `git-discard`, `git-commit`, `git-stash`. All use `execFileSync` with array args (no shell injection). `M`
-
-65. [x] File Status Badges — Visual badges in code review for untracked ("New", green), deleted ("Deleted", red), and renamed ("Renamed", cyan) files. Untracked files render as all-green added lines. `S`
-
-66. [x] Delegate Session Badges — Sidebar badges showing oneshot/interactive mode for delegate_task sessions. Agent type (Claude/Codex) displayed with color coding. `S`
-
-67. [x] Keyboard Shortcuts — `⌘B` toggle sidebar, `⌘⇧B` toggle code review panel, `Escape` close modals. `S`
 
 ---
 

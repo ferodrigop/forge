@@ -1,7 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { resolve as resolvePath, sep as pathSep } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { resolve as resolvePath, sep as pathSep, join as joinPath, extname } from "node:path";
 import { homedir } from "node:os";
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import { URL } from "node:url";
@@ -14,8 +14,8 @@ import { ClaudeChats } from "../core/claude-chats.js";
 import { CodexChats } from "../core/codex-chats.js";
 import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
-import { DASHBOARD_HTML, LOGO_PNG_BASE64 } from "./dashboard-html.js";
-export { DASHBOARD_HTML, LOGO_PNG_BASE64 };
+import { DASHBOARD_HTML, DASHBOARD_HTML_LOCAL, LOGO_PNG_BASE64 } from "./dashboard-html.js";
+export { DASHBOARD_HTML, DASHBOARD_HTML_LOCAL, LOGO_PNG_BASE64 };
 import { logger } from "../utils/logger.js";
 
 const MAX_BODY_BYTES = 1_048_576; // 1MB
@@ -32,6 +32,7 @@ export class DashboardServer {
     private manager: SessionManager,
     private port: number,
     private config?: ForgeConfig,
+    private vendorDir?: string,
   ) {
     this.wsHandler = new WsHandler(manager);
 
@@ -455,6 +456,31 @@ export class DashboardServer {
         return;
       }
 
+      // Serve vendor files (offline frontend assets)
+      if (req.method === "GET" && pathname.startsWith("/vendor/") && this.vendorDir) {
+        const filename = pathname.slice("/vendor/".length);
+        if (!filename || filename.includes("..") || filename.includes("/")) {
+          res.writeHead(400);
+          res.end();
+          return;
+        }
+        try {
+          const filePath = joinPath(this.vendorDir, filename);
+          const content = readFileSync(filePath);
+          const mimeTypes: Record<string, string> = { ".js": "application/javascript", ".css": "text/css" };
+          res.writeHead(200, {
+            "Content-Type": mimeTypes[extname(filename)] || "application/octet-stream",
+            "Content-Length": String(content.length),
+            "Cache-Control": "public, max-age=86400",
+          });
+          res.end(content);
+        } catch {
+          res.writeHead(404);
+          res.end();
+        }
+        return;
+      }
+
       // Serve logo PNG
       if (req.method === "GET" && req.url === "/logo.png") {
         const buf = Buffer.from(LOGO_PNG_BASE64, "base64");
@@ -469,7 +495,7 @@ export class DashboardServer {
 
       // Serve dashboard HTML for all other routes
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(DASHBOARD_HTML);
+      res.end(this.vendorDir ? DASHBOARD_HTML_LOCAL : DASHBOARD_HTML);
     });
 
     this.wss = new WebSocketServer({ server: this.httpServer, path: "/ws", maxPayload: MAX_BODY_BYTES });

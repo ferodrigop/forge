@@ -57,7 +57,7 @@ export function createWindow(dashboardPort: number, daemonPort?: number): Browse
     minWidth: 800,
     minHeight: 500,
     titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 16, y: 16 },
+    trafficLightPosition: { x: 16, y: 10 },
     backgroundColor: "#1a1b26",
     webPreferences: {
       preload: join(__dirname, "preload.js"),
