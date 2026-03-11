@@ -1,7 +1,7 @@
 {
   "name": "forge-desktop",
   "productName": "Forge",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Forge Terminal MCP — Desktop App",
   "private": true,
   "type": "commonjs",

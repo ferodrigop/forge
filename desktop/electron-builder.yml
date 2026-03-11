@@ -17,6 +17,8 @@ extraResources:
     to: forge-dist
     filter:
       - "**/*"
+  - from: resources/forge-dist-package.json
+    to: forge-dist/package.json
   - from: ../node_modules/node-pty
     to: node_modules/node-pty
     filter:
@@ -36,9 +38,13 @@ mac:
     - target: zip
       arch:
         - universal
-  hardenedRuntime: true
-  entitlements: forge.entitlements.plist
-  entitlementsInherit: forge.entitlements.plist
+  # Code signing disabled for now — enable when Apple Developer cert is available
+  # hardenedRuntime: true
+  # entitlements: forge.entitlements.plist
+  # entitlementsInherit: forge.entitlements.plist
+  identity: null
+  # node-pty ships prebuilds for both archs — tell universal merger which files are x64
+  x64ArchFiles: "Contents/Resources/node_modules/node-pty/prebuilds/**/*"
   darkModeSupport: true
 
 dmg:
