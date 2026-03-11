@@ -463,6 +463,7 @@ Or from the repo root: `npm run desktop:dev`
 - Native notifications on session created/exited
 - Window state persistence across restarts
 - Auto-detects existing CLI daemon — connects to it or starts in-process
+- Automatic updates via GitHub Releases (downloads silently, installs on restart)
 - Security hardened: sandboxed renderer, navigation lock, CSP, permission deny-all
 
 ### Packaging
@@ -597,7 +598,7 @@ desktop/
     auto-launch.ts              # Login item registration
     html-server.ts              # Lightweight HTTP server for desktop HTML
     daemon-bridge.ts            # WebSocket relay to existing daemon
-    updater.ts                  # Auto-update placeholder
+    updater.ts                  # Auto-update via GitHub Releases
   electron-builder.yml          # Build config (DMG, universal binary)
   forge.entitlements.plist      # macOS entitlements
 test/
