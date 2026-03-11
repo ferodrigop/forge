@@ -2,3 +2,9 @@ node_modules/
 dist/
 *.tgz
 .DS_Store
+.env*
+coverage/
+desktop/release/
+desktop/dist/
+desktop/node_modules/
+.claude/settings.local.json

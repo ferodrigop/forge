@@ -33,9 +33,14 @@
     "codex",
     "ai-agents"
   ],
+  "author": "Rodrigo Pineda",
+  "homepage": "https://forgemcp.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ferodrigop/forge-terminal-mcp.git"
+    "url": "https://github.com/ferodrigop/forge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ferodrigop/forge/issues"
   },
   "license": "MIT",
   "engines": {

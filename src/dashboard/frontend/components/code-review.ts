@@ -192,7 +192,7 @@ function CodeReviewPanel() {
   return html\`
     <div class="cr-panel">
       <div class="cr-header">
-        <span class="cr-title">Code Review</span>
+        <span class="cr-title">Changes</span>
         <button class="cr-close" onClick=\${function() { codeReviewOpen.value = false; }} title="Close">\u2715</button>
       </div>
 
