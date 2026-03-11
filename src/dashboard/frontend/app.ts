@@ -34,17 +34,57 @@ function MainContent() {
   \`;
 }
 
+function TopBar() {
+  return html\`
+    <div id="topbar">
+      <button
+        class="topbar-toggle"
+        title=\${sidebarCollapsed.value ? 'Show sidebar (⌘B)' : 'Hide sidebar (⌘B)'}
+        onClick=\${function() { sidebarCollapsed.value = !sidebarCollapsed.value; }}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <rect x="1" y="2" width="14" height="12" rx="2" />
+          <line x1="5.5" y1="2" x2="5.5" y2="14" />
+        </svg>
+      </button>
+      <img class="topbar-logo" src="/logo.png" alt="Forge" />
+      <span class="topbar-title">Forge</span>
+      <button
+        id="new-terminal-btn"
+        title="New terminal"
+        class=\${currentTab.value !== 'terminals' ? 'hidden' : ''}
+        onClick=\${function() { activeModal.value = { type: 'newTerminal' }; }}
+      >+</button>
+      <button
+        id="auto-follow-btn"
+        class=\${(autoFollow.value ? 'active' : '') + (currentTab.value !== 'terminals' ? ' hidden' : '')}
+        title="Auto-follow new sessions"
+        onClick=\${function() { autoFollow.value = !autoFollow.value; }}
+      >Follow</button>
+    </div>
+  \`;
+}
+
 function App() {
   return html\`
-    <\${Sidebar} />
-    <\${MainContent} />
+    <div id="app-layout">
+      <\${TopBar} />
+      <div id="app-body">
+        \${!sidebarCollapsed.value ? html\`<\${Sidebar} />\` : null}
+        <\${MainContent} />
+      </div>
+    </div>
     <\${ModalOverlay} />
   \`;
 }
 
-// Keyboard shortcut: Escape closes modals globally
+// Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && activeModal.value) activeModal.value = null;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+    e.preventDefault();
+    sidebarCollapsed.value = !sidebarCollapsed.value;
+  }
 });
 
 // Detect desktop app and set traffic light clearance

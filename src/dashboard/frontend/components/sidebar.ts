@@ -1,25 +1,4 @@
 export const SIDEBAR_JS = `
-function SidebarHeader() {
-  return html\`
-    <div id="sidebar-header">
-      <img class="logo" src="/logo.png" alt="Forge" /> Forge
-      <span class="spacer"></span>
-      <button
-        id="new-terminal-btn"
-        title="New terminal"
-        class=\${currentTab.value !== 'terminals' ? 'hidden' : ''}
-        onClick=\${function() { activeModal.value = { type: 'newTerminal' }; }}
-      >+</button>
-      <button
-        id="auto-follow-btn"
-        class=\${(autoFollow.value ? 'active' : '') + (currentTab.value !== 'terminals' ? ' hidden' : '')}
-        title="Auto-follow new sessions"
-        onClick=\${function() { autoFollow.value = !autoFollow.value; }}
-      >Follow</button>
-    </div>
-  \`;
-}
-
 function TabBar() {
   return html\`
     <div class="tab-bar">
@@ -328,7 +307,6 @@ function ConnectionStatus() {
 function Sidebar() {
   return html\`
     <div id="sidebar">
-      <\${SidebarHeader} />
       <\${TabBar} />
       \${currentTab.value === 'terminals'
         ? html\`<div id="terminals-panel"><div id="session-list"><\${SessionList} /></div></div>\`

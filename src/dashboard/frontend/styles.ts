@@ -5,29 +5,44 @@ export const CSS_STYLES = `
     background: #1a1b26;
     color: #a9b1d6;
     height: 100vh;
-    display: flex;
     overflow: hidden;
   }
 
   #app { display: contents; }
 
   /* Desktop app: title bar region for macOS hidden inset traffic lights */
-  body.forge-desktop #sidebar-header {
+  body.forge-desktop #topbar {
     padding-left: var(--traffic-light-clearance, 80px);
-    padding-top: 14px;
-    padding-bottom: 14px;
     -webkit-app-region: drag;
   }
-  body.forge-desktop #sidebar-header button,
-  body.forge-desktop #sidebar-header .logo {
+  body.forge-desktop #topbar button,
+  body.forge-desktop #topbar .topbar-logo {
     -webkit-app-region: no-drag;
   }
   body.forge-desktop #main-titlebar {
-    height: 38px;
-    -webkit-app-region: drag;
-    background: #1a1b26;
-    flex-shrink: 0;
+    height: 0;
   }
+
+  /* Top bar — always visible, contains sidebar toggle */
+  #app-layout {
+    display: flex; flex-direction: column; height: 100vh; width: 100vw;
+  }
+  #app-body {
+    display: flex; flex: 1; min-height: 0; overflow: hidden;
+  }
+  #topbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; background: #16161e;
+    border-bottom: 1px solid #292e42; flex-shrink: 0;
+    height: 36px;
+  }
+  .topbar-toggle {
+    background: none; border: none; color: #565f89; cursor: pointer;
+    padding: 3px; display: flex; align-items: center; border-radius: 4px;
+  }
+  .topbar-toggle:hover { color: #7aa2f7; background: #292e42; }
+  .topbar-logo { width: 18px; height: 18px; border-radius: 3px; }
+  .topbar-title { font-size: 13px; font-weight: 600; color: #7aa2f7; }
 
   #sidebar {
     width: 260px;
@@ -36,22 +51,9 @@ export const CSS_STYLES = `
     border-right: 1px solid #292e42;
     display: flex;
     flex-direction: column;
-    height: 100vh;
   }
 
-  #sidebar-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid #292e42;
-    font-size: 14px;
-    font-weight: 600;
-    color: #7aa2f7;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  #sidebar-header .logo { width: 22px; height: 22px; border-radius: 4px; }
-  #sidebar-header .spacer { flex: 1; }
+  #topbar .spacer { flex: 1; }
 
   #auto-follow-btn {
     font-size: 11px;

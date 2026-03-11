@@ -22,6 +22,7 @@ const activeGroupPopover = signal(null);
 const statusBarTick = signal(Date.now());
 const sessionLastActivity = signal({}); // sessionId -> timestamp
 const wsConnected = signal(false);
+const sidebarCollapsed = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
 const chatMessages = signal([]);
