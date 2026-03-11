@@ -23,6 +23,7 @@ const statusBarTick = signal(Date.now());
 const sessionLastActivity = signal({}); // sessionId -> timestamp
 const wsConnected = signal(false);
 const sidebarCollapsed = signal(false);
+const codeReviewOpen = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
 const chatMessages = signal([]);

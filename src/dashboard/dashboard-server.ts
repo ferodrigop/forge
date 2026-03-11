@@ -1,4 +1,5 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { resolve as resolvePath, sep as pathSep } from "node:path";
 import { homedir } from "node:os";
@@ -179,6 +180,143 @@ export class DashboardServer {
         const isDir = exists && statSync(targetPath).isDirectory();
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ path: targetPath, exists, isDirectory: isDir }));
+        return;
+      }
+
+      // ---- Git API endpoints for Code Review ----
+
+      if (req.method === "GET" && pathname === "/api/git-status") {
+        const cwd = parsedUrl.searchParams.get("cwd") || "";
+        if (!cwd || !existsSync(cwd)) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Invalid cwd" })); return; }
+        try {
+          execFileSync("git", ["rev-parse", "--git-dir"], { cwd, encoding: "utf-8", timeout: 5000 });
+        } catch { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Not a git repository" })); return; }
+        try {
+          const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd, encoding: "utf-8", timeout: 5000 }).trim();
+          let ahead = 0, behind = 0;
+          try {
+            const counts = execFileSync("git", ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], { cwd, encoding: "utf-8", timeout: 5000 }).trim();
+            const parts = counts.split(/\s+/);
+            ahead = parseInt(parts[0], 10) || 0;
+            behind = parseInt(parts[1], 10) || 0;
+          } catch { /* no upstream */ }
+          const porcelain = execFileSync("git", ["status", "--porcelain=v1"], { cwd, encoding: "utf-8", timeout: 5000 });
+          const files: Array<{ path: string; oldPath?: string; status: string; staged: boolean; indexStatus: string; workStatus: string }> = [];
+          const statusMap: Record<string, string> = { M: "modified", A: "added", D: "deleted", R: "renamed", C: "copied", "?": "untracked" };
+          for (const line of porcelain.split("\n")) {
+            if (!line || line.length < 4) continue;
+            const idx = line[0], wt = line[1];
+            let fp = line.slice(3);
+            let oldPath: string | undefined;
+            // Handle renames "old -> new"
+            const arrow = fp.indexOf(" -> ");
+            if (arrow >= 0) { oldPath = fp.slice(0, arrow); fp = fp.slice(arrow + 4); }
+            if (idx !== " " && idx !== "?") {
+              files.push({ path: fp, oldPath, status: statusMap[idx] || "modified", staged: true, indexStatus: idx, workStatus: wt });
+            }
+            if (wt !== " " && idx !== "?") {
+              files.push({ path: fp, oldPath, status: statusMap[wt] || "modified", staged: false, indexStatus: idx, workStatus: wt });
+            }
+            if (idx === "?") {
+              files.push({ path: fp, status: "untracked", staged: false, indexStatus: idx, workStatus: wt });
+            }
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ branch, ahead, behind, files }));
+        } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message || "git-status failed" })); }
+        return;
+      }
+
+      if (req.method === "GET" && pathname === "/api/git-diff") {
+        const cwd = parsedUrl.searchParams.get("cwd") || "";
+        const file = parsedUrl.searchParams.get("file") || "";
+        const staged = parsedUrl.searchParams.get("staged") === "true";
+        const untracked = parsedUrl.searchParams.get("untracked") === "true";
+        if (!cwd || !existsSync(cwd)) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Invalid cwd" })); return; }
+        try {
+          if (untracked && file) {
+            // For untracked files, read the file content and format as all-added diff
+            const { readFileSync } = await import("node:fs");
+            const fullPath = resolvePath(cwd, file);
+            const content = readFileSync(fullPath, "utf-8");
+            const lines = content.split("\n");
+            const diffLines = [`@@ -0,0 +1,${lines.length} @@`];
+            for (const line of lines) { diffLines.push("+" + line); }
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ diff: diffLines.join("\n") }));
+          } else {
+            const args = ["diff"];
+            if (staged) args.push("--cached");
+            if (file) { args.push("--"); args.push(file); }
+            const diff = execFileSync("git", args, { cwd, encoding: "utf-8", timeout: 10000 });
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ diff }));
+          }
+        } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message || "git-diff failed" })); }
+        return;
+      }
+
+      if (req.method === "POST" && pathname === "/api/git-stage") {
+        const body = await this.readBody(req);
+        const opts = JSON.parse(body);
+        const { cwd, files, action } = opts as { cwd: string; files: string[]; action: "stage" | "unstage" };
+        if (!cwd || !files?.length) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Missing cwd or files" })); return; }
+        try {
+          if (action === "unstage") {
+            execFileSync("git", ["reset", "HEAD", "--", ...files], { cwd, encoding: "utf-8", timeout: 5000 });
+          } else {
+            execFileSync("git", ["add", "--", ...files], { cwd, encoding: "utf-8", timeout: 5000 });
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message || "git-stage failed" })); }
+        return;
+      }
+
+      if (req.method === "POST" && pathname === "/api/git-discard") {
+        const body = await this.readBody(req);
+        const opts = JSON.parse(body);
+        const { cwd, files } = opts as { cwd: string; files: string[] };
+        if (!cwd || !files?.length) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Missing cwd or files" })); return; }
+        try {
+          execFileSync("git", ["checkout", "--", ...files], { cwd, encoding: "utf-8", timeout: 5000 });
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message || "git-discard failed" })); }
+        return;
+      }
+
+      if (req.method === "POST" && pathname === "/api/git-commit") {
+        const body = await this.readBody(req);
+        const opts = JSON.parse(body);
+        const { cwd, message } = opts as { cwd: string; message: string };
+        if (!cwd || !message?.trim()) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Missing cwd or message" })); return; }
+        try {
+          execFileSync("git", ["commit", "-m", message], { cwd, encoding: "utf-8", timeout: 10000 });
+          const hash = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd, encoding: "utf-8", timeout: 5000 }).trim();
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, hash, message }));
+        } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message || "git-commit failed" })); }
+        return;
+      }
+
+      if (req.method === "POST" && pathname === "/api/git-stash") {
+        const body = await this.readBody(req);
+        const opts = JSON.parse(body);
+        const { cwd, action } = opts as { cwd: string; action: "push" | "pop" | "list" };
+        if (!cwd || !action) { res.writeHead(400, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "Missing cwd or action" })); return; }
+        try {
+          if (action === "list") {
+            const out = execFileSync("git", ["stash", "list"], { cwd, encoding: "utf-8", timeout: 5000 });
+            const stashes = out.trim().split("\n").filter(Boolean);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: true, stashes }));
+          } else {
+            execFileSync("git", ["stash", action], { cwd, encoding: "utf-8", timeout: 10000 });
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: true }));
+          }
+        } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: e.message || "git-stash failed" })); }
         return;
       }
 

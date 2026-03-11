@@ -41,6 +41,8 @@ export const CSS_STYLES = `
     padding: 3px; display: flex; align-items: center; border-radius: 4px;
   }
   .topbar-toggle:hover { color: #7aa2f7; background: #292e42; }
+  .topbar-toggle.active { color: #7aa2f7; background: #1a1f36; }
+  .topbar-toggle-right svg { transform: scaleX(-1); }
   .topbar-logo { width: 18px; height: 18px; border-radius: 3px; }
   .topbar-title { font-size: 13px; font-weight: 600; color: #7aa2f7; }
 
@@ -370,6 +372,177 @@ export const CSS_STYLES = `
   .activity-event .activity-detail { color: #565f89; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .activity-event .activity-time { color: #3b4261; font-size: 10px; flex-shrink: 0; }
   .activity-event.error { color: #f7768e; }
+
+  /* Terminal split layout */
+  .terminal-split { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+  .terminal-split-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .terminal-split-main #terminal-container { flex: 1; }
+
+  /* Status bar button */
+  .status-bar-btn {
+    background: none; border: 1px solid #292e42; border-radius: 3px;
+    color: #565f89; cursor: pointer; padding: 1px 5px;
+    display: flex; align-items: center; margin-right: 4px;
+  }
+  .status-bar-btn:hover { color: #7aa2f7; border-color: #7aa2f7; }
+  .status-bar-btn.active { color: #7aa2f7; background: #1a1f36; border-color: #7aa2f7; }
+
+  /* Code Review Panel */
+  .cr-panel {
+    width: 420px; min-width: 320px; max-width: 50vw;
+    background: #16161e; border-left: 1px solid #292e42;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .cr-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-bottom: 1px solid #292e42;
+  }
+  .cr-title { font-size: 13px; font-weight: 600; color: #c0caf5; }
+  .cr-close {
+    background: none; border: none; color: #565f89; cursor: pointer;
+    font-size: 14px; padding: 2px 4px; border-radius: 3px;
+  }
+  .cr-close:hover { color: #f7768e; background: #292e42; }
+
+  .cr-branch-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-bottom: 1px solid #292e42;
+    font-size: 12px;
+  }
+  .cr-branch-icon { color: #7aa2f7; flex-shrink: 0; }
+  .cr-branch-name { color: #7aa2f7; font-weight: 500; font-family: monospace; }
+  .cr-ahead { color: #9ece6a; font-size: 11px; }
+  .cr-behind { color: #f7768e; font-size: 11px; }
+  .cr-stats { color: #565f89; font-size: 11px; margin-left: auto; }
+
+  .cr-filter-bar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 12px; border-bottom: 1px solid #292e42;
+  }
+  .cr-filter-btn {
+    background: none; border: 1px solid #292e42; border-radius: 4px;
+    color: #565f89; cursor: pointer; padding: 2px 8px; font-size: 11px;
+  }
+  .cr-filter-btn:hover { color: #a9b1d6; border-color: #3b4261; }
+  .cr-filter-btn.active { color: #7aa2f7; border-color: #7aa2f7; background: #1a1f36; }
+  .cr-filter-spacer { flex: 1; }
+
+  /* Generic small button */
+  .cr-btn {
+    background: none; border: 1px solid #292e42; border-radius: 3px;
+    color: #565f89; cursor: pointer; padding: 1px 6px; font-size: 11px;
+    white-space: nowrap;
+  }
+  .cr-btn:hover { color: #a9b1d6; border-color: #3b4261; }
+  .cr-btn:disabled { opacity: 0.4; cursor: default; }
+  .cr-btn-stage { color: #9ece6a; border-color: #9ece6a44; }
+  .cr-btn-stage:hover { background: #9ece6a22; }
+  .cr-btn-unstage { color: #e0af68; border-color: #e0af6844; }
+  .cr-btn-unstage:hover { background: #e0af6822; }
+  .cr-btn-discard { color: #f7768e; border-color: #f7768e44; }
+  .cr-btn-discard:hover { background: #f7768e22; }
+  .cr-btn-stage-all { color: #9ece6a; }
+  .cr-btn-unstage-all { color: #e0af68; }
+  .cr-btn-refresh { font-size: 14px; padding: 0 4px; }
+  .cr-spin { display: inline-block; animation: cr-spin 0.5s linear; }
+  @keyframes cr-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .cr-btn-commit {
+    background: #7aa2f722; color: #7aa2f7; border-color: #7aa2f744;
+    padding: 4px 12px; font-size: 12px; font-weight: 500;
+  }
+  .cr-btn-commit:hover { background: #7aa2f733; }
+  .cr-btn-commit:disabled { opacity: 0.4; }
+  .cr-btn-stash { color: #bb9af7; border-color: #bb9af744; }
+  .cr-btn-stash:hover { background: #bb9af722; }
+
+  /* File list */
+  .cr-file-list {
+    flex: 1; overflow-y: auto;
+  }
+  .cr-file-list::-webkit-scrollbar { width: 6px; }
+  .cr-file-list::-webkit-scrollbar-thumb { background: #292e42; border-radius: 3px; }
+  .cr-file-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; cursor: pointer; font-size: 12px;
+    border-bottom: 1px solid #1a1b26;
+  }
+  .cr-file-header:hover { background: #1a1f36; }
+  .cr-file-chevron { color: #565f89; font-size: 9px; width: 12px; flex-shrink: 0; }
+  .cr-file-status { font-weight: 600; font-family: monospace; font-size: 11px; width: 14px; flex-shrink: 0; text-align: center; }
+  .cr-file-path { color: #a9b1d6; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cr-new-badge, .cr-del-badge, .cr-rename-badge {
+    font-size: 9px; padding: 1px 5px; border-radius: 3px;
+    font-weight: 600; text-transform: uppercase; flex-shrink: 0;
+  }
+  .cr-new-badge { background: #9ece6a22; color: #9ece6a; border: 1px solid #9ece6a44; }
+  .cr-del-badge { background: #f7768e22; color: #f7768e; border: 1px solid #f7768e44; }
+  .cr-rename-badge { background: #7dcfff22; color: #7dcfff; border: 1px solid #7dcfff44; }
+  .cr-file-spacer { flex: 1; }
+  .cr-empty-files { padding: 20px 12px; color: #3b4261; font-size: 12px; text-align: center; }
+
+  /* Diff viewer */
+  .cr-diff {
+    background: #1a1b26; border-bottom: 1px solid #292e42;
+    overflow-x: auto; font-family: monospace; font-size: 11px;
+    max-height: 300px; overflow-y: auto;
+  }
+  .cr-diff::-webkit-scrollbar { width: 6px; height: 6px; }
+  .cr-diff::-webkit-scrollbar-thumb { background: #292e42; border-radius: 3px; }
+  .cr-diff-inner { min-width: fit-content; }
+  .cr-diff-line { display: flex; min-height: 18px; line-height: 18px; min-width: 100%; }
+  .cr-diff-num {
+    width: 40px; min-width: 40px; text-align: right; padding-right: 8px;
+    color: #3b4261; user-select: none; flex-shrink: 0;
+  }
+  .cr-diff-content {
+    flex: 1; white-space: pre; padding-right: 8px;
+  }
+  .cr-diff-added { background: #9ece6a15; color: #9ece6a; }
+  .cr-diff-added .cr-diff-num { color: #9ece6a66; }
+  .cr-diff-removed { background: #f7768e15; color: #f7768e; }
+  .cr-diff-removed .cr-diff-num { color: #f7768e66; }
+  .cr-diff-hunk { color: #7aa2f7; background: #7aa2f710; padding: 2px 0; }
+  .cr-diff-meta { color: #565f89; }
+  .cr-diff-loading { padding: 8px 12px; color: #565f89; font-size: 11px; }
+
+  /* Commit section */
+  .cr-commit-section {
+    padding: 8px 12px; border-top: 1px solid #292e42;
+  }
+  .cr-commit-input {
+    width: 100%; background: #1a1b26; border: 1px solid #292e42;
+    border-radius: 4px; padding: 6px 10px; color: #c0caf5;
+    font-size: 12px; font-family: monospace; outline: none;
+    resize: vertical; min-height: 42px;
+  }
+  .cr-commit-input:focus { border-color: #7aa2f7; }
+  .cr-commit-input::placeholder { color: #3b4261; }
+  .cr-commit-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 6px;
+  }
+  .cr-commit-staged { font-size: 11px; color: #565f89; }
+  .cr-commit-result {
+    margin-top: 4px; font-size: 11px; padding: 4px 8px;
+    border-radius: 3px;
+  }
+  .cr-commit-result.success { background: #9ece6a22; color: #9ece6a; }
+  .cr-commit-result.error { background: #f7768e22; color: #f7768e; }
+
+  /* Stash bar */
+  .cr-stash-bar {
+    display: flex; gap: 6px; padding: 6px 12px; border-top: 1px solid #292e42;
+  }
+
+  .cr-loading, .cr-error, .cr-empty {
+    padding: 20px 12px; color: #565f89; font-size: 12px; text-align: center;
+  }
+  .cr-error { color: #f7768e; }
+  .cr-retry {
+    display: block; margin: 8px auto; background: none;
+    border: 1px solid #292e42; border-radius: 4px;
+    color: #7aa2f7; cursor: pointer; padding: 4px 12px; font-size: 12px;
+  }
 
   #chat-viewer {
     flex: 1; overflow-y: auto; padding: 16px;

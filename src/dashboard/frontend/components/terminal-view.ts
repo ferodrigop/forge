@@ -258,7 +258,12 @@ function TerminalView() {
         \${startedText ? html\`<span class="header-time">\${startedText}</span>\` : null}
       </div>
       <\${DelegatePromptBanner} />
-      <\${XTermContainer} />
+      <div class="terminal-split">
+        <div class="terminal-split-main">
+          <\${XTermContainer} />
+        </div>
+        \${codeReviewOpen.value ? html\`<\${CodeReviewPanel} />\` : null}
+      </div>
       <\${TerminalStatusBar} />
     </div>
   \`;

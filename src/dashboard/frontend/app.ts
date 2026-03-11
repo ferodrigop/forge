@@ -4,6 +4,7 @@ import { SIDEBAR_JS } from "./components/sidebar.js";
 import { TERMINAL_VIEW_JS } from "./components/terminal-view.js";
 import { CHAT_VIEW_JS } from "./components/chat-view.js";
 import { MODALS_JS } from "./components/modals.js";
+import { CODE_REVIEW_JS } from "./components/code-review.js";
 
 const APP_COMPONENT_JS = `
 function EmptyState() {
@@ -61,6 +62,19 @@ function TopBar() {
         title="Auto-follow new sessions"
         onClick=\${function() { autoFollow.value = !autoFollow.value; }}
       >Follow</button>
+      <span class="spacer"></span>
+      \${activeSessionId.value ? html\`
+        <button
+          class=\${'topbar-toggle topbar-toggle-right' + (codeReviewOpen.value ? ' active' : '')}
+          title=\${codeReviewOpen.value ? 'Hide code review (⌘⇧B)' : 'Show code review (⌘⇧B)'}
+          onClick=\${function() { codeReviewOpen.value = !codeReviewOpen.value; }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <rect x="1" y="2" width="14" height="12" rx="2" />
+            <line x1="10.5" y1="2" x2="10.5" y2="14" />
+          </svg>
+        </button>
+      \` : null}
     </div>
   \`;
 }
@@ -84,6 +98,10 @@ document.addEventListener('keydown', function(e) {
   if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
     e.preventDefault();
     sidebarCollapsed.value = !sidebarCollapsed.value;
+  }
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'b') {
+    e.preventDefault();
+    codeReviewOpen.value = !codeReviewOpen.value;
   }
 });
 
@@ -125,6 +143,7 @@ ${SIDEBAR_JS}
 ${TERMINAL_VIEW_JS}
 ${CHAT_VIEW_JS}
 ${MODALS_JS}
+${CODE_REVIEW_JS}
 
 // --- App ---
 ${APP_COMPONENT_JS}
