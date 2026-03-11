@@ -47,6 +47,20 @@ All PRs must pass the existing test suite. Add tests for new features or bug fix
 4. Ensure `npm test` passes
 5. Open a PR with a clear title and description
 
+CI must pass (typecheck, build, tests). PRs are squash-merged to keep history clean.
+
+## What to Protect
+
+- **Tool schemas are API contracts.** Renaming a tool or changing param types breaks every user's CLAUDE.md instructions. Treat tool names and param shapes as semver-public.
+- **Ring buffer is the core differentiator.** Reject PRs that replace it with unbounded arrays or simple string concatenation — the whole point is bounded memory.
+- **Stdout is sacred.** Nothing except MCP JSON-RPC goes to stdout. Any PR that adds console.log is wrong.
+
+## Versioning
+
+- **Patch (0.x.y):** Bug fixes, docs, test improvements
+- **Minor (0.x.0):** New tools, new templates, new config options
+- **Major (x.0.0):** Breaking changes to tool schemas, removed tools, Node version bump
+
 ## Reporting Issues
 
 Use [GitHub Issues](https://github.com/ferodrigop/forge/issues) for bug reports and feature requests. Include:
