@@ -64,4 +64,4 @@ dmg:
 publish:
   provider: github
   owner: ferodrigop
-  repo: forge-terminal-mcp
+  repo: forge

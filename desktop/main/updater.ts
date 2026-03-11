@@ -1,15 +1,16 @@
 /**
  * Auto-updater using electron-updater with GitHub Releases.
- * Phase 6 — placeholder for now, activated when code signing is set up.
+ * Checks for updates on launch, downloads silently, notifies user when ready.
  */
 
 export async function setupAutoUpdater(): Promise<void> {
-  // Only run in packaged builds
   const { app } = await import("electron");
   if (!app.isPackaged) return;
 
   try {
     const { autoUpdater } = await import("electron-updater");
+    const { Notification } = await import("electron");
+
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
 
@@ -19,7 +20,17 @@ export async function setupAutoUpdater(): Promise<void> {
 
     autoUpdater.on("update-downloaded", (info) => {
       console.log("[forge-desktop] Update downloaded:", info.version);
-      // Prompt will happen on next quit
+
+      if (Notification.isSupported()) {
+        const notification = new Notification({
+          title: "Forge Update Ready",
+          body: `v${info.version} will be installed on next restart.`,
+        });
+        notification.on("click", () => {
+          autoUpdater.quitAndInstall();
+        });
+        notification.show();
+      }
     });
 
     autoUpdater.on("error", (err) => {
