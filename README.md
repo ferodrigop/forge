@@ -221,6 +221,67 @@ clear_history        → Clear persisted stale session entries
 >
 > **Agent:** *(uses `run_command` with `npm run build && npm test` — creates terminal, waits for exit, returns output, auto-cleans up)*
 
+## Best Practices
+
+### `run_command` vs `create_terminal`
+
+Use **`run_command`** when you want a result and don't need the session afterwards:
+- Build steps (`npm run build`, `cargo build`)
+- Test runs (`npm test`, `pytest`)
+- Install commands (`npm install`, `pip install`)
+- One-off scripts that exit cleanly
+
+Use **`create_terminal`** when you need an ongoing session:
+- Dev servers (`npm run dev`, `vite`, `next dev`)
+- Watchers (`npm run watch`, `tsc --watch`)
+- REPLs or interactive processes
+- Long-running processes you'll poll with `read_terminal`
+
+```
+# Good — build is a one-shot task
+run_command({ command: "npm run build && npm test" })
+
+# Good — dev server needs to stay alive
+create_terminal({ command: "npm run dev", name: "dev-server" })
+wait_for({ id, pattern: "ready on" })
+```
+
+### `waitForExit` vs pattern matching
+
+Use **pattern matching** (default) when the process stays alive after printing the signal:
+```
+wait_for({ id, pattern: "Server running on port 3000" })
+# returns as soon as the line appears — process keeps running
+```
+
+Use **`waitForExit: true`** when the process exits naturally and you want all output:
+```
+wait_for({ id, pattern: ".", waitForExit: true })
+# waits for the process to finish, returns everything
+```
+
+### `fromSession` for sub-agents
+
+When spawning a sub-agent to work on the same project, use `fromSession` instead of hardcoding paths:
+```
+# Instead of this (brittle):
+spawn_claude({ prompt: "...", cwd: "/Users/me/projects/my-app" })
+
+# Do this (inherits cwd from current session):
+spawn_claude({ prompt: "...", fromSession: currentSessionId })
+```
+
+This ensures the sub-agent works in the correct directory even when Forge is used across different machines or worktrees.
+
+### Worktrees for parallel agents
+
+When running multiple agents on the same codebase, use `worktree: true` to isolate changes:
+```
+spawn_claude({ prompt: "Add auth", worktree: true, branch: "feature/auth" })
+spawn_claude({ prompt: "Add payments", worktree: true, branch: "feature/payments" })
+# Both agents work in parallel without stepping on each other
+```
+
 ## Tools Reference
 
 ### `create_terminal`
@@ -266,7 +327,8 @@ Templates with `waitFor` automatically block until the pattern appears (30s time
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `prompt` | string | *required* | Prompt to send to Claude |
-| `cwd` | string | — | Working directory |
+| `cwd` | string | — | Working directory (explicit path) |
+| `fromSession` | string | — | Copy `cwd` from an existing session ID (alternative to setting `cwd` manually) |
 | `model` | string | — | Model (e.g., "sonnet", "opus") |
 | `name` | string | Auto from prompt | Session name |
 | `tags` | string[] | `["claude-agent"]` | Tags (claude-agent always included) |
