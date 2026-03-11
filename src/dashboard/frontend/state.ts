@@ -26,6 +26,7 @@ const sidebarCollapsed = signal(false);
 const codeReviewOpen = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
+const chatSearchQuery = signal('');
 const chatMessages = signal([]);
 var jsonBuf = '';
 

@@ -245,31 +245,56 @@ function ChatProjectGroup(props) {
   \`;
 }
 
-var __chatSearchTimer = null;
 function ChatsPanel() {
-  function onInput(e) {
-    clearTimeout(__chatSearchTimer);
-    __chatSearchTimer = setTimeout(function() { loadChats(e.target.value); }, 300);
+  var searchRef = preact.createRef();
+
+  function onSearchKeyDown(e) {
+    if (e.key === 'Enter') {
+      var q = e.target.value.trim();
+      chatSearchQuery.value = q;
+      loadChats(q);
+    }
+    if (e.key === 'Escape') {
+      e.target.value = '';
+      chatSearchQuery.value = '';
+      loadChats('');
+      e.target.blur();
+    }
+  }
+
+  function clearSearch() {
+    chatSearchQuery.value = '';
+    if (searchRef.current) searchRef.current.value = '';
+    loadChats('');
   }
 
   var source = chatSource.value;
   var cs = source === 'codex' ? codexChatSessions.value : chatSessions.value;
   var loading = chatLoading.value;
+  var query = chatSearchQuery.value;
   var content;
-  if (loading && cs.length === 0) {
-    content = html\`<div style="padding:12px;color:#565f89;font-size:12px;display:flex;align-items:center;gap:8px;"><span class="chat-spinner"></span> Loading chats...</div>\`;
+  if (loading) {
+    var loadLabel = query ? 'Searching...' : 'Loading chats...';
+    content = html\`<div style="padding:12px;color:#565f89;font-size:12px;display:flex;align-items:center;gap:8px;"><span class="chat-spinner"></span> \${loadLabel}</div>\`;
+  } else if (cs.length === 0 && query) {
+    content = html\`<div class="chat-search-status">No results for "\${query}"</div>\`;
   } else if (cs.length === 0) {
-    content = html\`<div style="padding:12px;color:#3b4261;font-size:12px;">No chats found</div>\`;
+    content = html\`<div class="chat-search-status" style="color:#3b4261">No chats found</div>\`;
   } else {
     var groups = {};
     cs.forEach(function(c) {
       if (!groups[c.project]) groups[c.project] = [];
       groups[c.project].push(c);
     });
-    content = Object.keys(groups).map(function(project) {
+    var groupKeys = Object.keys(groups);
+    var groupItems = groupKeys.map(function(project) {
       return html\`<\${ChatProjectGroup} key=\${project} project=\${project} items=\${groups[project]} source=\${source} />\`;
     });
+    var resultInfo = query ? html\`<div class="chat-search-status">\${cs.length} result\${cs.length !== 1 ? 's' : ''} in \${groupKeys.length} folder\${groupKeys.length !== 1 ? 's' : ''} for "\${query}"</div>\` : null;
+    content = [resultInfo, groupItems];
   }
+
+  var clearBtn = query ? html\`<button class="chat-search-clear" onClick=\${clearSearch} title="Clear search (Esc)">\\u2715</button>\` : null;
 
   return html\`
     <div id="chats-panel">
@@ -277,7 +302,11 @@ function ChatsPanel() {
         <button class=\${'chat-source-btn' + (source === 'claude' ? ' active' : '')} onClick=\${function() { chatSource.value = 'claude'; }}>Claude</button>
         <button class=\${'chat-source-btn' + (source === 'codex' ? ' active' : '')} onClick=\${function() { chatSource.value = 'codex'; }}>Codex</button>
       </div>
-      <input type="text" id="chat-search" placeholder="Search chats..." onInput=\${onInput} />
+      <div class="chat-search-wrap">
+        <svg class="chat-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#3b4261" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="5" /><line x1="10" y1="10" x2="14.5" y2="14.5" /></svg>
+        <input ref=\${searchRef} type="text" id="chat-search" placeholder="Search by title... (Enter)" onKeyDown=\${onSearchKeyDown} />
+        \${clearBtn}
+      </div>
       <div id="chat-list">\${content}</div>
     </div>
   \`;

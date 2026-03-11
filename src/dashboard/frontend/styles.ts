@@ -105,19 +105,51 @@ export const CSS_STYLES = `
     padding: 8px;
   }
 
-  #chat-search {
+  .chat-search-wrap {
+    position: relative;
     margin: 8px;
-    padding: 6px 10px;
+  }
+  .chat-search-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  #chat-search {
+    padding: 6px 28px 6px 28px;
     background: #1a1b26;
     border: 1px solid #292e42;
     border-radius: 4px;
     color: #c0caf5;
     font-size: 12px;
     outline: none;
-    width: calc(100% - 16px);
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
   }
   #chat-search:focus { border-color: #7aa2f7; }
   #chat-search::placeholder { color: #3b4261; }
+  .chat-search-clear {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #565f89;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 4px;
+    line-height: 1;
+    border-radius: 3px;
+  }
+  .chat-search-clear:hover { color: #c0caf5; background: #292e42; }
+  .chat-search-status {
+    padding: 6px 12px;
+    color: #565f89;
+    font-size: 11px;
+  }
 
   .chat-source-toggle {
     display: flex;

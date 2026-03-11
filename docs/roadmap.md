@@ -106,6 +106,30 @@
 
 ---
 
+# March 2026 — V0.8 (Completed)
+
+> Dashboard UX overhaul: collapsible sidebar, code review panel, folder picker tree, keyboard shortcuts.
+
+---
+
+## Dashboard UX
+
+61. [x] Folder Picker Tree — Redesigned New Terminal modal folder picker as ForkLift-style expandable tree. Chevron click expands/collapses subtree, single click selects path, double-click on name opens folder as new root. `M`
+
+62. [x] Collapsible Sidebar — Persistent top bar with sidebar toggle button (detached from sidebar). Sidebar fully hides at 0px width. Toggle via button or `⌘B`. `M`
+
+63. [x] Code Review Panel — Right-side panel with full git integration: diff viewer with syntax-colored lines, stage/unstage individual or all files, discard changes, commit form, stash push/pop/list, branch info with ahead/behind counts. Toggle via top bar button or `⌘⇧B`. `L`
+
+64. [x] Git API Endpoints — Backend endpoints for code review: `git-status`, `git-diff`, `git-stage`, `git-discard`, `git-commit`, `git-stash`. All use `execFileSync` with array args (no shell injection). `M`
+
+65. [x] File Status Badges — Visual badges in code review for untracked ("New", green), deleted ("Deleted", red), and renamed ("Renamed", cyan) files. Untracked files render as all-green added lines. `S`
+
+66. [x] Delegate Session Badges — Sidebar badges showing oneshot/interactive mode for delegate_task sessions. Agent type (Claude/Codex) displayed with color coding. `S`
+
+67. [x] Keyboard Shortcuts — `⌘B` toggle sidebar, `⌘⇧B` toggle code review panel, `Escape` close modals. `S`
+
+---
+
 # Future — Dashboard & UX Improvements
 
 > Enhancements driven by benchmarking and real-world usage feedback.
@@ -158,7 +182,7 @@
 
 57. [ ] Publish to MCP Registry — `server.json` prepared. Run `mcp-publisher publish` to list Forge on `registry.modelcontextprotocol.io` for discoverability. Supports both stdio (npm) and HTTP transports. `S`
 
-58. [ ] `delegate_task` MCP Tool — Allow one agent to delegate a subtask to another (e.g., Claude asks Codex to review code). Forge spawns the target agent, waits for completion, returns structured results. Practical agent-to-agent collaboration without full A2A protocol. `L`
+58. [x] `delegate_task` MCP Tool — Allow one agent to delegate a subtask to another (e.g., Claude asks Codex to review code). Forge spawns the target agent, waits for completion, returns structured results. Practical agent-to-agent collaboration without full A2A protocol. `L`
 
 59. [ ] MCP Tasks Primitive — Adopt the experimental Tasks spec (SDK v1.24+) for long-running tools (`spawn_claude`, `spawn_codex`, `run_command`). Return task IDs instead of blocking. Wait for spec to stabilize and clients to adopt. `L`
 
@@ -182,13 +206,14 @@
 
 > Notes
 > - Items 1–29 (v0.1–v0.7) were all completed in March 2026
+> - Items 61–67 (v0.8) completed March 2026 — major dashboard UX overhaul
+> - `delegate_task` (#58) completed — supports Claude and Codex agents with oneshot/interactive modes
 > - Publishing prerequisites (30–34) are the immediate priority — blocks all external adoption
 > - Dashboard streaming (#39) is the highest-impact UX improvement from benchmarking
 > - `run_command` (#18) and `waitForExit` (#12) were added specifically to address benchmark findings
 > - Desktop app (50–54) scaffolding done on `feature/desktop-app` branch — Phases 1-3 implemented
 > - Distribution: GitHub Releases (#55) first, then Homebrew Cask (#56) for maximum Mac developer reach
 > - MCP Registry (#57) is a quick win — `server.json` ready, just needs `mcp-publisher publish`
-> - `delegate_task` (#58) is the practical path to agent-to-agent — no protocol dependency
 > - MCP Tasks (#59) and A2A (#60) are watch-and-wait — specs still evolving, no client support yet
 > - ACP (IBM) was archived Aug 2025 and merged into A2A — not worth separate investment
 > - Cross-platform and multi-client features are community-driven — implement based on demand
