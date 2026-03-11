@@ -19,6 +19,10 @@
 ---
 
 <p align="center">
+  <img src="docs/forge-demo.gif" alt="Forge Demo" width="800" />
+</p>
+
+<p align="center">
   <img src="docs/screenshot-terminal.png" alt="Terminal View with Changes Panel" width="800" />
 </p>
 <p align="center">
