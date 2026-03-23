@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture — Forge Docs</title>
+  <meta name="description" content="Forge system architecture — ring buffer, session management, data flow, and design decisions.">
+  <meta property="og:title" content="Forge Architecture">
+  <meta property="og:description" content="System design, ring buffer internals, data flow, and key design decisions.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://forgemcp.dev/og-image.png">
+  <meta property="og:url" content="https://forgemcp.dev/docs/architecture.html">
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0MVDNLEWLK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-0MVDNLEWLK');
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            void: '#06090f',
+            surface: '#0d1117',
+            raised: '#161b22',
+            border: '#21262d',
+            'border-bright': '#30363d',
+            muted: '#7d8590',
+            subtle: '#c9d1d9',
+            bright: '#e6edf3',
+            accent: '#4a9eff',
+            'accent-dim': '#1a3a5c',
+            glow: '#7ee787',
+            'glow-dim': '#1a3d2a',
+            warn: '#d29922',
+            err: '#f85149',
+          },
+          fontFamily: {
+            mono: ['"IBM Plex Mono"', '"Fira Code"', 'Consolas', 'monospace'],
+            display: ['"Space Mono"', '"IBM Plex Mono"', 'monospace'],
+            body: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #30363d; }
+
+    .sidebar-link {
+      transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+    }
+    .sidebar-link:hover {
+      color: #e6edf3;
+      background-color: rgba(74, 158, 255, 0.05);
+    }
+    .sidebar-link.active {
+      color: #4a9eff;
+      border-left-color: #4a9eff;
+      background-color: rgba(74, 158, 255, 0.08);
+    }
+    .glow-text {
+      text-shadow: 0 0 20px rgba(78, 158, 255, 0.3), 0 0 40px rgba(78, 158, 255, 0.1);
+    }
+
+    @media (max-width: 1023px) {
+      .docs-sidebar { display: none; }
+      .docs-sidebar.open { display: block; position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 40; background: #0d1117; border-right: 1px solid #21262d; overflow-y: auto; }
+      .sidebar-overlay { display: none; }
+      .sidebar-overlay.open { display: block; position: fixed; inset: 0; top: 56px; z-index: 39; background: rgba(0,0,0,0.5); }
+    }
+  </style>
+</head>
+<body class="bg-void text-subtle font-body antialiased">
+
+  <!-- ====== NAV ====== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <button onclick="toggleSidebar()" class="lg:hidden text-muted hover:text-bright p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="../" class="flex items-center gap-3 group">
+          <img src="../forge-logo.png" alt="Forge" class="w-7 h-7 rounded-md">
+          <span class="font-display font-bold text-bright tracking-tight">forge</span>
+          <span class="text-xs font-mono text-muted border border-border rounded px-1.5 py-0.5">docs</span>
+        </a>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="text-muted hover:text-bright transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="max-w-[90rem] mx-auto flex pt-14">
+    <!-- ====== SIDEBAR ====== -->
+    <aside class="docs-sidebar w-64 flex-shrink-0 border-r border-border h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto py-6 px-4" id="docs-sidebar">
+      <div class="space-y-6">
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Getting Started</p>
+          <div class="space-y-0.5">
+            <a href="./" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Overview</a>
+            <a href="getting-started.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Installation & Quickstart</a>
+          </div>
+        </div>
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Guides</p>
+          <div class="space-y-0.5">
+            <a href="guides.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Best Practices</a>
+            <a href="guides.html#multi-agent" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Multi-Agent Orchestration</a>
+            <a href="guides.html#dashboard" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Web Dashboard</a>
+            <a href="guides.html#desktop" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Desktop App</a>
+            <a href="guides.html#templates" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Session Templates</a>
+          </div>
+        </div>
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Reference</p>
+          <div class="space-y-0.5">
+            <a href="tools.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Tools Reference</a>
+            <a href="configuration.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Configuration</a>
+            <a href="architecture.html" class="sidebar-link active block text-sm px-3 py-1.5 rounded-md border-l-2 border-transparent text-accent">Architecture</a>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== MAIN CONTENT ====== -->
+    <main class="flex-1 min-w-0 px-6 sm:px-10 lg:px-16 py-10 max-w-4xl">
+
+      <h1 class="font-display font-bold text-3xl sm:text-4xl text-bright mb-4 glow-text">Architecture</h1>
+      <p class="text-lg text-muted leading-relaxed mb-10">
+        System design, core components, data flow, and the decisions behind Forge.
+      </p>
+
+      <!-- On this page -->
+      <div class="bg-surface border border-border rounded-xl p-5 mb-10">
+        <p class="font-mono text-xs uppercase tracking-widest text-accent mb-3">On this page</p>
+        <div class="grid sm:grid-cols-2 gap-1">
+          <a href="#overview" class="text-sm text-muted hover:text-accent transition-colors py-1">System Overview</a>
+          <a href="#components" class="text-sm text-muted hover:text-accent transition-colors py-1">Core Components</a>
+          <a href="#data-flow" class="text-sm text-muted hover:text-accent transition-colors py-1">Data Flow</a>
+          <a href="#design-decisions" class="text-sm text-muted hover:text-accent transition-colors py-1">Design Decisions</a>
+          <a href="#dashboard-arch" class="text-sm text-muted hover:text-accent transition-colors py-1">Dashboard Architecture</a>
+          <a href="#desktop-arch" class="text-sm text-muted hover:text-accent transition-colors py-1">Desktop App Architecture</a>
+          <a href="#project-structure" class="text-sm text-muted hover:text-accent transition-colors py-1">Project Structure</a>
+        </div>
+      </div>
+
+      <!-- System Overview -->
+      <section id="overview" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">System Overview</h2>
+        <p class="text-sm text-subtle leading-relaxed mb-6">
+          Forge is a single Node.js process that communicates over stdio (JSON-RPC) or HTTP. It manages real terminal processes via <code class="text-xs bg-raised px-1.5 py-0.5 rounded font-mono text-bright">node-pty</code> and optionally serves a web dashboard for live monitoring.
+        </p>
+
+        <div class="bg-surface border border-border rounded-xl p-6 font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto">
+<pre class="text-subtle">
+<span class="text-muted">                 ┌─────────────────────────────────────┐</span>
+<span class="text-muted">                 │</span>      <span class="text-accent">MCP Client</span> <span class="text-muted">(any agent)</span>          <span class="text-muted">│</span>
+<span class="text-muted">                 └──────────────┬──────────────────────┘</span>
+<span class="text-muted">                                │</span> <span class="text-muted">stdio (JSON-RPC) or HTTP</span>
+<span class="text-muted">                 ┌──────────────▼──────────────────────┐</span>
+<span class="text-muted">                 │</span>       <span class="text-glow">MCP Server</span> <span class="text-muted">(server.ts)</span>        <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>  <span class="text-bright">23 tools + 1 resource template</span>    <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>                                    <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>  <span class="text-muted">┌──────────────────────────┐</span>     <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>  <span class="text-muted">│</span>    <span class="text-accent">SessionManager</span>        <span class="text-muted">│</span>     <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>  <span class="text-muted">│</span>  <span class="text-subtle">create / close / list</span>   <span class="text-muted">│</span>     <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>  <span class="text-muted">│</span>  <span class="text-subtle">persistence ~/.forge/</span>   <span class="text-muted">│</span>     <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>  <span class="text-muted">└──────────┬───────────────┘</span>     <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>             <span class="text-muted">│</span>                      <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">┌─────────▼─────────┐</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">│</span> <span class="text-warn">TerminalSession(s)</span> <span class="text-muted">│</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">│</span>  <span class="text-subtle">node-pty (PTY)</span>    <span class="text-muted">│</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">│</span>  <span class="text-subtle">RingBuffer (1MB)</span>  <span class="text-muted">│</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">│</span>  <span class="text-subtle">@xterm/headless</span>   <span class="text-muted">│</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">│</span>  <span class="text-subtle">CommandHistory</span>    <span class="text-muted">│</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 │</span>   <span class="text-muted">└─────────┬─────────┘</span>           <span class="text-muted">│</span>
+<span class="text-muted">                 └─────────────┼─────────────────────┘</span>
+<span class="text-muted">                               │</span>
+<span class="text-muted">                ┌──────────────┼──────────────┐</span>
+<span class="text-muted">                ▼              ▼              ▼</span>
+          <span class="text-accent">MCP Client</span>    <span class="text-glow">Dashboard WS</span>    <span class="text-warn">Event Subs</span>
+          <span class="text-muted">(read_*)</span>      <span class="text-muted">(live stream)</span>   <span class="text-muted">(notifications)</span>
+</pre>
+        </div>
+      </section>
+
+      <!-- Core Components -->
+      <section id="components" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Core Components</h2>
+
+        <!-- MCP Server -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-bright mb-2">1. MCP Server
+            <span class="text-xs font-mono text-muted font-normal ml-2">src/server.ts</span>
+          </h3>
+          <p class="text-sm text-subtle leading-relaxed mb-3">
+            Single file, ~2100 lines. Registers all 23 tools and 1 resource template with the MCP SDK. Each tool follows the pattern:
+          </p>
+          <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs mb-3 overflow-x-auto">
+<pre><span class="text-accent">server</span><span class="text-muted">.</span><span class="text-bright">tool</span><span class="text-muted">(</span><span class="text-glow">"name"</span><span class="text-muted">,</span> <span class="text-glow">"description"</span><span class="text-muted">,</span> <span class="text-muted">{</span> <span class="text-muted">/* zod schema */</span> <span class="text-muted">},</span> <span class="text-accent">async</span> <span class="text-muted">(</span><span class="text-bright">params</span><span class="text-muted">)</span> <span class="text-muted">=></span> <span class="text-muted">{</span>
+  <span class="text-accent">return</span> <span class="text-muted">{</span> <span class="text-bright">content</span><span class="text-muted">:</span> <span class="text-muted">[{</span> <span class="text-bright">type</span><span class="text-muted">:</span> <span class="text-glow">"text"</span><span class="text-muted">,</span> <span class="text-bright">text</span><span class="text-muted">:</span> <span class="text-accent">JSON</span><span class="text-muted">.</span><span class="text-bright">stringify</span><span class="text-muted">(</span><span class="text-bright">result</span><span class="text-muted">)</span> <span class="text-muted">}]</span> <span class="text-muted">};</span>
+<span class="text-muted">});</span></pre>
+          </div>
+          <p class="text-sm text-muted">Error handling: try-catch per tool, returns <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono text-bright">{ isError: true }</code> on failure. Never throws.</p>
+        </div>
+
+        <!-- Session Manager -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-bright mb-2">2. Session Manager
+            <span class="text-xs font-mono text-muted font-normal ml-2">src/core/session-manager.ts</span>
+          </h3>
+          <p class="text-sm text-subtle leading-relaxed mb-3">
+            CRUD for terminal sessions. Enforces max session limit. Tracks stale entries from previous server runs. Emits events on session create/close for dashboard updates.
+          </p>
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="font-mono text-xs text-accent mb-1">create(opts)</p>
+              <p class="text-xs text-muted">Spawns TerminalSession, generates 8-char UUID, wires exit callback</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="font-mono text-xs text-accent mb-1">close(id)</p>
+              <p class="text-xs text-muted">Kills PTY, removes from map, persists state</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="font-mono text-xs text-accent mb-1">listByTag(tag)</p>
+              <p class="text-xs text-muted">Filter active sessions by tag</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="font-mono text-xs text-accent mb-1">closeByTag(tag)</p>
+              <p class="text-xs text-muted">Batch close (used by close_group tool)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Session -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-bright mb-2">3. Terminal Session
+            <span class="text-xs font-mono text-muted font-normal ml-2">src/core/terminal-session.ts</span>
+          </h3>
+          <p class="text-sm text-subtle leading-relaxed mb-3">
+            Wraps a single PTY process. Each session has:
+          </p>
+          <div class="space-y-2">
+            <div class="flex items-start gap-3 bg-surface border border-border rounded-lg p-3">
+              <span class="font-mono text-xs text-glow flex-shrink-0 mt-0.5">node-pty</span>
+              <p class="text-xs text-muted">Real PTY with signals, colors, TUI support</p>
+            </div>
+            <div class="flex items-start gap-3 bg-surface border border-border rounded-lg p-3">
+              <span class="font-mono text-xs text-accent flex-shrink-0 mt-0.5">RingBuffer</span>
+              <p class="text-xs text-muted">1MB circular buffer, per-consumer cursors for incremental reads</p>
+            </div>
+            <div class="flex items-start gap-3 bg-surface border border-border rounded-lg p-3">
+              <span class="font-mono text-xs text-warn flex-shrink-0 mt-0.5">@xterm/headless</span>
+              <p class="text-xs text-muted">Server-side terminal emulator for read_screen (no ANSI codes)</p>
+            </div>
+            <div class="flex items-start gap-3 bg-surface border border-border rounded-lg p-3">
+              <span class="font-mono text-xs text-bright flex-shrink-0 mt-0.5">Idle timer</span>
+              <p class="text-xs text-muted">Auto-closes after 30min inactivity (configurable)</p>
+            </div>
+          </div>
+          <p class="text-sm text-muted mt-3">
+            Listener pattern: <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">onData(fn)</code> and <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">onExit(fn)</code> — used by <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">wait_for</code>, <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">subscribe_events</code>, and templates.
+          </p>
+        </div>
+
+        <!-- Ring Buffer -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-bright mb-2">4. Ring Buffer
+            <span class="text-xs font-mono text-muted font-normal ml-2">src/core/ring-buffer.ts</span>
+          </h3>
+          <p class="text-sm text-subtle leading-relaxed mb-3">
+            Circular byte buffer. The core differentiator over simple string concatenation.
+          </p>
+          <ul class="space-y-2 text-sm text-subtle">
+            <li class="flex items-start gap-2">
+              <span class="text-glow mt-1 flex-shrink-0">&#x2022;</span>
+              <span>Fixed size (default 1MB), old data silently overwritten</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-glow mt-1 flex-shrink-0">&#x2022;</span>
+              <span><strong class="text-bright">Per-consumer cursors</strong>: each <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">read()</code> returns only NEW data since that consumer's last read</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-glow mt-1 flex-shrink-0">&#x2022;</span>
+              <span><code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">droppedBytes</code> tells the consumer how much was lost to wrapping</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-glow mt-1 flex-shrink-0">&#x2022;</span>
+              <span><code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">readFullBuffer()</code> returns everything currently in the buffer (used by grep_terminal, wait_for backlog check)</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Command History -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-bright mb-2">5. Command History
+            <span class="text-xs font-mono text-muted font-normal ml-2">src/core/command-history.ts</span>
+          </h3>
+          <p class="text-sm text-subtle leading-relaxed">
+            Persists tool call events as JSONL to <code class="text-xs bg-raised px-1.5 py-0.5 rounded font-mono text-bright">~/.forge/history/{sessionId}.jsonl</code>.
+            Event types: <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">session_init</code>, <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">tool_call</code>, <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">tool_result</code>.
+            For agent sessions, terminal output streams through <code class="text-xs bg-raised px-1 py-0.5 rounded font-mono">StreamJsonParser</code> which extracts internal JSON-RPC events.
+          </p>
+        </div>
+      </section>
+
+      <!-- Data Flow -->
+      <section id="data-flow" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Data Flow</h2>
+
+        <!-- Read -->
+        <div class="mb-6">
+          <h3 class="font-display font-bold text-bright mb-3">Incremental Read</h3>
+          <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre><span class="text-muted">Agent calls</span> <span class="text-accent">read_terminal</span><span class="text-muted">(id)</span>
+  <span class="text-muted">-></span> <span class="text-bright">SessionManager</span><span class="text-muted">.get(id)</span>
+  <span class="text-muted">-></span> <span class="text-bright">TerminalSession</span><span class="text-muted">.read()</span>
+  <span class="text-muted">-></span> <span class="text-bright">RingBuffer</span><span class="text-muted">.read(consumerId)</span>  <span class="text-muted">// only bytes since last read</span>
+  <span class="text-muted">-></span> <span class="text-glow">{ status, data, bytes }</span></pre>
+          </div>
+        </div>
+
+        <!-- Write -->
+        <div class="mb-6">
+          <h3 class="font-display font-bold text-bright mb-3">Write</h3>
+          <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre><span class="text-muted">Agent calls</span> <span class="text-accent">write_terminal</span><span class="text-muted">(id, input)</span>
+  <span class="text-muted">-></span> <span class="text-bright">SessionManager</span><span class="text-muted">.get(id)</span>
+  <span class="text-muted">-></span> <span class="text-bright">TerminalSession</span><span class="text-muted">.write(input + "\n")</span>
+  <span class="text-muted">-></span> <span class="text-bright">node-pty</span><span class="text-muted">.write()</span>
+  <span class="text-muted">-></span> <span class="text-glow">PTY process receives input</span></pre>
+          </div>
+        </div>
+
+        <!-- wait_for (pattern) -->
+        <div class="mb-6">
+          <h3 class="font-display font-bold text-bright mb-3">wait_for (pattern mode)</h3>
+          <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre><span class="text-warn">1.</span> <span class="text-subtle">Check backlog:</span> <span class="text-bright">session.readFullBuffer().match(regex)</span> <span class="text-muted">-> instant return if found</span>
+<span class="text-warn">2.</span> <span class="text-subtle">Subscribe:</span> <span class="text-bright">session.onData(chunk => accumulated.match(regex))</span>
+<span class="text-warn">3.</span> <span class="text-subtle">Subscribe:</span> <span class="text-bright">session.onExit()</span> <span class="text-muted">-> resolve as "session_exited"</span>
+<span class="text-warn">4.</span> <span class="text-subtle">setTimeout</span> <span class="text-muted">-> resolve as "timeout"</span>
+<span class="text-warn">5.</span> <span class="text-glow">First to fire wins, cleanup unsubscribes all others</span></pre>
+          </div>
+        </div>
+
+        <!-- wait_for (exit) -->
+        <div class="mb-6">
+          <h3 class="font-display font-bold text-bright mb-3">wait_for (exit mode)</h3>
+          <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre><span class="text-warn">1.</span> <span class="text-subtle">Check:</span> <span class="text-bright">session.status === "exited"</span> <span class="text-muted">-> instant return with exitCode</span>
+<span class="text-warn">2.</span> <span class="text-subtle">Subscribe:</span> <span class="text-bright">session.onExit(exitCode)</span> <span class="text-muted">-> resolve</span>
+<span class="text-warn">3.</span> <span class="text-subtle">setTimeout</span> <span class="text-muted">-> resolve as "timeout"</span></pre>
+          </div>
+        </div>
+
+        <!-- spawn_claude -->
+        <div class="mb-6">
+          <h3 class="font-display font-bold text-bright mb-3">spawn_claude / spawn_codex / spawn_gemini</h3>
+          <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre><span class="text-warn">1.</span> <span class="text-subtle">Build args:</span> <span class="text-bright">["--print", "-p", prompt]</span> <span class="text-muted">+ model/budget/tools flags</span>
+<span class="text-warn">2.</span> <span class="text-subtle">If worktree:</span> <span class="text-bright">git worktree add</span> <span class="text-muted">-> set cwd to worktree path</span>
+<span class="text-warn">3.</span> <span class="text-subtle">Create:</span> <span class="text-bright">manager.create({ command: agentPath, args })</span>
+<span class="text-warn">4.</span> <span class="text-subtle">Wire:</span> <span class="text-bright">StreamJsonParser</span> <span class="text-muted">for history extraction</span>
+<span class="text-warn">5.</span> <span class="text-glow">Return session info + worktree path</span></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Design Decisions -->
+      <section id="design-decisions" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Key Design Decisions</h2>
+
+        <div class="space-y-4">
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">1</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">stdout is sacred</p>
+                <p class="text-xs text-muted">Only MCP JSON-RPC goes to stdout. All logging to stderr via structured JSON logger.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">2</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">Ring buffer, not unbounded arrays</p>
+                <p class="text-xs text-muted">Bounded memory per session. Old data silently overwritten. Terminal output can be massive (npm install, log tailing).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">3</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">Per-consumer cursors</p>
+                <p class="text-xs text-muted">Each read_terminal caller gets their own read position. Two consumers reading the same session see different data depending on when they last read.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">4</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">Fire-and-forget history</p>
+                <p class="text-xs text-muted">CommandHistory appends are non-blocking. A failed disk write doesn't break the terminal session.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">5</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">Agent env stripping</p>
+                <p class="text-xs text-muted">Spawned terminals have agent-specific env vars (e.g., CLAUDECODE) removed to prevent nesting errors.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">6</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">Session preservation after exit</p>
+                <p class="text-xs text-muted">Exited sessions remain readable (buffer intact) until explicitly closed or server restarts. Allows post-mortem inspection.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">7</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">30KB read cap</p>
+                <p class="text-xs text-muted">read_terminal caps output at 30KB per call to prevent MCP token overflow. Full buffer available via readFullBuffer() in grep_terminal and wait_for.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface border border-border rounded-lg p-5">
+            <div class="flex items-start gap-3">
+              <span class="font-mono text-xs text-accent bg-accent/10 rounded px-2 py-0.5 flex-shrink-0">8</span>
+              <div>
+                <p class="text-sm text-bright font-semibold mb-1">Desktop split-port</p>
+                <p class="text-xs text-muted">When an existing daemon occupies port 3141, the desktop app serves its own HTML on a random port and bridges to the daemon via WebSocket, rather than conflicting.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Architecture -->
+      <section id="dashboard-arch" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Dashboard Architecture</h2>
+        <p class="text-sm text-subtle leading-relaxed mb-4">
+          Preact + htm + Preact Signals UI. Zero build step — loaded from CDN, code bundled as string constants inside the server binary.
+        </p>
+
+        <div class="grid sm:grid-cols-2 gap-4 mb-6">
+          <div>
+            <h4 class="font-mono text-xs text-accent mb-3 uppercase tracking-wider">Frontend</h4>
+            <div class="space-y-2">
+              <div class="bg-surface border border-border rounded-lg p-3">
+                <p class="font-mono text-xs text-bright">app.ts</p>
+                <p class="text-xs text-muted">Root component, keyboard handlers, WebSocket init</p>
+              </div>
+              <div class="bg-surface border border-border rounded-lg p-3">
+                <p class="font-mono text-xs text-bright">state.ts</p>
+                <p class="text-xs text-muted">17+ Preact Signals for global state</p>
+              </div>
+              <div class="bg-surface border border-border rounded-lg p-3">
+                <p class="font-mono text-xs text-bright">components/</p>
+                <p class="text-xs text-muted">sidebar, terminal-view, chat-view, code-review, modals</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-mono text-xs text-accent mb-3 uppercase tracking-wider">Server-side</h4>
+            <div class="space-y-2">
+              <div class="bg-surface border border-border rounded-lg p-3">
+                <p class="font-mono text-xs text-bright">dashboard-server.ts</p>
+                <p class="text-xs text-muted">HTTP server + REST API + WebSocket</p>
+              </div>
+              <div class="bg-surface border border-border rounded-lg p-3">
+                <p class="font-mono text-xs text-bright">ws-handler.ts</p>
+                <p class="text-xs text-muted">subscribe/select/input/resize messages</p>
+              </div>
+              <div class="bg-surface border border-border rounded-lg p-3">
+                <p class="font-mono text-xs text-bright">REST endpoints</p>
+                <p class="text-xs text-muted">/api/sessions, /api/chats, /api/chats/{id}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Desktop App Architecture -->
+      <section id="desktop-arch" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Desktop App Architecture</h2>
+        <p class="text-sm text-subtle leading-relaxed mb-4">
+          Native macOS Electron app. The main process either runs the Forge server in-process or bridges to an existing daemon.
+        </p>
+
+        <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto mb-6">
+<pre><span class="text-accent">Electron Main Process</span> <span class="text-muted">(Node.js / CJS)</span>
+  <span class="text-muted">├──</span> <span class="text-bright">daemon.ts</span>  <span class="text-muted">-> Detects existing daemon OR starts server in-process</span>
+  <span class="text-muted">│   ├──</span> <span class="text-glow">In-process:</span> <span class="text-subtle">createServer() + DashboardServer on 127.0.0.1:3141</span>
+  <span class="text-muted">│   └──</span> <span class="text-warn">External:</span>  <span class="text-subtle">DesktopHtmlServer (random port) + DaemonBridge (WS relay)</span>
+  <span class="text-muted">├──</span> <span class="text-bright">window.ts</span>  <span class="text-muted">-> BrowserWindow (hiddenInset title bar, sandbox, CSP)</span>
+  <span class="text-muted">├──</span> <span class="text-bright">preload.ts</span> <span class="text-muted">-> contextBridge { isDesktop, platform }</span>
+  <span class="text-muted">├──</span> <span class="text-bright">tray.ts</span>    <span class="text-muted">-> System tray icon + session count</span>
+  <span class="text-muted">├──</span> <span class="text-bright">menu.ts</span>    <span class="text-muted">-> Standard macOS app menu</span>
+  <span class="text-muted">└──</span> <span class="text-bright">notifications.ts</span> <span class="text-muted">-> Native alerts on session create/exit</span></pre>
+        </div>
+
+        <h4 class="font-display font-bold text-bright text-sm mb-3">Security</h4>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div class="bg-surface border border-border rounded-lg p-3 text-xs text-muted flex items-center gap-2">
+            <span class="text-glow">&#x2713;</span> sandbox + contextIsolation enabled
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-3 text-xs text-muted flex items-center gap-2">
+            <span class="text-glow">&#x2713;</span> Navigation locked to localhost
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-3 text-xs text-muted flex items-center gap-2">
+            <span class="text-glow">&#x2713;</span> CSP restricts to self + jsdelivr CDN
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-3 text-xs text-muted flex items-center gap-2">
+            <span class="text-glow">&#x2713;</span> All permissions denied (camera, mic, etc.)
+          </div>
+        </div>
+      </section>
+
+      <!-- Project Structure -->
+      <section id="project-structure" class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Project Structure</h2>
+        <div class="bg-surface border border-border rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre><span class="text-accent">src/</span>
+  <span class="text-bright">cli.ts</span>                     <span class="text-muted"># Entry point, arg parsing, stdio transport</span>
+  <span class="text-bright">server.ts</span>                  <span class="text-muted"># MCP Server + 23 tool registrations</span>
+  <span class="text-accent">core/</span>
+    <span class="text-bright">types.ts</span>                 <span class="text-muted"># ForgeConfig, SessionInfo, defaults</span>
+    <span class="text-bright">ring-buffer.ts</span>           <span class="text-muted"># Circular buffer with multi-consumer cursors</span>
+    <span class="text-bright">terminal-session.ts</span>      <span class="text-muted"># PTY + headless xterm + ring buffer</span>
+    <span class="text-bright">session-manager.ts</span>       <span class="text-muted"># CRUD, max sessions, groups, persistence</span>
+    <span class="text-bright">state-store.ts</span>           <span class="text-muted"># ~/.forge/sessions.json persistence</span>
+    <span class="text-bright">templates.ts</span>             <span class="text-muted"># Built-in session templates</span>
+    <span class="text-bright">claude-chats.ts</span>          <span class="text-muted"># Claude Code chat session discovery</span>
+    <span class="text-bright">codex-chats.ts</span>           <span class="text-muted"># Codex chat history</span>
+    <span class="text-bright">gemini-chats.ts</span>          <span class="text-muted"># Gemini CLI chat history</span>
+    <span class="text-bright">command-history.ts</span>       <span class="text-muted"># Tool call history tracking</span>
+    <span class="text-bright">stream-json-parser.ts</span>    <span class="text-muted"># Real-time event extraction</span>
+  <span class="text-accent">dashboard/</span>
+    <span class="text-bright">dashboard-server.ts</span>      <span class="text-muted"># HTTP + WebSocket + MCP transport</span>
+    <span class="text-bright">dashboard-html.ts</span>        <span class="text-muted"># HTML assembler</span>
+    <span class="text-bright">ws-handler.ts</span>            <span class="text-muted"># WebSocket message handling</span>
+    <span class="text-accent">frontend/</span>
+      <span class="text-bright">app.ts</span>                 <span class="text-muted"># Root Preact component</span>
+      <span class="text-bright">state.ts</span>               <span class="text-muted"># Preact Signals + WebSocket</span>
+      <span class="text-bright">styles.ts</span>              <span class="text-muted"># Tokyo Night theme CSS</span>
+      <span class="text-accent">components/</span>            <span class="text-muted"># sidebar, terminal-view, chat-view, modals</span>
+  <span class="text-accent">utils/</span>
+    <span class="text-bright">logger.ts</span>                <span class="text-muted"># stderr-only JSON logger</span>
+    <span class="text-bright">config.ts</span>                <span class="text-muted"># CLI flags > env vars > defaults</span>
+    <span class="text-bright">daemon.ts</span>                <span class="text-muted"># Daemon lifecycle (PID, port, lock)</span>
+<span class="text-accent">desktop/</span>
+  <span class="text-accent">main/</span>                      <span class="text-muted"># Electron main process</span>
+<span class="text-accent">test/</span>
+  <span class="text-accent">unit/</span>                      <span class="text-muted"># ring-buffer, config, control-chars, etc.</span>
+  <span class="text-accent">integration/</span>               <span class="text-muted"># terminal-session, session-manager, MCP E2E</span></pre>
+        </div>
+
+        <!-- Test Coverage -->
+        <h4 class="font-display font-bold text-bright text-sm mt-6 mb-3">Test Coverage</h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border">
+                <th class="text-left text-xs font-mono text-accent py-2 pr-4">Suite</th>
+                <th class="text-left text-xs font-mono text-accent py-2 pr-4">Tests</th>
+                <th class="text-left text-xs font-mono text-accent py-2">Type</th>
+              </tr>
+            </thead>
+            <tbody class="text-xs">
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Ring Buffer</td><td class="py-2 pr-4 text-subtle">13</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Config</td><td class="py-2 pr-4 text-subtle">10</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Control Chars</td><td class="py-2 pr-4 text-subtle">6</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">State Store</td><td class="py-2 pr-4 text-subtle">4</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Templates</td><td class="py-2 pr-4 text-subtle">3</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Stream JSON Parser</td><td class="py-2 pr-4 text-subtle">11</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Command History</td><td class="py-2 pr-4 text-subtle">6</td><td class="py-2 text-muted">Unit/Integration</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Claude Chats</td><td class="py-2 pr-4 text-subtle">14</td><td class="py-2 text-muted">Unit</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Terminal Session</td><td class="py-2 pr-4 text-subtle">8</td><td class="py-2 text-muted">Integration</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">Session Manager</td><td class="py-2 pr-4 text-subtle">7</td><td class="py-2 text-muted">Integration</td></tr>
+              <tr class="border-b border-border/50"><td class="py-2 pr-4 text-bright">MCP Tools E2E</td><td class="py-2 pr-4 text-subtle">51</td><td class="py-2 text-muted">Integration</td></tr>
+              <tr class="border-b border-border"><td class="py-2 pr-4 text-bright">Forge 0.7+ Features</td><td class="py-2 pr-4 text-subtle">28</td><td class="py-2 text-muted">Integration</td></tr>
+              <tr><td class="py-2 pr-4 text-glow font-semibold">Total</td><td class="py-2 pr-4 text-glow font-semibold">161</td><td class="py-2 text-muted"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Prev/Next nav -->
+      <div class="flex justify-between pt-8 border-t border-border">
+        <a href="configuration.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Configuration
+        </a>
+        <a href="./" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          Back to Overview
+          <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="border-t border-border py-8 mt-8">
+    <div class="max-w-[90rem] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="../forge-logo.png" alt="Forge" class="w-5 h-5 rounded">
+        <span class="font-display font-bold text-bright text-sm">forge</span>
+        <span class="text-xs text-muted">MIT License</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="../" class="hover:text-bright transition-colors">Home</a>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="hover:text-bright transition-colors">GitHub</a>
+        <a href="https://www.npmjs.com/package/forge-terminal-mcp" target="_blank" rel="noopener" class="hover:text-bright transition-colors">npm</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleSidebar() {
+      document.getElementById('docs-sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('open');
+    }
+  </script>
+</body>
+</html>

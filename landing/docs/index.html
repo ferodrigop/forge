@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — Forge</title>
+  <meta name="description" content="Forge documentation — learn how to use the terminal MCP server for AI coding agents.">
+  <meta property="og:title" content="Forge Documentation">
+  <meta property="og:description" content="Learn how to use Forge — terminal MCP server for AI coding agents.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://forgemcp.dev/og-image.png">
+  <meta property="og:url" content="https://forgemcp.dev/docs/">
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0MVDNLEWLK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-0MVDNLEWLK');
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            void: '#06090f',
+            surface: '#0d1117',
+            raised: '#161b22',
+            border: '#21262d',
+            'border-bright': '#30363d',
+            muted: '#7d8590',
+            subtle: '#c9d1d9',
+            bright: '#e6edf3',
+            accent: '#4a9eff',
+            'accent-dim': '#1a3a5c',
+            glow: '#7ee787',
+            'glow-dim': '#1a3d2a',
+            warn: '#d29922',
+            err: '#f85149',
+          },
+          fontFamily: {
+            mono: ['"IBM Plex Mono"', '"Fira Code"', 'Consolas', 'monospace'],
+            display: ['"Space Mono"', '"IBM Plex Mono"', 'monospace'],
+            body: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #30363d; }
+
+    .sidebar-link {
+      transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+    }
+    .sidebar-link:hover {
+      color: #e6edf3;
+      background-color: rgba(74, 158, 255, 0.05);
+    }
+    .sidebar-link.active {
+      color: #4a9eff;
+      border-left-color: #4a9eff;
+      background-color: rgba(74, 158, 255, 0.08);
+    }
+    .card-hover {
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .card-hover:hover {
+      border-color: #30363d;
+      box-shadow: 0 0 40px rgba(74, 158, 255, 0.06), 0 8px 32px rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .glow-text {
+      text-shadow: 0 0 20px rgba(78, 158, 255, 0.3), 0 0 40px rgba(78, 158, 255, 0.1);
+    }
+
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      .docs-sidebar { display: none; }
+      .docs-sidebar.open { display: block; position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 40; background: #0d1117; border-right: 1px solid #21262d; overflow-y: auto; }
+      .sidebar-overlay { display: none; }
+      .sidebar-overlay.open { display: block; position: fixed; inset: 0; top: 56px; z-index: 39; background: rgba(0,0,0,0.5); }
+    }
+  </style>
+</head>
+<body class="bg-void text-subtle font-body antialiased">
+
+  <!-- ====== NAV ====== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Mobile sidebar toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden text-muted hover:text-bright p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="../" class="flex items-center gap-3 group">
+          <img src="../forge-logo.png" alt="Forge" class="w-7 h-7 rounded-md">
+          <span class="font-display font-bold text-bright tracking-tight">forge</span>
+          <span class="text-xs font-mono text-muted border border-border rounded px-1.5 py-0.5">docs</span>
+        </a>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Search -->
+        <div class="relative hidden sm:block">
+          <input type="text" id="docs-search" placeholder="Search docs..." class="bg-surface border border-border rounded-lg px-3 py-1.5 pl-8 text-sm text-bright placeholder-muted/50 focus:outline-none focus:border-accent/50 w-48 lg:w-64" autocomplete="off">
+          <svg class="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <div id="search-results" class="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-xl max-h-80 overflow-y-auto hidden z-50"></div>
+        </div>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="text-muted hover:text-bright transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="max-w-[90rem] mx-auto flex pt-14">
+    <!-- ====== SIDEBAR ====== -->
+    <aside class="docs-sidebar w-64 flex-shrink-0 border-r border-border h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto py-6 px-4" id="docs-sidebar">
+      <div class="space-y-6">
+        <!-- Getting Started -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Getting Started</p>
+          <div class="space-y-0.5">
+            <a href="./" class="sidebar-link active block text-sm px-3 py-1.5 rounded-md border-l-2 border-transparent text-bright">Overview</a>
+            <a href="getting-started.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Installation & Quickstart</a>
+          </div>
+        </div>
+
+        <!-- Guides -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Guides</p>
+          <div class="space-y-0.5">
+            <a href="guides.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Best Practices</a>
+            <a href="guides.html#multi-agent" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Multi-Agent Orchestration</a>
+            <a href="guides.html#dashboard" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Web Dashboard</a>
+            <a href="guides.html#desktop" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Desktop App</a>
+            <a href="guides.html#templates" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Session Templates</a>
+          </div>
+        </div>
+
+        <!-- Reference -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Reference</p>
+          <div class="space-y-0.5">
+            <a href="tools.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Tools Reference</a>
+            <a href="configuration.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Configuration</a>
+            <a href="architecture.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Architecture</a>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== MAIN CONTENT ====== -->
+    <main class="flex-1 min-w-0 px-6 sm:px-10 lg:px-16 py-10 max-w-4xl">
+
+      <!-- Hero -->
+      <div class="mb-12">
+        <h1 class="font-display font-bold text-3xl sm:text-4xl text-bright mb-4 glow-text">Forge Documentation</h1>
+        <p class="text-lg text-muted leading-relaxed">
+          Learn how to use Forge — the terminal MCP server that gives AI coding agents persistent PTY sessions, multi-agent orchestration, and a real-time dashboard.
+        </p>
+      </div>
+
+      <!-- Quick install -->
+      <div class="bg-surface border border-border rounded-xl p-6 mb-10">
+        <p class="text-sm text-muted mb-3">Get started in seconds:</p>
+        <div class="flex items-center gap-3 font-mono text-sm">
+          <span class="text-glow select-none">$</span>
+          <code class="text-bright">claude mcp add forge -- npx forge-terminal-mcp</code>
+          <button onclick="copyText('claude mcp add forge -- npx forge-terminal-mcp', this)" class="text-muted hover:text-bright transition-colors ml-auto flex-shrink-0" title="Copy">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cards grid -->
+      <div class="grid sm:grid-cols-2 gap-4 mb-12">
+        <!-- Getting Started -->
+        <a href="getting-started.html" class="bg-surface border border-border rounded-xl p-6 card-hover block group">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-9 h-9 rounded-lg bg-glow/10 border border-glow/20 flex items-center justify-center">
+              <svg class="w-5 h-5 text-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h2 class="font-display font-bold text-bright group-hover:text-accent transition-colors">Getting Started</h2>
+          </div>
+          <p class="text-sm text-muted">Install Forge, connect it to your agent, and run your first command in 60 seconds.</p>
+        </a>
+
+        <!-- Guides -->
+        <a href="guides.html" class="bg-surface border border-border rounded-xl p-6 card-hover block group">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-9 h-9 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+            <h2 class="font-display font-bold text-bright group-hover:text-accent transition-colors">Guides</h2>
+          </div>
+          <p class="text-sm text-muted">Best practices, multi-agent workflows, dashboard setup, session templates, and more.</p>
+        </a>
+
+        <!-- Tools Reference -->
+        <a href="tools.html" class="bg-surface border border-border rounded-xl p-6 card-hover block group">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-9 h-9 rounded-lg bg-warn/10 border border-warn/20 flex items-center justify-center">
+              <svg class="w-5 h-5 text-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <h2 class="font-display font-bold text-bright group-hover:text-accent transition-colors">Tools Reference</h2>
+          </div>
+          <p class="text-sm text-muted">Complete reference for all 23 MCP tools with parameters, examples, and return values.</p>
+        </a>
+
+        <!-- Configuration -->
+        <a href="configuration.html" class="bg-surface border border-border rounded-xl p-6 card-hover block group">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-9 h-9 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </div>
+            <h2 class="font-display font-bold text-bright group-hover:text-accent transition-colors">Configuration</h2>
+          </div>
+          <p class="text-sm text-muted">CLI flags, environment variables, defaults, and configuration examples.</p>
+        </a>
+
+        <!-- Architecture -->
+        <a href="architecture.html" class="bg-surface border border-border rounded-xl p-6 card-hover block group col-span-full sm:col-span-1">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-9 h-9 rounded-lg bg-glow/10 border border-glow/20 flex items-center justify-center">
+              <svg class="w-5 h-5 text-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+            <h2 class="font-display font-bold text-bright group-hover:text-accent transition-colors">Architecture</h2>
+          </div>
+          <p class="text-sm text-muted">System design, ring buffer internals, data flow, and key design decisions.</p>
+        </a>
+      </div>
+
+      <!-- What is Forge -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">What is Forge?</h2>
+        <div class="space-y-4 text-sm text-subtle leading-relaxed">
+          <p>
+            AI coding agents (Claude Code, Codex, Gemini CLI) typically run one command at a time. Forge gives them <strong class="text-bright">persistent terminals</strong> — run your React frontend, Java API, and Postgres migrations in parallel, monitor all three, and only read what changed.
+          </p>
+          <p>Forge works with <strong class="text-bright">any MCP-compatible client</strong> via stdio or HTTP transport.</p>
+        </div>
+
+        <div class="mt-6 grid sm:grid-cols-3 gap-4">
+          <div class="bg-surface border border-border rounded-lg p-4">
+            <p class="font-mono text-xs text-glow mb-1">Real PTY</p>
+            <p class="text-xs text-muted">Same <code class="bg-raised px-1 rounded">node-pty</code> lib as VS Code. Colors, signals, TUI apps all work.</p>
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-4">
+            <p class="font-mono text-xs text-accent mb-1">Incremental Reads</p>
+            <p class="text-xs text-muted">Ring buffer with per-consumer cursors. Up to 90% context token savings.</p>
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-4">
+            <p class="font-mono text-xs text-warn mb-1">23 MCP Tools</p>
+            <p class="text-xs text-muted">Session lifecycle, I/O, search, events, delegation, and ops.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supported Agents -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Supported Agents</h2>
+        <div class="grid sm:grid-cols-3 gap-4">
+          <div class="bg-surface border border-border rounded-lg p-4 text-center">
+            <p class="font-display font-bold text-bright mb-1">Claude Code</p>
+            <p class="text-xs text-muted">stdio or HTTP</p>
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-4 text-center">
+            <p class="font-display font-bold text-bright mb-1">Codex</p>
+            <p class="text-xs text-muted">HTTP MCP</p>
+          </div>
+          <div class="bg-surface border border-border rounded-lg p-4 text-center">
+            <p class="font-display font-bold text-bright mb-1">Any MCP Client</p>
+            <p class="text-xs text-muted">stdio or HTTP</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prev/Next nav -->
+      <div class="flex justify-end pt-8 border-t border-border">
+        <a href="getting-started.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          Next: Getting Started
+          <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="border-t border-border py-8 mt-8">
+    <div class="max-w-[90rem] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="../forge-logo.png" alt="Forge" class="w-5 h-5 rounded">
+        <span class="font-display font-bold text-bright text-sm">forge</span>
+        <span class="text-xs text-muted">MIT License</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="../" class="hover:text-bright transition-colors">Home</a>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="hover:text-bright transition-colors">GitHub</a>
+        <a href="https://www.npmjs.com/package/forge-terminal-mcp" target="_blank" rel="noopener" class="hover:text-bright transition-colors">npm</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Copy to clipboard
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const svg = btn.querySelector('svg');
+        const orig = svg.innerHTML;
+        svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+        btn.classList.add('text-glow');
+        setTimeout(() => { svg.innerHTML = orig; btn.classList.remove('text-glow'); }, 2000);
+      });
+    }
+
+    // Mobile sidebar toggle
+    function toggleSidebar() {
+      document.getElementById('docs-sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('open');
+    }
+
+    // Search
+    const searchIndex = [
+      { title: 'Overview', url: './', section: 'Getting Started', keywords: 'forge mcp terminal pty overview introduction' },
+      { title: 'Installation & Quickstart', url: 'getting-started.html', section: 'Getting Started', keywords: 'install npm npx claude code codex setup quickstart smoke test' },
+      { title: 'Best Practices', url: 'guides.html', section: 'Guides', keywords: 'run_command create_terminal wait_for patterns best practices' },
+      { title: 'Multi-Agent Orchestration', url: 'guides.html#multi-agent', section: 'Guides', keywords: 'spawn claude codex gemini worktree delegate task multi agent' },
+      { title: 'Web Dashboard', url: 'guides.html#dashboard', section: 'Guides', keywords: 'dashboard web ui browser websocket live terminal monitor' },
+      { title: 'Desktop App', url: 'guides.html#desktop', section: 'Guides', keywords: 'desktop electron macos app native tray' },
+      { title: 'Session Templates', url: 'guides.html#templates', section: 'Guides', keywords: 'template next vite docker shell npm test' },
+      { title: 'Tools Reference', url: 'tools.html', section: 'Reference', keywords: 'create_terminal read_terminal write_terminal run_command wait_for grep subscribe close list tools api' },
+      { title: 'create_terminal', url: 'tools.html#create_terminal', section: 'Tools', keywords: 'create terminal spawn pty session' },
+      { title: 'run_command', url: 'tools.html#run_command', section: 'Tools', keywords: 'run command execute build test' },
+      { title: 'read_terminal', url: 'tools.html#read_terminal', section: 'Tools', keywords: 'read terminal output incremental buffer' },
+      { title: 'write_terminal', url: 'tools.html#write_terminal', section: 'Tools', keywords: 'write terminal input send' },
+      { title: 'wait_for', url: 'tools.html#wait_for', section: 'Tools', keywords: 'wait for pattern exit timeout' },
+      { title: 'spawn_claude', url: 'tools.html#spawn_claude', section: 'Tools', keywords: 'spawn claude agent sub-agent worktree' },
+      { title: 'spawn_codex', url: 'tools.html#spawn_codex', section: 'Tools', keywords: 'spawn codex agent sub-agent' },
+      { title: 'spawn_gemini', url: 'tools.html#spawn_gemini', section: 'Tools', keywords: 'spawn gemini agent sub-agent' },
+      { title: 'delegate_task', url: 'tools.html#delegate_task', section: 'Tools', keywords: 'delegate task agent interactive oneshot' },
+      { title: 'Configuration', url: 'configuration.html', section: 'Reference', keywords: 'config flag env var environment max sessions idle timeout buffer size port dashboard auth token' },
+      { title: 'Architecture', url: 'architecture.html', section: 'Reference', keywords: 'architecture ring buffer xterm headless pty session manager design data flow' },
+    ];
+
+    const searchInput = document.getElementById('docs-search');
+    const searchResults = document.getElementById('search-results');
+
+    searchInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      if (q.length < 2) { searchResults.classList.add('hidden'); return; }
+
+      const matches = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(q) ||
+        item.keywords.includes(q) ||
+        item.section.toLowerCase().includes(q)
+      ).slice(0, 8);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="px-4 py-3 text-sm text-muted">No results found</div>';
+      } else {
+        searchResults.innerHTML = matches.map(m =>
+          `<a href="${m.url}" class="block px-4 py-2.5 hover:bg-raised/50 transition-colors border-b border-border last:border-0">
+            <div class="text-sm text-bright">${m.title}</div>
+            <div class="text-xs text-muted">${m.section}</div>
+          </a>`
+        ).join('');
+      }
+      searchResults.classList.remove('hidden');
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => searchResults.classList.add('hidden'), 150);
+    });
+    searchInput.addEventListener('focus', function() {
+      if (this.value.trim().length >= 2) searchResults.classList.remove('hidden');
+    });
+
+    // Keyboard shortcut: / to focus search
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+      if (e.key === 'Escape') searchInput.blur();
+    });
+  </script>
+</body>
+</html>
