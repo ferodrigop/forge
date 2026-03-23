@@ -43,7 +43,7 @@ Works with **any MCP-compatible client** — Claude Code, Codex, or your own age
 - **Real PTY** via `node-pty` (same lib as VS Code terminal) — interactive programs, colors, TUI apps all work
 - **Incremental reads** — ring buffer with per-consumer cursors means each `read_terminal` only returns NEW output, saving context window tokens
 - **Clean screen reads** — `@xterm/headless` renders the terminal server-side, so `read_screen` returns exactly what a human would see (no ANSI escape codes)
-- **Multi-agent orchestration** — spawn Claude and Codex sub-agents, session groups, output multiplexing, event subscriptions, and templates for managing multiple concurrent sessions
+- **Multi-agent orchestration** — spawn Claude, Codex, and Gemini sub-agents, session groups, output multiplexing, event subscriptions, and templates for managing multiple concurrent sessions
 - **Web dashboard** — real-time Preact-based browser UI to watch what your agents are doing across all terminals, browse past chat sessions, and monitor activity
 - **Zero config** — single `npx` command or HTTP MCP endpoint
 
@@ -166,6 +166,7 @@ create_terminal      → Spawn a PTY session with optional name, tags, buffer si
 create_from_template → Spawn from a built-in template (shell, next-dev, vite-dev, etc.)
 spawn_claude         → Launch a Claude Code sub-agent in a dedicated session
 spawn_codex          → Launch a Codex sub-agent in a dedicated session
+spawn_gemini         → Launch a Gemini CLI sub-agent in a dedicated session
 close_terminal       → Kill a session and free resources
 close_group          → Close all sessions matching a tag
 list_terminals       → List sessions, optionally filtered by tag

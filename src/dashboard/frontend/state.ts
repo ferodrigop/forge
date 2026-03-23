@@ -13,7 +13,8 @@ const activityEvents = signal({}); // sessionId -> events[]
 const activityLogOpen = signal(true);
 const chatSessions = signal([]);
 const codexChatSessions = signal([]);
-const chatSource = signal('claude'); // 'claude' | 'codex'
+const geminiChatSessions = signal([]);
+const chatSource = signal('claude'); // 'claude' | 'codex' | 'gemini'
 const activeChatId = signal(null);
 const collapsedGroups = signal({});
 const collapsedTermGroups = signal({});
@@ -196,7 +197,7 @@ function selectSession(id) {
 function completeSubscribe(id) {
   wsSend({ type: 'subscribe', sessionId: id });
   var s = sessions.value.find(function(s) { return s.id === id; });
-  if (s && s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0)) {
+  if (s && s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0 || s.tags.indexOf('gemini-agent') >= 0)) {
     wsSend({ type: 'get_history', sessionId: id });
   }
 }
@@ -322,6 +323,13 @@ function loadChats(searchQuery) {
   }).catch(function() {
     codexChatSessions.value = [];
   });
+  // Also load gemini chats
+  var geminiUrl = apiBase + '/api/gemini-chats?limit=100' + (searchQuery ? '&search=' + encodeURIComponent(searchQuery) : '');
+  fetch(geminiUrl, { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
+    geminiChatSessions.value = data.sessions || [];
+  }).catch(function() {
+    geminiChatSessions.value = [];
+  });
 }
 
 function openChat(chatId, source) {
@@ -334,7 +342,7 @@ function openChat(chatId, source) {
     termInstance.value.dispose();
     termInstance.value = null;
   }
-  var endpoint = source === 'codex' ? '/api/codex-chats/' : '/api/chats/';
+  var endpoint = source === 'codex' ? '/api/codex-chats/' : source === 'gemini' ? '/api/gemini-chats/' : '/api/chats/';
   fetch(apiBase + endpoint + encodeURIComponent(chatId), { headers: authHeaders() }).then(function(r) { return r.json(); }).then(function(data) {
     chatMessages.value = data.messages || [];
     chatLoading.value = false;
@@ -345,7 +353,7 @@ function openChat(chatId, source) {
 }
 
 function continueChat(chatId, source) {
-  var endpoint = source === 'codex' ? '/api/codex-chats/' : '/api/chats/';
+  var endpoint = source === 'codex' ? '/api/codex-chats/' : source === 'gemini' ? '/api/gemini-chats/' : '/api/chats/';
   fetch(apiBase + endpoint + encodeURIComponent(chatId) + '/continue', { method: 'POST', headers: authHeaders() }).then(function(r) {
     if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Continue failed'); });
     return r.json();
@@ -357,7 +365,7 @@ function continueChat(chatId, source) {
 }
 
 function deleteChat(chatId, source) {
-  var endpoint = source === 'codex' ? '/api/codex-chats/' : '/api/chats/';
+  var endpoint = source === 'codex' ? '/api/codex-chats/' : source === 'gemini' ? '/api/gemini-chats/' : '/api/chats/';
   fetch(apiBase + endpoint + encodeURIComponent(chatId), { method: 'DELETE', headers: authHeaders() }).then(function() {
     if (activeChatId.value === chatId) activeChatId.value = null;
     loadChats();

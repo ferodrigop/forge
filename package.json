@@ -31,6 +31,8 @@
     "claude",
     "claude-code",
     "codex",
+    "gemini",
+    "gemini-cli",
     "ai-agents"
   ],
   "author": "Rodrigo Pineda",

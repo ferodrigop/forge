@@ -64,6 +64,10 @@ export function parseConfig(argv: string[] = process.argv.slice(2)): ForgeConfig
       strArg(argv, "--codex-path") ??
       process.env.FORGE_CODEX_PATH ??
       DEFAULT_CONFIG.codexPath,
+    geminiPath:
+      strArg(argv, "--gemini-path") ??
+      process.env.FORGE_GEMINI_PATH ??
+      DEFAULT_CONFIG.geminiPath,
     authToken:
       strArg(argv, "--auth-token") ??
       process.env.FORGE_AUTH_TOKEN ??

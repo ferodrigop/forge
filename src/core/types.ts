@@ -7,6 +7,7 @@ export interface ForgeConfig {
   shell: string;
   claudePath: string;
   codexPath: string;
+  geminiPath: string;
   authToken?: string;
   exitedTtl: number;
 }
@@ -49,6 +50,7 @@ export const DEFAULT_CONFIG: ForgeConfig = {
   shell: process.env.SHELL || "/bin/bash",
   claudePath: process.env.FORGE_CLAUDE_PATH || "claude",
   codexPath: process.env.FORGE_CODEX_PATH || "codex",
+  geminiPath: process.env.FORGE_GEMINI_PATH || "gemini",
   authToken: process.env.FORGE_AUTH_TOKEN,
   exitedTtl: 3_600_000, // 1 hour
 };

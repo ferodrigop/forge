@@ -567,6 +567,177 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     }
   );
 
+  // --- spawn_gemini ---
+  server.tool(
+    "spawn_gemini",
+    "Spawn a Gemini CLI agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for headless mode (requires prompt).",
+    {
+      prompt: z.string().optional().describe("The prompt to send to Gemini (required for oneShot mode)"),
+      cwd: z.string().optional().describe("Working directory for Gemini (REQUIRED for worktrees — must point to the worktree path, not a session ID)"),
+      fromSession: z.string().optional().describe("Copy cwd from an existing session ID (alternative to setting cwd manually)"),
+      model: z.string().optional().describe("Model to use"),
+      name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
+      tags: z.array(z.string()).max(10).optional().describe("Additional tags (gemini-agent is always included)"),
+      bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
+      worktree: z.boolean().optional().describe("Create a git worktree for this agent (isolates file changes on a separate branch)"),
+      branch: z.string().optional().describe("Branch name for the worktree (required when worktree: true, e.g., 'feature/gemini-fix')"),
+      oneShot: z.boolean().optional().describe("Run in headless mode (one-shot: process prompt and exit). Requires prompt. Default: false (interactive)"),
+      sandbox: z.boolean().optional().describe("Run Gemini in sandbox mode (--sandbox)"),
+    },
+    async (params) => {
+      try {
+        if (params.oneShot && !params.prompt) {
+          return {
+            content: [{ type: "text" as const, text: "Error: 'prompt' is required when oneShot is true" }],
+            isError: true,
+          };
+        }
+
+        // Resolve cwd: explicit > fromSession > process.cwd()
+        let effectiveCwd = params.cwd;
+        if (!effectiveCwd && params.fromSession) {
+          const sourceSession = manager.get(params.fromSession);
+          if (!sourceSession) {
+            return {
+              content: [{ type: "text" as const, text: `Error: fromSession "${params.fromSession}" not found` }],
+              isError: true,
+            };
+          }
+          effectiveCwd = sourceSession.getInfo().cwd;
+        }
+        let worktreePath: string | undefined;
+
+        // Create git worktree if requested
+        if (params.worktree) {
+          if (!params.branch) {
+            return {
+              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
+              isError: true,
+            };
+          }
+
+          const baseCwd = params.cwd ?? process.cwd();
+
+          let repoRoot: string;
+          try {
+            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
+          } catch {
+            return {
+              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
+              isError: true,
+            };
+          }
+
+          const repoName = path.basename(repoRoot);
+          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
+          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
+
+          try {
+            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
+              cwd: repoRoot,
+              encoding: "utf-8",
+              stdio: "pipe",
+            });
+          } catch (err) {
+            const msg = (err as Error).message;
+            if (msg.includes("already exists")) {
+              try {
+                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
+                  cwd: repoRoot,
+                  encoding: "utf-8",
+                  stdio: "pipe",
+                });
+              } catch (err2) {
+                return {
+                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
+                  isError: true,
+                };
+              }
+            } else {
+              return {
+                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
+                isError: true,
+              };
+            }
+          }
+
+          effectiveCwd = worktreePath;
+        }
+
+        const isOneShot = params.oneShot === true;
+        const args: string[] = [];
+
+        if (isOneShot) {
+          args.push("-p", params.prompt!);
+        }
+
+        if (params.model) {
+          args.push("--model", params.model);
+        }
+
+        if (params.sandbox) {
+          args.push("--sandbox");
+        }
+
+        const autoName = params.name ?? (params.prompt ? `gemini: ${params.prompt.slice(0, 60)}` : "gemini: interactive");
+        const baseTags = ["gemini-agent"];
+        if (params.worktree && params.branch) {
+          baseTags.push("worktree", `branch:${params.branch}`);
+        }
+        const mergedTags = params.tags
+          ? [...new Set([...baseTags, ...params.tags])]
+          : baseTags;
+
+        const session = manager.create({
+          command: config.geminiPath,
+          args,
+          cwd: effectiveCwd,
+          name: autoName,
+          tags: mergedTags,
+          bufferSize: params.bufferSize,
+        });
+
+        // Keep session data readable after exit
+        session.preserveAfterExit();
+
+        // Interactive mode: send the prompt to stdin after Gemini starts up.
+        if (!isOneShot && params.prompt) {
+          setTimeout(() => {
+            try {
+              session.write(params.prompt!);
+              setTimeout(() => {
+                try { session.write("\r"); } catch { /* exited */ }
+              }, 500);
+            } catch {
+              // Session may have exited before we could write
+            }
+          }, 2000);
+        }
+
+        const info = session.getInfo();
+        const result: Record<string, unknown> = { ...info };
+        if (worktreePath) {
+          result.worktreePath = worktreePath;
+          result.branch = params.branch;
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // --- write_terminal ---
   server.tool(
     "write_terminal",
@@ -1374,7 +1545,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
    */
   function waitForTurnCompletion(
     session: ReturnType<typeof manager.create>,
-    agentType: "claude" | "codex",
+    agentType: "claude" | "codex" | "gemini",
     timeoutMs: number,
     quietPeriodMs = 5_000,
   ): Promise<{ reason: "turn_complete" | "exited" | "timeout"; exitCode?: number }> {
@@ -1440,13 +1611,13 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
 
   server.tool(
     "delegate_task",
-    "Delegate a task to another AI agent (Claude or Codex). Supports two modes:\n" +
+    "Delegate a task to another AI agent (Claude, Codex, or Gemini). Supports two modes:\n" +
     "- **oneshot** (default): Agent processes the prompt and exits. Output returned directly.\n" +
     "- **interactive**: Agent stays alive between turns. Use `sessionId` for follow-up messages to review, push back, or guide the agent's work.\n\n" +
     "For interactive multi-turn conversations, the first call spawns the agent and returns a sessionId. " +
     "Subsequent calls with that sessionId send follow-up messages. Use `from` to label which orchestrator is speaking.",
     {
-      agent: z.enum(["claude", "codex"]).describe("Which agent to delegate to (required for first call, ignored on follow-ups)").optional(),
+      agent: z.enum(["claude", "codex", "gemini"]).describe("Which agent to delegate to (required for first call, ignored on follow-ups)").optional(),
       prompt: z.string().describe("The task prompt or follow-up message to send to the agent"),
       mode: z.enum(["oneshot", "interactive"]).optional().describe("Delegation mode: 'oneshot' (default) runs to completion, 'interactive' keeps agent alive for multi-turn conversation"),
       sessionId: z.string().optional().describe("Session ID from a previous interactive delegate_task call — sends a follow-up message to that agent"),
@@ -1498,7 +1669,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
 
           // Determine agent type from session tags
           const info = session.getInfo();
-          const agentType: "claude" | "codex" = info.tags?.includes("codex-agent") ? "codex" : "claude";
+          const agentType: "claude" | "codex" | "gemini" = info.tags?.includes("codex-agent") ? "codex" : info.tags?.includes("gemini-agent") ? "gemini" : "claude";
 
           // Record buffer position before sending, so we capture only the new output
           const bufferBefore = session.readFullBuffer();
@@ -1640,21 +1811,24 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
 
         // Build agent command and args
         const isClaude = params.agent === "claude";
-        const command = isClaude ? config.claudePath : config.codexPath;
+        const isGemini = params.agent === "gemini";
+        const command = isClaude ? config.claudePath : isGemini ? config.geminiPath : config.codexPath;
         const args: string[] = [];
-        const agentTag = isClaude ? "claude-agent" : "codex-agent";
+        const agentTag = isClaude ? "claude-agent" : isGemini ? "gemini-agent" : "codex-agent";
 
         if (isInteractive) {
-          // Interactive mode: pass prompt as CLI arg (both Claude and Codex accept it).
+          // Interactive mode: pass prompt as CLI arg.
           // This avoids the TUI input submission issue — the agent starts with the prompt directly.
           if (isClaude) {
             if (params.model) args.push("--model", params.model);
             if (params.maxBudget) args.push("--max-budget-usd", String(params.maxBudget));
+          } else if (isGemini) {
+            if (params.model) args.push("--model", params.model);
           } else {
             // Codex interactive: `codex "prompt"` starts interactive with initial prompt
             if (params.model) args.push("--model", params.model);
           }
-          // Push prompt as positional argument — both `claude "prompt"` and `codex "prompt"` work
+          // Push prompt as positional argument — `claude "prompt"`, `codex "prompt"`, and `gemini "prompt"` all work
           args.push(formattedPrompt);
         } else {
           // Oneshot mode: pass prompt as CLI argument
@@ -1662,6 +1836,9 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
             args.push("--print", "--output-format", "text", "--verbose", formattedPrompt);
             if (params.model) args.push("--model", params.model);
             if (params.maxBudget) args.push("--max-budget-usd", String(params.maxBudget));
+          } else if (isGemini) {
+            args.push("-p", formattedPrompt);
+            if (params.model) args.push("--model", params.model);
           } else {
             args.push("exec", formattedPrompt);
             if (params.model) args.push("--model", params.model);

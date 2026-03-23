@@ -12,6 +12,7 @@ import type { SessionManager } from "../core/session-manager.js";
 import type { ForgeConfig } from "../core/types.js";
 import { ClaudeChats } from "../core/claude-chats.js";
 import { CodexChats } from "../core/codex-chats.js";
+import { GeminiChats } from "../core/gemini-chats.js";
 import { createServer as createMcpServer } from "../server.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML, DASHBOARD_HTML_LOCAL, LOGO_PNG_BASE64 } from "./dashboard-html.js";
@@ -27,6 +28,7 @@ export class DashboardServer {
   private transports = new Map<string, StreamableHTTPServerTransport>();
   private claudeChats = new ClaudeChats();
   private codexChats = new CodexChats();
+  private geminiChats = new GeminiChats();
 
   constructor(
     private manager: SessionManager,
@@ -78,6 +80,9 @@ export class DashboardServer {
           } else if (opts.agent === "codex") {
             command = this.config?.codexPath || "codex";
             tags = tags || ["codex-agent"];
+          } else if (opts.agent === "gemini") {
+            command = this.config?.geminiPath || "gemini";
+            tags = tags || ["gemini-agent"];
           }
 
           const session = manager.create({
@@ -91,7 +96,7 @@ export class DashboardServer {
           });
 
           // Preserve agent sessions after exit (consistent with MCP spawn tools)
-          if (opts.agent === "claude" || opts.agent === "codex") {
+          if (opts.agent === "claude" || opts.agent === "codex" || opts.agent === "gemini") {
             session.preserveAfterExit();
           }
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -482,6 +487,65 @@ export class DashboardServer {
             args: ["resume", uuidMatch[1]],
             name: `codex: resume ${uuidMatch[1].slice(0, 8)}...`,
             tags: ["codex-agent"],
+            cwd: chatMeta.fullPath || undefined,
+          });
+          session.preserveAfterExit();
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(session.getInfo()));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+        return;
+      }
+
+      // Gemini chat session endpoints
+      if (req.method === "GET" && pathname === "/api/gemini-chats") {
+        const project = parsedUrl.searchParams.get("project") || undefined;
+        const search = parsedUrl.searchParams.get("search") || undefined;
+        const limit = parsedUrl.searchParams.has("limit") ? Number(parsedUrl.searchParams.get("limit")) : undefined;
+        const offset = parsedUrl.searchParams.has("offset") ? Number(parsedUrl.searchParams.get("offset")) : undefined;
+        const result = await this.geminiChats.listSessions({ project, search, limit, offset });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      const geminiChatIdMatch = pathname.match(/^\/api\/gemini-chats\/([^/]+)$/);
+      if (geminiChatIdMatch) {
+        const chatId = decodeURIComponent(geminiChatIdMatch[1]);
+
+        if (req.method === "GET") {
+          const messages = await this.geminiChats.getMessages(chatId);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ messages }));
+          return;
+        }
+
+        if (req.method === "DELETE") {
+          const deleted = await this.geminiChats.deleteSession(chatId);
+          res.writeHead(deleted ? 200 : 404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ deleted }));
+          return;
+        }
+      }
+
+      const geminiContinueMatch = pathname.match(/^\/api\/gemini-chats\/([^/]+)\/continue$/);
+      if (geminiContinueMatch && req.method === "POST") {
+        const chatId = decodeURIComponent(geminiContinueMatch[1]);
+        try {
+          const chatMeta = await this.geminiChats.findSession(chatId);
+          if (!chatMeta) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Gemini session not found" }));
+            return;
+          }
+          const geminiPath = this.config?.geminiPath || "gemini";
+          const session = this.manager.create({
+            command: geminiPath,
+            args: ["--resume", chatMeta.sessionId],
+            name: `gemini: resume ${chatMeta.sessionId.slice(0, 8)}...`,
+            tags: ["gemini-agent"],
             cwd: chatMeta.fullPath || undefined,
           });
           session.preserveAfterExit();

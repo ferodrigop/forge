@@ -177,14 +177,18 @@ function CodexChatBubble(props) {
 
 function ChatView() {
   var chatId = activeChatId.value;
-  var isCodex = chatSource.value === 'codex';
+  var source = chatSource.value;
+  var isCodex = source === 'codex';
+  var isGemini = source === 'gemini';
+  var sourceLabel = isCodex ? 'Codex' : isGemini ? 'Gemini' : 'Chat';
+  var resumeLabel = (isCodex || isGemini) ? 'Resume Session' : 'Continue Session';
   return html\`
     <div id="main">
       <div class="chat-header-bar">
-        <span style="color:#565f89;font-size:13px;">\${isCodex ? 'Codex' : 'Chat'}: <span style="color:#7aa2f7;font-weight:500;">\${chatId ? chatId.slice(0, 8) + '...' : ''}</span></span>
-        <button class="continue-btn" onClick=\${function() { continueChat(chatId, isCodex ? 'codex' : 'claude'); }}>\${isCodex ? 'Resume Session' : 'Continue Session'}</button>
+        <span style="color:#565f89;font-size:13px;">\${sourceLabel}: <span style="color:#7aa2f7;font-weight:500;">\${chatId ? chatId.slice(0, 8) + '...' : ''}</span></span>
+        <button class="continue-btn" onClick=\${function() { continueChat(chatId, source); }}>\${resumeLabel}</button>
       </div>
-      <\${isCodex ? CodexChatMessages : ChatMessages} />
+      <\${(isCodex || isGemini) ? CodexChatMessages : ChatMessages} />
     </div>
   \`;
 }

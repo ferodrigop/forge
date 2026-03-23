@@ -5,6 +5,7 @@ import type { ForgeConfig, SessionInfo } from "./types.js";
 import { loadState, saveState, clearState } from "./state-store.js";
 import { StreamJsonParser } from "./stream-json-parser.js";
 import { CodexStreamParser } from "./codex-stream-parser.js";
+import { GeminiStreamParser } from "./gemini-stream-parser.js";
 import { CommandHistory } from "./command-history.js";
 import type { HistoryEvent } from "./stream-json-parser.js";
 import { logger } from "../utils/logger.js";
@@ -113,6 +114,18 @@ export class SessionManager {
     // Wire up codex stream parsing for codex-agent sessions
     if (opts.tags?.includes("codex-agent")) {
       const parser = new CodexStreamParser();
+      session.onData((data) => {
+        const events = parser.feed(data);
+        for (const event of events) {
+          this.commandHistory.append(id, event);
+          this.historyEmitter.emit("history", id, event);
+        }
+      });
+    }
+
+    // Wire up gemini stream parsing for gemini-agent sessions
+    if (opts.tags?.includes("gemini-agent")) {
+      const parser = new GeminiStreamParser();
       session.onData((data) => {
         const events = parser.feed(data);
         for (const event of events) {

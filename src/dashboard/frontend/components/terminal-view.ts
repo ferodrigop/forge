@@ -223,11 +223,11 @@ function DelegatePromptBanner() {
   if (!prompt) return null;
 
   // Detect agent and mode from tags
-  var agent = activeSession.tags.indexOf('codex-agent') >= 0 ? 'codex' : 'claude';
+  var agent = activeSession.tags.indexOf('codex-agent') >= 0 ? 'codex' : activeSession.tags.indexOf('gemini-agent') >= 0 ? 'gemini' : 'claude';
   var isInteractive = activeSession.tags.indexOf('mode:interactive') >= 0;
   var modeLabel = isInteractive ? 'interactive' : 'oneshot';
 
-  var agentColor = agent === 'claude' ? '#bb9af7' : '#9ece6a';
+  var agentColor = agent === 'claude' ? '#bb9af7' : agent === 'gemini' ? '#4fc3f7' : '#9ece6a';
 
   return html\`
     <div class="delegate-prompt-banner">

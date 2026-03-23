@@ -65,7 +65,7 @@ Core terminal engine, pattern matching, agent orchestration, dashboard, chat bro
 - [ ] Custom user templates via `~/.forge/templates.json`
 
 ### Agents
-- [ ] Gemini CLI support (spawn, chat browser, stream parser — same integration as Codex)
+- [x] Gemini CLI support (spawn, chat browser, stream parser — same integration as Codex)
 
 ### Platform
 - [ ] Windows ConPTY support

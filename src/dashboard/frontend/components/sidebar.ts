@@ -331,7 +331,7 @@ function ChatsPanel() {
   }
 
   var source = chatSource.value;
-  var cs = source === 'codex' ? codexChatSessions.value : chatSessions.value;
+  var cs = source === 'codex' ? codexChatSessions.value : source === 'gemini' ? geminiChatSessions.value : chatSessions.value;
   var loading = chatLoading.value;
   var query = chatSearchQuery.value;
   var content;
@@ -363,6 +363,7 @@ function ChatsPanel() {
       <div class="chat-source-toggle">
         <button class=\${'chat-source-btn' + (source === 'claude' ? ' active' : '')} onClick=\${function() { chatSource.value = 'claude'; }}>Claude</button>
         <button class=\${'chat-source-btn' + (source === 'codex' ? ' active' : '')} onClick=\${function() { chatSource.value = 'codex'; }}>Codex</button>
+        <button class=\${'chat-source-btn' + (source === 'gemini' ? ' active' : '')} onClick=\${function() { chatSource.value = 'gemini'; }}>Gemini</button>
       </div>
       <div class="chat-search-wrap">
         <svg class="chat-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#3b4261" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="5" /><line x1="10" y1="10" x2="14.5" y2="14.5" /></svg>
