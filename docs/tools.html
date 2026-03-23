@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tools Reference — Forge</title>
+  <meta name="description" content="Complete reference for all 23 Forge MCP tools — parameters, return values, and usage.">
+  <meta property="og:title" content="Tools Reference — Forge">
+  <meta property="og:description" content="Complete reference for all 23 Forge MCP tools — parameters, return values, and usage.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://forgemcp.dev/og-image.png">
+  <meta property="og:url" content="https://forgemcp.dev/docs/tools.html">
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0MVDNLEWLK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-0MVDNLEWLK');
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            void: '#06090f',
+            surface: '#0d1117',
+            raised: '#161b22',
+            border: '#21262d',
+            'border-bright': '#30363d',
+            muted: '#7d8590',
+            subtle: '#c9d1d9',
+            bright: '#e6edf3',
+            accent: '#4a9eff',
+            'accent-dim': '#1a3a5c',
+            glow: '#7ee787',
+            'glow-dim': '#1a3d2a',
+            warn: '#d29922',
+            err: '#f85149',
+          },
+          fontFamily: {
+            mono: ['"IBM Plex Mono"', '"Fira Code"', 'Consolas', 'monospace'],
+            display: ['"Space Mono"', '"IBM Plex Mono"', 'monospace'],
+            body: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #30363d; }
+
+    .sidebar-link {
+      transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+    }
+    .sidebar-link:hover {
+      color: #e6edf3;
+      background-color: rgba(74, 158, 255, 0.05);
+    }
+    .sidebar-link.active {
+      color: #4a9eff;
+      border-left-color: #4a9eff;
+      background-color: rgba(74, 158, 255, 0.08);
+    }
+    .card-hover {
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .card-hover:hover {
+      border-color: #30363d;
+      box-shadow: 0 0 40px rgba(74, 158, 255, 0.06), 0 8px 32px rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .glow-text {
+      text-shadow: 0 0 20px rgba(78, 158, 255, 0.3), 0 0 40px rgba(78, 158, 255, 0.1);
+    }
+
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      .docs-sidebar { display: none; }
+      .docs-sidebar.open { display: block; position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 40; background: #0d1117; border-right: 1px solid #21262d; overflow-y: auto; }
+      .sidebar-overlay { display: none; }
+      .sidebar-overlay.open { display: block; position: fixed; inset: 0; top: 56px; z-index: 39; background: rgba(0,0,0,0.5); }
+    }
+
+    /* Parameter tables */
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+    .param-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      font-weight: 600;
+      color: #7d8590;
+      border-bottom: 1px solid #21262d;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .param-table td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #161b22;
+      color: #c9d1d9;
+    }
+    .param-table tr:last-child td {
+      border-bottom: none;
+    }
+    .param-table .param-name {
+      font-family: 'IBM Plex Mono', 'Fira Code', Consolas, monospace;
+      color: #4a9eff;
+      font-size: 0.8125rem;
+    }
+    .param-table .param-type {
+      font-family: 'IBM Plex Mono', 'Fira Code', Consolas, monospace;
+      color: #7ee787;
+      font-size: 0.75rem;
+    }
+    .param-table .param-default {
+      font-family: 'IBM Plex Mono', 'Fira Code', Consolas, monospace;
+      color: #d29922;
+      font-size: 0.75rem;
+    }
+    .param-table .param-required {
+      color: #f85149;
+      font-size: 0.6875rem;
+      font-weight: 600;
+    }
+
+    .tool-card {
+      scroll-margin-top: 5rem;
+    }
+
+    .toc-link {
+      transition: color 0.15s;
+    }
+    .toc-link:hover {
+      color: #e6edf3;
+    }
+
+    .tool-item {
+      transition: opacity 0.2s, max-height 0.3s;
+    }
+    .tool-item.hidden-by-filter {
+      display: none;
+    }
+    .category-section.hidden-by-filter {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-void text-subtle font-body antialiased">
+
+  <!-- ====== NAV ====== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Mobile sidebar toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden text-muted hover:text-bright p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="../" class="flex items-center gap-3 group">
+          <img src="../forge-logo.png" alt="Forge" class="w-7 h-7 rounded-md">
+          <span class="font-display font-bold text-bright tracking-tight">forge</span>
+          <span class="text-xs font-mono text-muted border border-border rounded px-1.5 py-0.5">docs</span>
+        </a>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Search -->
+        <div class="relative hidden sm:block">
+          <input type="text" id="docs-search" placeholder="Search docs..." class="bg-surface border border-border rounded-lg px-3 py-1.5 pl-8 text-sm text-bright placeholder-muted/50 focus:outline-none focus:border-accent/50 w-48 lg:w-64" autocomplete="off">
+          <svg class="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <div id="search-results" class="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-xl max-h-80 overflow-y-auto hidden z-50"></div>
+        </div>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="text-muted hover:text-bright transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="max-w-[90rem] mx-auto flex pt-14">
+    <!-- ====== SIDEBAR ====== -->
+    <aside class="docs-sidebar w-64 flex-shrink-0 border-r border-border h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto py-6 px-4" id="docs-sidebar">
+      <div class="space-y-6">
+        <!-- Getting Started -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Getting Started</p>
+          <div class="space-y-0.5">
+            <a href="./" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Overview</a>
+            <a href="getting-started.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Installation & Quickstart</a>
+          </div>
+        </div>
+
+        <!-- Guides -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Guides</p>
+          <div class="space-y-0.5">
+            <a href="guides.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Best Practices</a>
+            <a href="guides.html#multi-agent" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Multi-Agent Orchestration</a>
+            <a href="guides.html#dashboard" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Web Dashboard</a>
+            <a href="guides.html#desktop" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Desktop App</a>
+            <a href="guides.html#templates" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Session Templates</a>
+          </div>
+        </div>
+
+        <!-- Reference -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Reference</p>
+          <div class="space-y-0.5">
+            <a href="tools.html" class="sidebar-link active block text-sm px-3 py-1.5 rounded-md border-l-2 border-transparent text-bright">Tools Reference</a>
+            <a href="configuration.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Configuration</a>
+            <a href="architecture.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Architecture</a>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== MAIN CONTENT ====== -->
+    <main class="flex-1 min-w-0 px-6 sm:px-10 lg:px-16 py-10 max-w-4xl">
+
+      <!-- Hero -->
+      <div class="mb-10">
+        <h1 class="font-display font-bold text-3xl sm:text-4xl text-bright mb-4 glow-text">Tools Reference</h1>
+        <p class="text-lg text-muted leading-relaxed">
+          Complete reference for all 23 MCP tools exposed by Forge, organized in 7 categories.
+        </p>
+      </div>
+
+      <!-- Tool Filter -->
+      <div class="mb-8">
+        <div class="relative">
+          <input type="text" id="tool-filter" placeholder="Filter tools by name..." class="w-full bg-surface border border-border rounded-lg px-4 py-2.5 pl-10 text-sm text-bright placeholder-muted/50 focus:outline-none focus:border-accent/50" autocomplete="off">
+          <svg class="w-4 h-4 text-muted absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          <span id="filter-count" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-muted hidden">0 matches</span>
+        </div>
+      </div>
+
+      <!-- Table of Contents -->
+      <div class="bg-surface border border-border rounded-xl p-6 mb-10">
+        <h2 class="font-display font-bold text-sm text-bright mb-4 uppercase tracking-wider">Categories</h2>
+        <div class="grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+          <div>
+            <a href="#cat-session" class="toc-link text-accent font-mono text-xs">Session Lifecycle</a>
+            <p class="text-xs text-muted mt-0.5">create_terminal, create_from_template, spawn_claude, spawn_codex, spawn_gemini, close_terminal, close_group, list_terminals, list_templates</p>
+          </div>
+          <div>
+            <a href="#cat-io" class="toc-link text-accent font-mono text-xs">I/O</a>
+            <p class="text-xs text-muted mt-0.5">write_terminal, read_terminal, read_screen, read_multiple, send_control, resize_terminal</p>
+          </div>
+          <div>
+            <a href="#cat-search" class="toc-link text-accent font-mono text-xs">Search & Wait</a>
+            <p class="text-xs text-muted mt-0.5">grep_terminal, wait_for</p>
+          </div>
+          <div>
+            <a href="#cat-execution" class="toc-link text-accent font-mono text-xs">Execution</a>
+            <p class="text-xs text-muted mt-0.5">run_command</p>
+          </div>
+          <div>
+            <a href="#cat-events" class="toc-link text-accent font-mono text-xs">Events</a>
+            <p class="text-xs text-muted mt-0.5">subscribe_events, unsubscribe_events</p>
+          </div>
+          <div>
+            <a href="#cat-delegation" class="toc-link text-accent font-mono text-xs">Agent Delegation</a>
+            <p class="text-xs text-muted mt-0.5">delegate_task</p>
+          </div>
+          <div>
+            <a href="#cat-ops" class="toc-link text-accent font-mono text-xs">Ops</a>
+            <p class="text-xs text-muted mt-0.5">health_check, get_session_history, clear_history</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- SESSION LIFECYCLE -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="session">
+        <div id="cat-session" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-glow/10 border border-glow/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </span>
+            Session Lifecycle
+          </h2>
+        </div>
+
+        <!-- create_terminal -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="create_terminal" data-tool="create_terminal">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">create_terminal</h3>
+          <p class="text-sm text-muted mb-4">Create a new persistent terminal session. Returns session info including the <code class="bg-raised px-1 rounded text-accent">id</code> used by all other tools.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">command</td><td class="param-type">string</td><td class="param-default">User's $SHELL</td><td>Command to run</td></tr>
+                <tr><td class="param-name">args</td><td class="param-type">string[]</td><td class="param-default">[]</td><td>Command arguments</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">Process cwd</td><td>Working directory</td></tr>
+                <tr><td class="param-name">env</td><td class="param-type">object</td><td class="param-default">{}</td><td>Additional env vars</td></tr>
+                <tr><td class="param-name">cols</td><td class="param-type">number</td><td class="param-default">120</td><td>Terminal width</td></tr>
+                <tr><td class="param-name">rows</td><td class="param-type">number</td><td class="param-default">24</td><td>Terminal height</td></tr>
+                <tr><td class="param-name">name</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Human-readable name</td></tr>
+                <tr><td class="param-name">tags</td><td class="param-type">string[]</td><td class="param-default">&mdash;</td><td>Tags for filtering (max 10)</td></tr>
+                <tr><td class="param-name">bufferSize</td><td class="param-type">number</td><td class="param-default">Server default</td><td>Ring buffer size (1KB&ndash;10MB)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- create_from_template -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="create_from_template" data-tool="create_from_template">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">create_from_template</h3>
+          <p class="text-sm text-muted mb-4">Create a terminal session from a predefined template.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">template</td><td class="param-type">string</td><td class="param-required">required</td><td>Template name</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Working directory override</td></tr>
+                <tr><td class="param-name">env</td><td class="param-type">object</td><td class="param-default">&mdash;</td><td>Additional env vars</td></tr>
+                <tr><td class="param-name">name</td><td class="param-type">string</td><td class="param-default">Template name</td><td>Session name override</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- spawn_claude -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="spawn_claude" data-tool="spawn_claude">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">spawn_claude</h3>
+          <p class="text-sm text-muted mb-4">Spawn a Claude Code sub-agent in its own terminal session.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">prompt</td><td class="param-type">string</td><td class="param-required">required</td><td>Prompt to send</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Working directory</td></tr>
+                <tr><td class="param-name">fromSession</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Copy cwd from existing session</td></tr>
+                <tr><td class="param-name">model</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Model (e.g. "sonnet", "opus")</td></tr>
+                <tr><td class="param-name">name</td><td class="param-type">string</td><td class="param-default">Auto</td><td>Session name</td></tr>
+                <tr><td class="param-name">tags</td><td class="param-type">string[]</td><td class="param-default">["claude-agent"]</td><td>Tags</td></tr>
+                <tr><td class="param-name">maxBudget</td><td class="param-type">number</td><td class="param-default">&mdash;</td><td>Max budget in USD</td></tr>
+                <tr><td class="param-name">bufferSize</td><td class="param-type">number</td><td class="param-default">Server default</td><td>Ring buffer size</td></tr>
+                <tr><td class="param-name">worktree</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Create git worktree</td></tr>
+                <tr><td class="param-name">branch</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Branch name for worktree</td></tr>
+                <tr><td class="param-name">oneShot</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Run in --print mode</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- spawn_codex -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="spawn_codex" data-tool="spawn_codex">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">spawn_codex</h3>
+          <p class="text-sm text-muted mb-4">Spawn a Codex sub-agent. Same parameters as <a href="#spawn_claude" class="text-accent hover:underline">spawn_claude</a> but for Codex. Tags default to <code class="bg-raised px-1 rounded text-warn">["codex-agent"]</code>.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">prompt</td><td class="param-type">string</td><td class="param-required">required</td><td>Prompt to send</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Working directory</td></tr>
+                <tr><td class="param-name">fromSession</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Copy cwd from existing session</td></tr>
+                <tr><td class="param-name">model</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Model override</td></tr>
+                <tr><td class="param-name">name</td><td class="param-type">string</td><td class="param-default">Auto</td><td>Session name</td></tr>
+                <tr><td class="param-name">tags</td><td class="param-type">string[]</td><td class="param-default">["codex-agent"]</td><td>Tags</td></tr>
+                <tr><td class="param-name">maxBudget</td><td class="param-type">number</td><td class="param-default">&mdash;</td><td>Max budget in USD</td></tr>
+                <tr><td class="param-name">bufferSize</td><td class="param-type">number</td><td class="param-default">Server default</td><td>Ring buffer size</td></tr>
+                <tr><td class="param-name">worktree</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Create git worktree</td></tr>
+                <tr><td class="param-name">branch</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Branch name for worktree</td></tr>
+                <tr><td class="param-name">oneShot</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Run in --print mode</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- spawn_gemini -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="spawn_gemini" data-tool="spawn_gemini">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">spawn_gemini</h3>
+          <p class="text-sm text-muted mb-4">Spawn a Gemini CLI sub-agent. Same parameters as <a href="#spawn_claude" class="text-accent hover:underline">spawn_claude</a> but for Gemini CLI. Tags default to <code class="bg-raised px-1 rounded text-warn">["gemini-agent"]</code>.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">prompt</td><td class="param-type">string</td><td class="param-required">required</td><td>Prompt to send</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Working directory</td></tr>
+                <tr><td class="param-name">fromSession</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Copy cwd from existing session</td></tr>
+                <tr><td class="param-name">model</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Model override</td></tr>
+                <tr><td class="param-name">name</td><td class="param-type">string</td><td class="param-default">Auto</td><td>Session name</td></tr>
+                <tr><td class="param-name">tags</td><td class="param-type">string[]</td><td class="param-default">["gemini-agent"]</td><td>Tags</td></tr>
+                <tr><td class="param-name">maxBudget</td><td class="param-type">number</td><td class="param-default">&mdash;</td><td>Max budget in USD</td></tr>
+                <tr><td class="param-name">bufferSize</td><td class="param-type">number</td><td class="param-default">Server default</td><td>Ring buffer size</td></tr>
+                <tr><td class="param-name">worktree</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Create git worktree</td></tr>
+                <tr><td class="param-name">branch</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Branch name for worktree</td></tr>
+                <tr><td class="param-name">oneShot</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Run in --print mode</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- close_terminal -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="close_terminal" data-tool="close_terminal">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">close_terminal</h3>
+          <p class="text-sm text-muted mb-4">Close a terminal session and clean up its resources.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- close_group -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="close_group" data-tool="close_group">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">close_group</h3>
+          <p class="text-sm text-muted mb-4">Close all terminal sessions matching a tag.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">tag</td><td class="param-type">string</td><td class="param-required">required</td><td>Tag to match</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- list_terminals -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="list_terminals" data-tool="list_terminals">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">list_terminals</h3>
+          <p class="text-sm text-muted mb-4">List all active terminal sessions, optionally filtered by tag.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">tag</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Filter by tag</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- list_templates -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="list_templates" data-tool="list_templates">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">list_templates</h3>
+          <p class="text-sm text-muted">List all available session templates. No parameters.</p>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- I/O -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="io">
+        <div id="cat-io" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            </span>
+            I/O
+          </h2>
+        </div>
+
+        <!-- write_terminal -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="write_terminal" data-tool="write_terminal">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">write_terminal</h3>
+          <p class="text-sm text-muted mb-4">Send text input to a terminal session.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+                <tr><td class="param-name">input</td><td class="param-type">string</td><td class="param-required">required</td><td>Text to send</td></tr>
+                <tr><td class="param-name">newline</td><td class="param-type">boolean</td><td class="param-default">true</td><td>Append \n</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- read_terminal -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="read_terminal" data-tool="read_terminal">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">read_terminal</h3>
+          <p class="text-sm text-muted mb-4">Read incremental output from a terminal session. Returns <code class="bg-raised px-1 rounded text-accent">{ status, data, bytes, droppedBytes? }</code>.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- read_screen -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="read_screen" data-tool="read_screen">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">read_screen</h3>
+          <p class="text-sm text-muted mb-4">Read the current rendered viewport as plain text (no ANSI escape codes).</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- read_multiple -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="read_multiple" data-tool="read_multiple">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">read_multiple</h3>
+          <p class="text-sm text-muted mb-4">Read output from multiple sessions in a single call.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">ids</td><td class="param-type">string[]</td><td class="param-required">required</td><td>Session IDs (1&ndash;20)</td></tr>
+                <tr><td class="param-name">mode</td><td class="param-type">string</td><td class="param-default">"incremental"</td><td>"incremental" or "screen"</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- send_control -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="send_control" data-tool="send_control">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">send_control</h3>
+          <p class="text-sm text-muted mb-4">Send a control key or special key to a terminal session.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+                <tr><td class="param-name">key</td><td class="param-type">string</td><td class="param-required">required</td><td>Control key name</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-3 text-xs text-muted">
+            <span class="text-subtle font-medium">Available keys:</span>
+            <span class="font-mono">ctrl+c</span>, <span class="font-mono">ctrl+d</span>, <span class="font-mono">ctrl+z</span>, <span class="font-mono">ctrl+\</span>, <span class="font-mono">ctrl+l</span>, <span class="font-mono">ctrl+a</span>, <span class="font-mono">ctrl+e</span>, <span class="font-mono">ctrl+k</span>, <span class="font-mono">ctrl+u</span>, <span class="font-mono">ctrl+w</span>, <span class="font-mono">ctrl+r</span>, <span class="font-mono">ctrl+p</span>, <span class="font-mono">ctrl+n</span>, <span class="font-mono">up</span>, <span class="font-mono">down</span>, <span class="font-mono">right</span>, <span class="font-mono">left</span>, <span class="font-mono">home</span>, <span class="font-mono">end</span>, <span class="font-mono">tab</span>, <span class="font-mono">enter</span>, <span class="font-mono">escape</span>, <span class="font-mono">backspace</span>, <span class="font-mono">delete</span>, <span class="font-mono">pageup</span>, <span class="font-mono">pagedown</span>
+          </div>
+        </div>
+
+        <!-- resize_terminal -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="resize_terminal" data-tool="resize_terminal">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">resize_terminal</h3>
+          <p class="text-sm text-muted mb-4">Resize a terminal session's viewport.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+                <tr><td class="param-name">cols</td><td class="param-type">number</td><td class="param-required">required</td><td>New width (1&ndash;500)</td></tr>
+                <tr><td class="param-name">rows</td><td class="param-type">number</td><td class="param-required">required</td><td>New height (1&ndash;200)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- SEARCH & WAIT -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="search">
+        <div id="cat-search" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-warn/10 border border-warn/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </span>
+            Search & Wait
+          </h2>
+        </div>
+
+        <!-- grep_terminal -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="grep_terminal" data-tool="grep_terminal">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">grep_terminal</h3>
+          <p class="text-sm text-muted mb-4">Search terminal output with regex. Returns <code class="bg-raised px-1 rounded text-accent">{ matches: [{ lineNumber, text, context? }], totalMatches }</code>.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+                <tr><td class="param-name">pattern</td><td class="param-type">string</td><td class="param-required">required</td><td>Regex pattern</td></tr>
+                <tr><td class="param-name">context</td><td class="param-type">number</td><td class="param-default">0</td><td>Context lines (0&ndash;10)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- wait_for -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="wait_for" data-tool="wait_for">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">wait_for</h3>
+          <p class="text-sm text-muted mb-4">Wait for a pattern to appear in terminal output or for the process to exit. Returns <code class="bg-raised px-1 rounded text-accent">{ matched, data?, reason?, elapsed }</code>.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+                <tr><td class="param-name">pattern</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Regex pattern</td></tr>
+                <tr><td class="param-name">timeout</td><td class="param-type">number</td><td class="param-default">30000</td><td>Timeout ms (100&ndash;300000)</td></tr>
+                <tr><td class="param-name">waitForExit</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Wait for exit instead</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- EXECUTION -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="execution">
+        <div id="cat-execution" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-glow/10 border border-glow/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </span>
+            Execution
+          </h2>
+        </div>
+
+        <!-- run_command -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="run_command" data-tool="run_command">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">run_command</h3>
+          <p class="text-sm text-muted mb-4">Run a command and wait for it to complete. Creates a temporary session, executes, and returns the output.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">command</td><td class="param-type">string</td><td class="param-required">required</td><td>Command to run</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Working directory</td></tr>
+                <tr><td class="param-name">timeout</td><td class="param-type">number</td><td class="param-default">300000</td><td>Timeout ms (max 5min)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- EVENTS -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="events">
+        <div id="cat-events" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            </span>
+            Events
+          </h2>
+        </div>
+
+        <!-- subscribe_events -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="subscribe_events" data-tool="subscribe_events">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">subscribe_events</h3>
+          <p class="text-sm text-muted mb-4">Subscribe to terminal events (exit, pattern match).</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+                <tr><td class="param-name">events</td><td class="param-type">string[]</td><td class="param-required">required</td><td>["exit"] and/or ["pattern_match"]</td></tr>
+                <tr><td class="param-name">pattern</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Regex (required if pattern_match)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- unsubscribe_events -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="unsubscribe_events" data-tool="unsubscribe_events">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">unsubscribe_events</h3>
+          <p class="text-sm text-muted mb-4">Remove an event subscription.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">subscriptionId</td><td class="param-type">string</td><td class="param-required">required</td><td>Subscription ID</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- AGENT DELEGATION -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="delegation">
+        <div id="cat-delegation" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-warn/10 border border-warn/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-warn" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </span>
+            Agent Delegation
+          </h2>
+        </div>
+
+        <!-- delegate_task -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="delegate_task" data-tool="delegate_task">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">delegate_task</h3>
+          <p class="text-sm text-muted mb-4">Delegate a task to a sub-agent (Claude or Codex) with optional git worktree isolation.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">prompt</td><td class="param-type">string</td><td class="param-required">required</td><td>Task prompt</td></tr>
+                <tr><td class="param-name">agent</td><td class="param-type">string</td><td class="param-default">"claude"</td><td>"claude" or "codex"</td></tr>
+                <tr><td class="param-name">mode</td><td class="param-type">string</td><td class="param-default">"oneshot"</td><td>"oneshot" or "interactive"</td></tr>
+                <tr><td class="param-name">sessionId</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Existing session for follow-ups</td></tr>
+                <tr><td class="param-name">cwd</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Working directory</td></tr>
+                <tr><td class="param-name">fromSession</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Copy cwd from session</td></tr>
+                <tr><td class="param-name">worktree</td><td class="param-type">boolean</td><td class="param-default">false</td><td>Git worktree isolation</td></tr>
+                <tr><td class="param-name">branch</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Branch for worktree</td></tr>
+                <tr><td class="param-name">model</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Model override</td></tr>
+                <tr><td class="param-name">from</td><td class="param-type">string</td><td class="param-default">&mdash;</td><td>Orchestrator attribution</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- OPS -->
+      <!-- ============================================================ -->
+      <div class="category-section" data-category="ops">
+        <div id="cat-ops" class="mb-6 pt-4 scroll-mt-20">
+          <h2 class="font-display font-bold text-xl text-bright pb-2 border-b border-border flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-glow/10 border border-glow/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </span>
+            Ops
+          </h2>
+        </div>
+
+        <!-- health_check -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="health_check" data-tool="health_check">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">health_check</h3>
+          <p class="text-sm text-muted mb-2">Check server health. No parameters.</p>
+          <p class="text-sm text-muted">Returns <code class="bg-raised px-1 rounded text-accent">{ version, uptime, sessions: { active, max }, memory: { rss, heapUsed, heapTotal } }</code>.</p>
+        </div>
+
+        <!-- get_session_history -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-4" id="get_session_history" data-tool="get_session_history">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">get_session_history</h3>
+          <p class="text-sm text-muted mb-4">Get the command history for a session.</p>
+          <div class="overflow-x-auto">
+            <table class="param-table">
+              <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td class="param-name">id</td><td class="param-type">string</td><td class="param-required">required</td><td>Session ID</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- clear_history -->
+        <div class="tool-item tool-card bg-surface border border-border rounded-xl p-6 mb-6" id="clear_history" data-tool="clear_history">
+          <h3 class="font-mono font-bold text-bright text-base mb-2">clear_history</h3>
+          <p class="text-sm text-muted">Clear all session history. No parameters.</p>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- MCP RESOURCES -->
+      <!-- ============================================================ -->
+      <div class="mb-10 pt-4">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border flex items-center gap-3">
+          <span class="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          </span>
+          MCP Resources
+        </h2>
+        <div class="bg-surface border border-border rounded-xl p-6">
+          <p class="text-sm text-subtle leading-relaxed mb-3">
+            Sessions are also exposed as <strong class="text-bright">MCP resources</strong>, allowing clients to read session data through the standard resource protocol.
+          </p>
+          <div class="font-mono text-sm bg-raised rounded-lg px-4 py-3 border border-border">
+            <span class="text-muted">URI:</span> <span class="text-accent">terminal://sessions/{sessionId}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prev/Next nav -->
+      <div class="flex justify-between pt-8 border-t border-border">
+        <a href="guides.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Prev: Guides
+        </a>
+        <a href="configuration.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          Next: Configuration
+          <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="border-t border-border py-8 mt-8">
+    <div class="max-w-[90rem] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="../forge-logo.png" alt="Forge" class="w-5 h-5 rounded">
+        <span class="font-display font-bold text-bright text-sm">forge</span>
+        <span class="text-xs text-muted">MIT License</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="../" class="hover:text-bright transition-colors">Home</a>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="hover:text-bright transition-colors">GitHub</a>
+        <a href="https://www.npmjs.com/package/forge-terminal-mcp" target="_blank" rel="noopener" class="hover:text-bright transition-colors">npm</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Copy to clipboard
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const svg = btn.querySelector('svg');
+        const orig = svg.innerHTML;
+        svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+        btn.classList.add('text-glow');
+        setTimeout(() => { svg.innerHTML = orig; btn.classList.remove('text-glow'); }, 2000);
+      });
+    }
+
+    // Mobile sidebar toggle
+    function toggleSidebar() {
+      document.getElementById('docs-sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('open');
+    }
+
+    // Tool filter
+    const toolFilter = document.getElementById('tool-filter');
+    const filterCount = document.getElementById('filter-count');
+    const toolItems = document.querySelectorAll('.tool-item');
+    const categorySections = document.querySelectorAll('.category-section');
+
+    toolFilter.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+
+      if (q.length === 0) {
+        toolItems.forEach(item => item.classList.remove('hidden-by-filter'));
+        categorySections.forEach(sec => sec.classList.remove('hidden-by-filter'));
+        filterCount.classList.add('hidden');
+        return;
+      }
+
+      let matches = 0;
+      toolItems.forEach(item => {
+        const toolName = item.dataset.tool.toLowerCase();
+        if (toolName.includes(q)) {
+          item.classList.remove('hidden-by-filter');
+          matches++;
+        } else {
+          item.classList.add('hidden-by-filter');
+        }
+      });
+
+      // Hide empty categories
+      categorySections.forEach(sec => {
+        const visibleTools = sec.querySelectorAll('.tool-item:not(.hidden-by-filter)');
+        if (visibleTools.length === 0) {
+          sec.classList.add('hidden-by-filter');
+        } else {
+          sec.classList.remove('hidden-by-filter');
+        }
+      });
+
+      filterCount.textContent = matches + (matches === 1 ? ' match' : ' matches');
+      filterCount.classList.remove('hidden');
+    });
+
+    // Search
+    const searchIndex = [
+      { title: 'Overview', url: './', section: 'Getting Started', keywords: 'forge mcp terminal pty overview introduction' },
+      { title: 'Installation & Quickstart', url: 'getting-started.html', section: 'Getting Started', keywords: 'install npm npx claude code codex setup quickstart smoke test' },
+      { title: 'Best Practices', url: 'guides.html', section: 'Guides', keywords: 'run_command create_terminal wait_for patterns best practices' },
+      { title: 'Multi-Agent Orchestration', url: 'guides.html#multi-agent', section: 'Guides', keywords: 'spawn claude codex gemini worktree delegate task multi agent' },
+      { title: 'Web Dashboard', url: 'guides.html#dashboard', section: 'Guides', keywords: 'dashboard web ui browser websocket live terminal monitor' },
+      { title: 'Desktop App', url: 'guides.html#desktop', section: 'Guides', keywords: 'desktop electron macos app native tray' },
+      { title: 'Session Templates', url: 'guides.html#templates', section: 'Guides', keywords: 'template next vite docker shell npm test' },
+      { title: 'Tools Reference', url: 'tools.html', section: 'Reference', keywords: 'create_terminal read_terminal write_terminal run_command wait_for grep subscribe close list tools api' },
+      { title: 'create_terminal', url: 'tools.html#create_terminal', section: 'Tools', keywords: 'create terminal spawn pty session' },
+      { title: 'run_command', url: 'tools.html#run_command', section: 'Tools', keywords: 'run command execute build test' },
+      { title: 'read_terminal', url: 'tools.html#read_terminal', section: 'Tools', keywords: 'read terminal output incremental buffer' },
+      { title: 'write_terminal', url: 'tools.html#write_terminal', section: 'Tools', keywords: 'write terminal input send' },
+      { title: 'wait_for', url: 'tools.html#wait_for', section: 'Tools', keywords: 'wait for pattern exit timeout' },
+      { title: 'spawn_claude', url: 'tools.html#spawn_claude', section: 'Tools', keywords: 'spawn claude agent sub-agent worktree' },
+      { title: 'spawn_codex', url: 'tools.html#spawn_codex', section: 'Tools', keywords: 'spawn codex agent sub-agent' },
+      { title: 'spawn_gemini', url: 'tools.html#spawn_gemini', section: 'Tools', keywords: 'spawn gemini agent sub-agent' },
+      { title: 'delegate_task', url: 'tools.html#delegate_task', section: 'Tools', keywords: 'delegate task agent interactive oneshot' },
+      { title: 'Configuration', url: 'configuration.html', section: 'Reference', keywords: 'config flag env var environment max sessions idle timeout buffer size port dashboard auth token' },
+      { title: 'Architecture', url: 'architecture.html', section: 'Reference', keywords: 'architecture ring buffer xterm headless pty session manager design data flow' },
+    ];
+
+    const searchInput = document.getElementById('docs-search');
+    const searchResults = document.getElementById('search-results');
+
+    searchInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      if (q.length < 2) { searchResults.classList.add('hidden'); return; }
+
+      const matches = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(q) ||
+        item.keywords.includes(q) ||
+        item.section.toLowerCase().includes(q)
+      ).slice(0, 8);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="px-4 py-3 text-sm text-muted">No results found</div>';
+      } else {
+        searchResults.innerHTML = matches.map(m =>
+          `<a href="${m.url}" class="block px-4 py-2.5 hover:bg-raised/50 transition-colors border-b border-border last:border-0">
+            <div class="text-sm text-bright">${m.title}</div>
+            <div class="text-xs text-muted">${m.section}</div>
+          </a>`
+        ).join('');
+      }
+      searchResults.classList.remove('hidden');
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => searchResults.classList.add('hidden'), 150);
+    });
+    searchInput.addEventListener('focus', function() {
+      if (this.value.trim().length >= 2) searchResults.classList.remove('hidden');
+    });
+
+    // Keyboard shortcut: / to focus search
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput && document.activeElement !== toolFilter) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+      if (e.key === 'Escape') {
+        searchInput.blur();
+        toolFilter.blur();
+      }
+    });
+  </script>
+</body>
+</html>

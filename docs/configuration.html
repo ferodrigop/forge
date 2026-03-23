@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration — Forge</title>
+  <meta name="description" content="Forge configuration reference — CLI flags, environment variables, defaults, and example configurations.">
+  <meta property="og:title" content="Configuration — Forge">
+  <meta property="og:description" content="CLI flags, environment variables, defaults, and example configurations for Forge.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://forgemcp.dev/og-image.png">
+  <meta property="og:url" content="https://forgemcp.dev/docs/configuration.html">
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0MVDNLEWLK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-0MVDNLEWLK');
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            void: '#06090f',
+            surface: '#0d1117',
+            raised: '#161b22',
+            border: '#21262d',
+            'border-bright': '#30363d',
+            muted: '#7d8590',
+            subtle: '#c9d1d9',
+            bright: '#e6edf3',
+            accent: '#4a9eff',
+            'accent-dim': '#1a3a5c',
+            glow: '#7ee787',
+            'glow-dim': '#1a3d2a',
+            warn: '#d29922',
+            err: '#f85149',
+          },
+          fontFamily: {
+            mono: ['"IBM Plex Mono"', '"Fira Code"', 'Consolas', 'monospace'],
+            display: ['"Space Mono"', '"IBM Plex Mono"', 'monospace'],
+            body: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #30363d; }
+
+    .sidebar-link {
+      transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+    }
+    .sidebar-link:hover {
+      color: #e6edf3;
+      background-color: rgba(74, 158, 255, 0.05);
+    }
+    .sidebar-link.active {
+      color: #4a9eff;
+      border-left-color: #4a9eff;
+      background-color: rgba(74, 158, 255, 0.08);
+    }
+    .card-hover {
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .card-hover:hover {
+      border-color: #30363d;
+      box-shadow: 0 0 40px rgba(74, 158, 255, 0.06), 0 8px 32px rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .glow-text {
+      text-shadow: 0 0 20px rgba(78, 158, 255, 0.3), 0 0 40px rgba(78, 158, 255, 0.1);
+    }
+
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      .docs-sidebar { display: none; }
+      .docs-sidebar.open { display: block; position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 40; background: #0d1117; border-right: 1px solid #21262d; overflow-y: auto; }
+      .sidebar-overlay { display: none; }
+      .sidebar-overlay.open { display: block; position: fixed; inset: 0; top: 56px; z-index: 39; background: rgba(0,0,0,0.5); }
+    }
+  </style>
+</head>
+<body class="bg-void text-subtle font-body antialiased">
+
+  <!-- ====== NAV ====== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Mobile sidebar toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden text-muted hover:text-bright p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="../" class="flex items-center gap-3 group">
+          <img src="../forge-logo.png" alt="Forge" class="w-7 h-7 rounded-md">
+          <span class="font-display font-bold text-bright tracking-tight">forge</span>
+          <span class="text-xs font-mono text-muted border border-border rounded px-1.5 py-0.5">docs</span>
+        </a>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Search -->
+        <div class="relative hidden sm:block">
+          <input type="text" id="docs-search" placeholder="Search docs..." class="bg-surface border border-border rounded-lg px-3 py-1.5 pl-8 text-sm text-bright placeholder-muted/50 focus:outline-none focus:border-accent/50 w-48 lg:w-64" autocomplete="off">
+          <svg class="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <div id="search-results" class="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-xl max-h-80 overflow-y-auto hidden z-50"></div>
+        </div>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="text-muted hover:text-bright transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="max-w-[90rem] mx-auto flex pt-14">
+    <!-- ====== SIDEBAR ====== -->
+    <aside class="docs-sidebar w-64 flex-shrink-0 border-r border-border h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto py-6 px-4" id="docs-sidebar">
+      <div class="space-y-6">
+        <!-- Getting Started -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Getting Started</p>
+          <div class="space-y-0.5">
+            <a href="./" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Overview</a>
+            <a href="getting-started.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Installation & Quickstart</a>
+          </div>
+        </div>
+
+        <!-- Guides -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Guides</p>
+          <div class="space-y-0.5">
+            <a href="guides.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Best Practices</a>
+            <a href="guides.html#multi-agent" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Multi-Agent Orchestration</a>
+            <a href="guides.html#dashboard" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Web Dashboard</a>
+            <a href="guides.html#desktop" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Desktop App</a>
+            <a href="guides.html#templates" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Session Templates</a>
+          </div>
+        </div>
+
+        <!-- Reference -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Reference</p>
+          <div class="space-y-0.5">
+            <a href="tools.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Tools Reference</a>
+            <a href="configuration.html" class="sidebar-link active block text-sm px-3 py-1.5 rounded-md border-l-2 border-transparent text-bright">Configuration</a>
+            <a href="architecture.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Architecture</a>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== MAIN CONTENT ====== -->
+    <main class="flex-1 min-w-0 px-6 sm:px-10 lg:px-16 py-10 max-w-4xl">
+
+      <!-- Hero -->
+      <div class="mb-12">
+        <h1 class="font-display font-bold text-3xl sm:text-4xl text-bright mb-4 glow-text">Configuration</h1>
+        <p class="text-lg text-muted leading-relaxed">
+          CLI flags, environment variables, defaults, and example configurations for Forge.
+        </p>
+      </div>
+
+      <!-- Precedence -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Precedence</h2>
+        <div class="bg-surface border border-border rounded-xl p-6">
+          <div class="flex items-center gap-3 font-mono text-sm">
+            <span class="bg-accent/10 border border-accent/20 text-accent px-3 py-1.5 rounded-lg font-semibold">CLI flag</span>
+            <svg class="w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <span class="bg-warn/10 border border-warn/20 text-warn px-3 py-1.5 rounded-lg font-semibold">Environment variable</span>
+            <svg class="w-4 h-4 text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <span class="bg-raised border border-border-bright text-muted px-3 py-1.5 rounded-lg font-semibold">Default</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration Table -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Configuration Table</h2>
+        <div class="overflow-x-auto rounded-xl border border-border">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-surface border-b border-border">
+                <th class="text-left px-4 py-3 font-mono text-xs uppercase tracking-wider text-accent">Flag</th>
+                <th class="text-left px-4 py-3 font-mono text-xs uppercase tracking-wider text-accent">Env Var</th>
+                <th class="text-left px-4 py-3 font-mono text-xs uppercase tracking-wider text-accent">Default</th>
+                <th class="text-left px-4 py-3 font-mono text-xs uppercase tracking-wider text-accent">Description</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--max-sessions</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_MAX_SESSIONS</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">10</td>
+                <td class="px-4 py-3 text-subtle">Max concurrent PTY sessions</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--idle-timeout</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_IDLE_TIMEOUT</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">1800000</td>
+                <td class="px-4 py-3 text-subtle">Session idle timeout in ms (30 min)</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--buffer-size</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_BUFFER_SIZE</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">1048576</td>
+                <td class="px-4 py-3 text-subtle">Ring buffer size per session (1 MB)</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--shell</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">SHELL</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">/bin/bash</td>
+                <td class="px-4 py-3 text-subtle">Default shell for create_terminal</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--claude-path</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_CLAUDE_PATH</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">claude</td>
+                <td class="px-4 py-3 text-subtle">Path to Claude CLI binary</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--auth-token</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_AUTH_TOKEN</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted italic">unset</td>
+                <td class="px-4 py-3 text-subtle">Require Bearer token for /mcp, /api, and /ws</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--dashboard</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_DASHBOARD</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">off</td>
+                <td class="px-4 py-3 text-subtle">Enable web dashboard</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--port</td>
+                <td class="px-4 py-3 font-mono text-xs text-warn whitespace-nowrap">FORGE_DASHBOARD_PORT</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">3141</td>
+                <td class="px-4 py-3 text-subtle">Dashboard port</td>
+              </tr>
+              <tr class="hover:bg-surface/50 transition-colors">
+                <td class="px-4 py-3 font-mono text-xs text-glow whitespace-nowrap">--verbose</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted italic">&mdash;</td>
+                <td class="px-4 py-3 font-mono text-xs text-muted">off</td>
+                <td class="px-4 py-3 text-subtle">Enable debug logging to stderr</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Example Configurations -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Example Configurations</h2>
+        <div class="space-y-6">
+
+          <!-- Claude Code with dashboard -->
+          <div>
+            <h3 class="font-display font-bold text-bright mb-3">Claude Code with dashboard</h3>
+            <div class="bg-surface border border-border rounded-xl p-5 overflow-x-auto">
+              <pre class="font-mono text-sm text-subtle leading-relaxed"><code>{
+  <span class="text-accent">"mcpServers"</span>: {
+    <span class="text-accent">"forge"</span>: {
+      <span class="text-accent">"command"</span>: <span class="text-glow">"npx"</span>,
+      <span class="text-accent">"args"</span>: [<span class="text-glow">"forge-terminal-mcp"</span>, <span class="text-glow">"--dashboard"</span>, <span class="text-glow">"--port"</span>, <span class="text-glow">"3141"</span>]
+    }
+  }
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Custom config with all options -->
+          <div>
+            <h3 class="font-display font-bold text-bright mb-3">Custom config with all options</h3>
+            <div class="bg-surface border border-border rounded-xl p-5 overflow-x-auto">
+              <pre class="font-mono text-sm text-subtle leading-relaxed"><code>{
+  <span class="text-accent">"mcpServers"</span>: {
+    <span class="text-accent">"forge"</span>: {
+      <span class="text-accent">"command"</span>: <span class="text-glow">"npx"</span>,
+      <span class="text-accent">"args"</span>: [<span class="text-glow">"forge-terminal-mcp"</span>, <span class="text-glow">"--max-sessions"</span>, <span class="text-glow">"20"</span>, <span class="text-glow">"--idle-timeout"</span>, <span class="text-glow">"3600000"</span>, <span class="text-glow">"--dashboard"</span>]
+    }
+  }
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- With auth token -->
+          <div>
+            <h3 class="font-display font-bold text-bright mb-3">With auth token</h3>
+            <div class="bg-surface border border-border rounded-xl p-5 overflow-x-auto">
+              <pre class="font-mono text-sm text-subtle leading-relaxed"><code>{
+  <span class="text-accent">"mcpServers"</span>: {
+    <span class="text-accent">"forge"</span>: {
+      <span class="text-accent">"command"</span>: <span class="text-glow">"npx"</span>,
+      <span class="text-accent">"args"</span>: [<span class="text-glow">"forge-terminal-mcp"</span>, <span class="text-glow">"--dashboard"</span>, <span class="text-glow">"--auth-token"</span>, <span class="text-glow">"my-secret-token"</span>]
+    }
+  }
+}</code></pre>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Daemon Mode -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Daemon Mode</h2>
+        <p class="text-sm text-subtle leading-relaxed mb-4">Start Forge as a background daemon for HTTP MCP clients:</p>
+        <div class="bg-surface border border-border rounded-xl p-5 overflow-x-auto">
+          <pre class="font-mono text-sm leading-relaxed"><code><span class="text-glow select-none">$ </span><span class="text-bright">npx forge-terminal-mcp start -d --port 3141</span>
+<span class="text-glow select-none">$ </span><span class="text-bright">npx forge-terminal-mcp status</span>
+<span class="text-glow select-none">$ </span><span class="text-bright">npx forge-terminal-mcp stop</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Data Storage -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Data Storage</h2>
+        <p class="text-sm text-subtle leading-relaxed mb-4">Forge stores data in <code class="bg-raised px-1.5 py-0.5 rounded text-bright font-mono text-xs">~/.forge/</code>:</p>
+        <div class="bg-surface border border-border rounded-xl p-5">
+          <ul class="space-y-3 text-sm">
+            <li class="flex items-start gap-3">
+              <code class="bg-raised px-2 py-0.5 rounded text-accent font-mono text-xs whitespace-nowrap mt-0.5">sessions.json</code>
+              <span class="text-subtle">Session metadata (reloaded on restart)</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <code class="bg-raised px-2 py-0.5 rounded text-accent font-mono text-xs whitespace-nowrap mt-0.5">history/{id}.jsonl</code>
+              <span class="text-subtle">Per-session tool call history</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Prev/Next nav -->
+      <div class="flex justify-between pt-8 border-t border-border">
+        <a href="tools.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Prev: Tools Reference
+        </a>
+        <a href="architecture.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          Next: Architecture
+          <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="border-t border-border py-8 mt-8">
+    <div class="max-w-[90rem] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="../forge-logo.png" alt="Forge" class="w-5 h-5 rounded">
+        <span class="font-display font-bold text-bright text-sm">forge</span>
+        <span class="text-xs text-muted">MIT License</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="../" class="hover:text-bright transition-colors">Home</a>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="hover:text-bright transition-colors">GitHub</a>
+        <a href="https://www.npmjs.com/package/forge-terminal-mcp" target="_blank" rel="noopener" class="hover:text-bright transition-colors">npm</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Copy to clipboard
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const svg = btn.querySelector('svg');
+        const orig = svg.innerHTML;
+        svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+        btn.classList.add('text-glow');
+        setTimeout(() => { svg.innerHTML = orig; btn.classList.remove('text-glow'); }, 2000);
+      });
+    }
+
+    // Mobile sidebar toggle
+    function toggleSidebar() {
+      document.getElementById('docs-sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('open');
+    }
+
+    // Search
+    const searchIndex = [
+      { title: 'Overview', url: './', section: 'Getting Started', keywords: 'forge mcp terminal pty overview introduction' },
+      { title: 'Installation & Quickstart', url: 'getting-started.html', section: 'Getting Started', keywords: 'install npm npx claude code codex setup quickstart smoke test' },
+      { title: 'Best Practices', url: 'guides.html', section: 'Guides', keywords: 'run_command create_terminal wait_for patterns best practices' },
+      { title: 'Multi-Agent Orchestration', url: 'guides.html#multi-agent', section: 'Guides', keywords: 'spawn claude codex gemini worktree delegate task multi agent' },
+      { title: 'Web Dashboard', url: 'guides.html#dashboard', section: 'Guides', keywords: 'dashboard web ui browser websocket live terminal monitor' },
+      { title: 'Desktop App', url: 'guides.html#desktop', section: 'Guides', keywords: 'desktop electron macos app native tray' },
+      { title: 'Session Templates', url: 'guides.html#templates', section: 'Guides', keywords: 'template next vite docker shell npm test' },
+      { title: 'Tools Reference', url: 'tools.html', section: 'Reference', keywords: 'create_terminal read_terminal write_terminal run_command wait_for grep subscribe close list tools api' },
+      { title: 'create_terminal', url: 'tools.html#create_terminal', section: 'Tools', keywords: 'create terminal spawn pty session' },
+      { title: 'run_command', url: 'tools.html#run_command', section: 'Tools', keywords: 'run command execute build test' },
+      { title: 'read_terminal', url: 'tools.html#read_terminal', section: 'Tools', keywords: 'read terminal output incremental buffer' },
+      { title: 'write_terminal', url: 'tools.html#write_terminal', section: 'Tools', keywords: 'write terminal input send' },
+      { title: 'wait_for', url: 'tools.html#wait_for', section: 'Tools', keywords: 'wait for pattern exit timeout' },
+      { title: 'spawn_claude', url: 'tools.html#spawn_claude', section: 'Tools', keywords: 'spawn claude agent sub-agent worktree' },
+      { title: 'spawn_codex', url: 'tools.html#spawn_codex', section: 'Tools', keywords: 'spawn codex agent sub-agent' },
+      { title: 'spawn_gemini', url: 'tools.html#spawn_gemini', section: 'Tools', keywords: 'spawn gemini agent sub-agent' },
+      { title: 'delegate_task', url: 'tools.html#delegate_task', section: 'Tools', keywords: 'delegate task agent interactive oneshot' },
+      { title: 'Configuration', url: 'configuration.html', section: 'Reference', keywords: 'config flag env var environment max sessions idle timeout buffer size port dashboard auth token' },
+      { title: 'Architecture', url: 'architecture.html', section: 'Reference', keywords: 'architecture ring buffer xterm headless pty session manager design data flow' },
+    ];
+
+    const searchInput = document.getElementById('docs-search');
+    const searchResults = document.getElementById('search-results');
+
+    searchInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      if (q.length < 2) { searchResults.classList.add('hidden'); return; }
+
+      const matches = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(q) ||
+        item.keywords.includes(q) ||
+        item.section.toLowerCase().includes(q)
+      ).slice(0, 8);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="px-4 py-3 text-sm text-muted">No results found</div>';
+      } else {
+        searchResults.innerHTML = matches.map(m =>
+          `<a href="${m.url}" class="block px-4 py-2.5 hover:bg-raised/50 transition-colors border-b border-border last:border-0">
+            <div class="text-sm text-bright">${m.title}</div>
+            <div class="text-xs text-muted">${m.section}</div>
+          </a>`
+        ).join('');
+      }
+      searchResults.classList.remove('hidden');
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => searchResults.classList.add('hidden'), 150);
+    });
+    searchInput.addEventListener('focus', function() {
+      if (this.value.trim().length >= 2) searchResults.classList.remove('hidden');
+    });
+
+    // Keyboard shortcut: / to focus search
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+      if (e.key === 'Escape') searchInput.blur();
+    });
+  </script>
+</body>
+</html>

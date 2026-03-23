@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guides — Forge</title>
+  <meta name="description" content="Forge guides — best practices, multi-agent orchestration, dashboard, desktop app, and session templates.">
+  <meta property="og:title" content="Forge Guides">
+  <meta property="og:description" content="Best practices, multi-agent workflows, dashboard setup, session templates, and more.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://forgemcp.dev/og-image.png">
+  <meta property="og:url" content="https://forgemcp.dev/docs/guides.html">
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0MVDNLEWLK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-0MVDNLEWLK');
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            void: '#06090f',
+            surface: '#0d1117',
+            raised: '#161b22',
+            border: '#21262d',
+            'border-bright': '#30363d',
+            muted: '#7d8590',
+            subtle: '#c9d1d9',
+            bright: '#e6edf3',
+            accent: '#4a9eff',
+            'accent-dim': '#1a3a5c',
+            glow: '#7ee787',
+            'glow-dim': '#1a3d2a',
+            warn: '#d29922',
+            err: '#f85149',
+          },
+          fontFamily: {
+            mono: ['"IBM Plex Mono"', '"Fira Code"', 'Consolas', 'monospace'],
+            display: ['"Space Mono"', '"IBM Plex Mono"', 'monospace'],
+            body: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #21262d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #30363d; }
+
+    .sidebar-link {
+      transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+    }
+    .sidebar-link:hover {
+      color: #e6edf3;
+      background-color: rgba(74, 158, 255, 0.05);
+    }
+    .sidebar-link.active {
+      color: #4a9eff;
+      border-left-color: #4a9eff;
+      background-color: rgba(74, 158, 255, 0.08);
+    }
+    .card-hover {
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .card-hover:hover {
+      border-color: #30363d;
+      box-shadow: 0 0 40px rgba(74, 158, 255, 0.06), 0 8px 32px rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .glow-text {
+      text-shadow: 0 0 20px rgba(78, 158, 255, 0.3), 0 0 40px rgba(78, 158, 255, 0.1);
+    }
+
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      .docs-sidebar { display: none; }
+      .docs-sidebar.open { display: block; position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 40; background: #0d1117; border-right: 1px solid #21262d; overflow-y: auto; }
+      .sidebar-overlay { display: none; }
+      .sidebar-overlay.open { display: block; position: fixed; inset: 0; top: 56px; z-index: 39; background: rgba(0,0,0,0.5); }
+    }
+  </style>
+</head>
+<body class="bg-void text-subtle font-body antialiased">
+
+  <!-- ====== NAV ====== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
+    <div class="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Mobile sidebar toggle -->
+        <button onclick="toggleSidebar()" class="lg:hidden text-muted hover:text-bright p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="../" class="flex items-center gap-3 group">
+          <img src="../forge-logo.png" alt="Forge" class="w-7 h-7 rounded-md">
+          <span class="font-display font-bold text-bright tracking-tight">forge</span>
+          <span class="text-xs font-mono text-muted border border-border rounded px-1.5 py-0.5">docs</span>
+        </a>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Search -->
+        <div class="relative hidden sm:block">
+          <input type="text" id="docs-search" placeholder="Search docs..." class="bg-surface border border-border rounded-lg px-3 py-1.5 pl-8 text-sm text-bright placeholder-muted/50 focus:outline-none focus:border-accent/50 w-48 lg:w-64" autocomplete="off">
+          <svg class="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <div id="search-results" class="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-xl max-h-80 overflow-y-auto hidden z-50"></div>
+        </div>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="text-muted hover:text-bright transition-colors">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="max-w-[90rem] mx-auto flex pt-14">
+    <!-- ====== SIDEBAR ====== -->
+    <aside class="docs-sidebar w-64 flex-shrink-0 border-r border-border h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto py-6 px-4" id="docs-sidebar">
+      <div class="space-y-6">
+        <!-- Getting Started -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Getting Started</p>
+          <div class="space-y-0.5">
+            <a href="./" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Overview</a>
+            <a href="getting-started.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Installation & Quickstart</a>
+          </div>
+        </div>
+
+        <!-- Guides -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Guides</p>
+          <div class="space-y-0.5">
+            <a href="guides.html" class="sidebar-link active block text-sm px-3 py-1.5 rounded-md border-l-2 border-transparent text-bright">Best Practices</a>
+            <a href="guides.html#multi-agent" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Multi-Agent Orchestration</a>
+            <a href="guides.html#dashboard" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Web Dashboard</a>
+            <a href="guides.html#desktop" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Desktop App</a>
+            <a href="guides.html#templates" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Session Templates</a>
+          </div>
+        </div>
+
+        <!-- Reference -->
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-accent mb-2 px-3">Reference</p>
+          <div class="space-y-0.5">
+            <a href="tools.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Tools Reference</a>
+            <a href="configuration.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Configuration</a>
+            <a href="architecture.html" class="sidebar-link block text-sm text-muted px-3 py-1.5 rounded-md border-l-2 border-transparent">Architecture</a>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== MAIN CONTENT ====== -->
+    <main class="flex-1 min-w-0 px-6 sm:px-10 lg:px-16 py-10 max-w-4xl">
+
+      <!-- Hero -->
+      <div class="mb-12">
+        <h1 class="font-display font-bold text-3xl sm:text-4xl text-bright mb-4 glow-text">Guides</h1>
+        <p class="text-lg text-muted leading-relaxed">
+          Best practices, multi-agent orchestration, dashboard setup, session templates, and token efficiency tips.
+        </p>
+      </div>
+
+      <!-- Best Practices -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Best Practices</h2>
+
+        <!-- run_command vs create_terminal -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-lg text-bright mb-3"><code class="text-accent">run_command</code> vs <code class="text-accent">create_terminal</code></h3>
+          <p class="text-sm text-subtle leading-relaxed mb-4">
+            Use <strong class="text-bright">run_command</strong> for one-shot tasks that exit (build, test, install). Use <strong class="text-bright">create_terminal</strong> for ongoing sessions (dev servers, watchers, REPLs).
+          </p>
+          <div class="bg-surface border border-border rounded-xl p-5 font-mono text-sm overflow-x-auto">
+            <div class="text-muted mb-1"># Good — build is a one-shot task</div>
+            <div class="text-subtle">run_command({ command: <span class="text-glow">"npm run build && npm test"</span> })</div>
+            <div class="mt-4 text-muted mb-1"># Good — dev server needs to stay alive</div>
+            <div class="text-subtle">create_terminal({ command: <span class="text-glow">"npm run dev"</span>, name: <span class="text-glow">"dev-server"</span> })</div>
+            <div class="text-subtle">wait_for({ id, pattern: <span class="text-glow">"ready on"</span> })</div>
+          </div>
+        </div>
+
+        <!-- waitForExit vs pattern matching -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-lg text-bright mb-3"><code class="text-accent">waitForExit</code> vs pattern matching</h3>
+          <div class="space-y-3 text-sm text-subtle leading-relaxed">
+            <div class="flex items-start gap-3">
+              <span class="text-accent font-mono text-xs mt-0.5 flex-shrink-0">pattern</span>
+              <p><strong class="text-bright">Pattern matching (default)</strong> — returns as soon as the line appears. The process keeps running.</p>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-warn font-mono text-xs mt-0.5 flex-shrink-0">exit</span>
+              <p><strong class="text-bright">waitForExit: true</strong> — waits for the process to finish, then returns everything.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- fromSession -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-lg text-bright mb-3"><code class="text-accent">fromSession</code> for sub-agents</h3>
+          <p class="text-sm text-subtle leading-relaxed">
+            Use <code class="bg-raised px-1.5 py-0.5 rounded text-accent text-xs">fromSession</code> instead of hardcoding paths. It inherits <code class="bg-raised px-1.5 py-0.5 rounded text-xs">cwd</code> from an existing session, keeping your agent configurations portable.
+          </p>
+        </div>
+
+        <!-- Worktrees -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-lg text-bright mb-3">Worktrees for parallel agents</h3>
+          <p class="text-sm text-subtle leading-relaxed">
+            Use <code class="bg-raised px-1.5 py-0.5 rounded text-accent text-xs">worktree: true</code> to isolate changes when running multiple agents on the same codebase. Each agent gets its own git worktree, preventing file conflicts.
+          </p>
+        </div>
+      </div>
+
+      <!-- Multi-Agent Orchestration -->
+      <div class="mb-12" id="multi-agent">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Multi-Agent Orchestration</h2>
+        <div class="space-y-4 text-sm text-subtle leading-relaxed">
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div class="bg-surface border border-border rounded-lg p-4">
+              <p class="font-mono text-xs text-glow mb-2">Spawn agents</p>
+              <p class="text-xs text-muted">Use <code class="bg-raised px-1 rounded">spawn_claude</code>, <code class="bg-raised px-1 rounded">spawn_codex</code>, <code class="bg-raised px-1 rounded">spawn_gemini</code> to launch sub-agents.</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-4">
+              <p class="font-mono text-xs text-accent mb-2">Tag & group</p>
+              <p class="text-xs text-muted">Use tags for logical grouping: <code class="bg-raised px-1 rounded">"research"</code>, <code class="bg-raised px-1 rounded">"feature"</code>. Clean up with <code class="bg-raised px-1 rounded">close_group</code>.</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-4">
+              <p class="font-mono text-xs text-warn mb-2">Isolation</p>
+              <p class="text-xs text-muted">Use <code class="bg-raised px-1 rounded">worktree: true</code> for full filesystem isolation between agents.</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-4">
+              <p class="font-mono text-xs text-err mb-2">Delegation</p>
+              <p class="text-xs text-muted">Use <code class="bg-raised px-1 rounded">delegate_task</code> for interactive multi-turn conversations between agents.</p>
+            </div>
+          </div>
+          <p class="text-muted">
+            Monitor all sessions with <code class="bg-raised px-1.5 py-0.5 rounded text-xs">read_multiple</code> and <code class="bg-raised px-1.5 py-0.5 rounded text-xs">list_terminals</code>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Web Dashboard -->
+      <div class="mb-12" id="dashboard">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Web Dashboard</h2>
+        <div class="text-sm text-subtle leading-relaxed space-y-4">
+          <p>Enable with <code class="bg-raised px-1.5 py-0.5 rounded text-accent text-xs">--dashboard --port 3141</code>. Open <a href="http://localhost:3141" class="text-accent hover:underline">http://localhost:3141</a>.</p>
+
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div class="bg-surface border border-border rounded-lg p-3 flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-glow flex-shrink-0"></div>
+              <span class="text-xs text-muted">Live terminal output via WebSocket</span>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3 flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-accent flex-shrink-0"></div>
+              <span class="text-xs text-muted">Activity log (tool calls for agent sessions)</span>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3 flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-warn flex-shrink-0"></div>
+              <span class="text-xs text-muted">Chat history browser (Claude, Codex, Gemini)</span>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3 flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-err flex-shrink-0"></div>
+              <span class="text-xs text-muted">Session management (create, close, switch)</span>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3 flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-glow flex-shrink-0"></div>
+              <span class="text-xs text-muted">Auto-follow mode</span>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3 flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-accent flex-shrink-0"></div>
+              <span class="text-xs text-muted">Memory monitoring</span>
+            </div>
+          </div>
+
+          <p class="text-muted text-xs">
+            If <code class="bg-raised px-1 rounded">--auth-token</code> is enabled, access with <code class="bg-raised px-1 rounded">?token=YOUR_TOKEN</code>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Desktop App -->
+      <div class="mb-12" id="desktop">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Desktop App</h2>
+        <div class="text-sm text-subtle leading-relaxed space-y-4">
+          <p>macOS Electron app. Currently requires running from source (pending Apple code signing).</p>
+
+          <div class="bg-surface border border-border rounded-xl p-5 font-mono text-sm overflow-x-auto">
+            <div class="flex items-center gap-2 mb-1"><span class="text-glow select-none">$</span> <span class="text-subtle">npm run build</span></div>
+            <div class="flex items-center gap-2 mb-1"><span class="text-glow select-none">$</span> <span class="text-subtle">cd desktop && npm install</span></div>
+            <div class="flex items-center gap-2 mb-1"><span class="text-glow select-none">$</span> <span class="text-subtle">npx @electron/rebuild</span></div>
+            <div class="flex items-center gap-2"><span class="text-glow select-none">$</span> <span class="text-subtle">npm run dev</span></div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="text-xs text-muted">Native title bar & system tray</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="text-xs text-muted">Close-to-tray & notifications</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="text-xs text-muted">Auto-update support</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-3">
+              <p class="text-xs text-muted">Security hardened</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Templates -->
+      <div class="mb-12" id="templates">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Session Templates</h2>
+        <div class="text-sm text-subtle leading-relaxed space-y-4">
+          <p>Built-in templates for common workflows:</p>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border border-border rounded-xl overflow-hidden">
+              <thead>
+                <tr class="bg-surface">
+                  <th class="text-left px-4 py-3 font-mono text-xs text-accent border-b border-border">Template</th>
+                  <th class="text-left px-4 py-3 font-mono text-xs text-accent border-b border-border">Command</th>
+                  <th class="text-left px-4 py-3 font-mono text-xs text-accent border-b border-border">Tags</th>
+                  <th class="text-left px-4 py-3 font-mono text-xs text-accent border-b border-border">Wait For</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2.5 font-mono text-xs text-bright">shell</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted">$SHELL</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">shell</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">&mdash;</td>
+                </tr>
+                <tr class="border-b border-border bg-raised/30">
+                  <td class="px-4 py-2.5 font-mono text-xs text-bright">next-dev</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted">npx next dev</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">dev-server, next</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-glow">"Ready"</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2.5 font-mono text-xs text-bright">vite-dev</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted">npx vite</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">dev-server, vite</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-glow">"Local:"</td>
+                </tr>
+                <tr class="border-b border-border bg-raised/30">
+                  <td class="px-4 py-2.5 font-mono text-xs text-bright">docker-compose</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted">docker compose up</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">docker</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">&mdash;</td>
+                </tr>
+                <tr class="border-b border-border">
+                  <td class="px-4 py-2.5 font-mono text-xs text-bright">npm-test</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted">npm test</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">test</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">&mdash;</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2.5 font-mono text-xs text-bright">npm-test-watch</td>
+                  <td class="px-4 py-2.5 font-mono text-xs text-muted">npm run test:watch</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">test, watch</td>
+                  <td class="px-4 py-2.5 text-xs text-muted">&mdash;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Token Efficiency -->
+      <div class="mb-12">
+        <h2 class="font-display font-bold text-xl text-bright mb-6 pb-2 border-b border-border">Token Efficiency</h2>
+        <div class="text-sm text-subtle leading-relaxed space-y-4">
+          <p>
+            Forge uses a <strong class="text-bright">ring buffer with per-consumer cursors</strong> — each <code class="bg-raised px-1.5 py-0.5 rounded text-accent text-xs">read_terminal</code> call returns only <strong class="text-bright">new output</strong> since the last read. No repeated content, no wasted tokens.
+          </p>
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div class="bg-surface border border-border rounded-lg p-4 text-center">
+              <p class="font-display font-bold text-2xl text-glow mb-1">90%</p>
+              <p class="text-xs text-muted">Context token savings</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-4 text-center">
+              <p class="font-display font-bold text-2xl text-accent mb-1">30 KB</p>
+              <p class="text-xs text-muted">Read cap per call</p>
+            </div>
+            <div class="bg-surface border border-border rounded-lg p-4 text-center">
+              <p class="font-display font-bold text-2xl text-warn mb-1">Cursor</p>
+              <p class="text-xs text-muted">Per-consumer tracking</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prev/Next nav -->
+      <div class="flex justify-between pt-8 border-t border-border">
+        <a href="getting-started.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Prev: Getting Started
+        </a>
+        <a href="tools.html" class="group flex items-center gap-2 text-sm text-muted hover:text-accent transition-colors">
+          Next: Tools Reference
+          <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="border-t border-border py-8 mt-8">
+    <div class="max-w-[90rem] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="../forge-logo.png" alt="Forge" class="w-5 h-5 rounded">
+        <span class="font-display font-bold text-bright text-sm">forge</span>
+        <span class="text-xs text-muted">MIT License</span>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-muted">
+        <a href="../" class="hover:text-bright transition-colors">Home</a>
+        <a href="https://github.com/ferodrigop/forge" target="_blank" rel="noopener" class="hover:text-bright transition-colors">GitHub</a>
+        <a href="https://www.npmjs.com/package/forge-terminal-mcp" target="_blank" rel="noopener" class="hover:text-bright transition-colors">npm</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Copy to clipboard
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const svg = btn.querySelector('svg');
+        const orig = svg.innerHTML;
+        svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+        btn.classList.add('text-glow');
+        setTimeout(() => { svg.innerHTML = orig; btn.classList.remove('text-glow'); }, 2000);
+      });
+    }
+
+    // Mobile sidebar toggle
+    function toggleSidebar() {
+      document.getElementById('docs-sidebar').classList.toggle('open');
+      document.getElementById('sidebar-overlay').classList.toggle('open');
+    }
+
+    // Search
+    const searchIndex = [
+      { title: 'Overview', url: './', section: 'Getting Started', keywords: 'forge mcp terminal pty overview introduction' },
+      { title: 'Installation & Quickstart', url: 'getting-started.html', section: 'Getting Started', keywords: 'install npm npx claude code codex setup quickstart smoke test' },
+      { title: 'Best Practices', url: 'guides.html', section: 'Guides', keywords: 'run_command create_terminal wait_for patterns best practices' },
+      { title: 'Multi-Agent Orchestration', url: 'guides.html#multi-agent', section: 'Guides', keywords: 'spawn claude codex gemini worktree delegate task multi agent' },
+      { title: 'Web Dashboard', url: 'guides.html#dashboard', section: 'Guides', keywords: 'dashboard web ui browser websocket live terminal monitor' },
+      { title: 'Desktop App', url: 'guides.html#desktop', section: 'Guides', keywords: 'desktop electron macos app native tray' },
+      { title: 'Session Templates', url: 'guides.html#templates', section: 'Guides', keywords: 'template next vite docker shell npm test' },
+      { title: 'Tools Reference', url: 'tools.html', section: 'Reference', keywords: 'create_terminal read_terminal write_terminal run_command wait_for grep subscribe close list tools api' },
+      { title: 'create_terminal', url: 'tools.html#create_terminal', section: 'Tools', keywords: 'create terminal spawn pty session' },
+      { title: 'run_command', url: 'tools.html#run_command', section: 'Tools', keywords: 'run command execute build test' },
+      { title: 'read_terminal', url: 'tools.html#read_terminal', section: 'Tools', keywords: 'read terminal output incremental buffer' },
+      { title: 'write_terminal', url: 'tools.html#write_terminal', section: 'Tools', keywords: 'write terminal input send' },
+      { title: 'wait_for', url: 'tools.html#wait_for', section: 'Tools', keywords: 'wait for pattern exit timeout' },
+      { title: 'spawn_claude', url: 'tools.html#spawn_claude', section: 'Tools', keywords: 'spawn claude agent sub-agent worktree' },
+      { title: 'spawn_codex', url: 'tools.html#spawn_codex', section: 'Tools', keywords: 'spawn codex agent sub-agent' },
+      { title: 'spawn_gemini', url: 'tools.html#spawn_gemini', section: 'Tools', keywords: 'spawn gemini agent sub-agent' },
+      { title: 'delegate_task', url: 'tools.html#delegate_task', section: 'Tools', keywords: 'delegate task agent interactive oneshot' },
+      { title: 'Configuration', url: 'configuration.html', section: 'Reference', keywords: 'config flag env var environment max sessions idle timeout buffer size port dashboard auth token' },
+      { title: 'Architecture', url: 'architecture.html', section: 'Reference', keywords: 'architecture ring buffer xterm headless pty session manager design data flow' },
+    ];
+
+    const searchInput = document.getElementById('docs-search');
+    const searchResults = document.getElementById('search-results');
+
+    searchInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      if (q.length < 2) { searchResults.classList.add('hidden'); return; }
+
+      const matches = searchIndex.filter(item =>
+        item.title.toLowerCase().includes(q) ||
+        item.keywords.includes(q) ||
+        item.section.toLowerCase().includes(q)
+      ).slice(0, 8);
+
+      if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="px-4 py-3 text-sm text-muted">No results found</div>';
+      } else {
+        searchResults.innerHTML = matches.map(m =>
+          `<a href="${m.url}" class="block px-4 py-2.5 hover:bg-raised/50 transition-colors border-b border-border last:border-0">
+            <div class="text-sm text-bright">${m.title}</div>
+            <div class="text-xs text-muted">${m.section}</div>
+          </a>`
+        ).join('');
+      }
+      searchResults.classList.remove('hidden');
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => searchResults.classList.add('hidden'), 150);
+    });
+    searchInput.addEventListener('focus', function() {
+      if (this.value.trim().length >= 2) searchResults.classList.remove('hidden');
+    });
+
+    // Keyboard shortcut: / to focus search
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+      if (e.key === 'Escape') searchInput.blur();
+    });
+  </script>
+</body>
+</html>
