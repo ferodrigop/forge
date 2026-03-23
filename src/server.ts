@@ -33,7 +33,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
-    version: "0.7.0",
+    version: "0.9.0",
   });
 
   const subscriptions = new Map<string, Subscription>();
@@ -1365,7 +1365,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         content: [{
           type: "text" as const,
           text: JSON.stringify({
-            version: "0.7.0",
+            version: "0.9.0",
             uptime: Math.floor((Date.now() - serverStartTime) / 1000),
             sessions: {
               active: manager.count,
