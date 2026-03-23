@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Installation & Quickstart — Forge</title>
-  <meta name="description" content="Install Forge, connect it to Claude Code or Codex, and run your first command in 60 seconds.">
+  <meta name="description" content="Install Forge, connect it to Claude Code, Codex, or Gemini CLI, and run your first command in 60 seconds.">
   <meta property="og:title" content="Installation & Quickstart — Forge">
-  <meta property="og:description" content="Install Forge, connect it to Claude Code or Codex, and run your first command in 60 seconds.">
+  <meta property="og:description" content="Install Forge, connect it to Claude Code, Codex, or Gemini CLI, and run your first command in 60 seconds.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://forgemcp.dev/og-image.png">
   <meta property="og:url" content="https://forgemcp.dev/docs/getting-started.html">
@@ -175,7 +175,7 @@
       <!-- ====== Installation ====== -->
       <div class="mb-12" id="installation">
         <h2 class="font-display font-bold text-xl text-bright mb-4 pb-2 border-b border-border">Installation</h2>
-        <p class="text-sm text-subtle leading-relaxed mb-6">Three ways to use Forge:</p>
+        <p class="text-sm text-subtle leading-relaxed mb-6">Four ways to use Forge:</p>
 
         <!-- Option 1: npx -->
         <div class="mb-4">
@@ -191,9 +191,24 @@
           </div>
         </div>
 
-        <!-- Option 2: Global install -->
+        <!-- Option 2: Standalone binary -->
         <div class="mb-4">
-          <h3 class="font-display font-bold text-sm text-bright mb-2">2. Global install</h3>
+          <h3 class="font-display font-bold text-sm text-bright mb-2">2. Standalone binary (no Node.js required)</h3>
+          <div class="bg-surface border border-border rounded-xl p-4 relative group">
+            <div class="flex items-center gap-3 font-mono text-sm">
+              <span class="text-glow select-none">$</span>
+              <code class="text-bright">curl -fsSL https://forgemcp.dev/install.sh | sh</code>
+              <button onclick="copyText('curl -fsSL https://forgemcp.dev/install.sh | sh', this)" class="text-muted hover:text-bright transition-colors ml-auto flex-shrink-0 opacity-0 group-hover:opacity-100" title="Copy">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              </button>
+            </div>
+            <p class="text-xs text-muted mt-2">Downloads a prebuilt binary for macOS (arm64/x64) or Linux (x64/arm64) to <code class="text-subtle">~/.local/bin</code>.</p>
+          </div>
+        </div>
+
+        <!-- Option 3: Global install -->
+        <div class="mb-4">
+          <h3 class="font-display font-bold text-sm text-bright mb-2">3. Global install (npm)</h3>
           <div class="bg-surface border border-border rounded-xl p-4 relative group">
             <div class="flex items-center gap-3 font-mono text-sm">
               <span class="text-glow select-none">$</span>
@@ -207,7 +222,7 @@
 
         <!-- Option 3: From source -->
         <div class="mb-4">
-          <h3 class="font-display font-bold text-sm text-bright mb-2">3. From source</h3>
+          <h3 class="font-display font-bold text-sm text-bright mb-2">4. From source</h3>
           <div class="bg-surface border border-border rounded-xl p-4 relative group">
             <pre class="font-mono text-sm overflow-x-auto"><span class="text-glow select-none">$</span> <span class="text-bright">git clone https://github.com/ferodrigop/forge.git</span>
 <span class="text-glow select-none">$</span> <span class="text-bright">cd forge</span>
@@ -282,6 +297,21 @@
           </div>
         </div>
 
+        <!-- Gemini CLI -->
+        <div class="mb-8">
+          <h3 class="font-display font-bold text-base text-bright mb-3">Gemini CLI (HTTP)</h3>
+          <div class="bg-surface border border-border rounded-xl p-4 relative group">
+            <pre class="font-mono text-sm overflow-x-auto"><span class="text-muted"># Start Forge daemon first</span>
+<span class="text-glow select-none">$</span> <span class="text-bright">npx forge-terminal-mcp start -d --dashboard --port 3141</span>
+
+<span class="text-muted"># Register with Gemini CLI</span>
+<span class="text-glow select-none">$</span> <span class="text-bright">gemini mcp add forge --url http://127.0.0.1:3141/mcp</span></pre>
+            <button onclick="copyText('npx forge-terminal-mcp start -d --dashboard --port 3141\ngemini mcp add forge --url http://127.0.0.1:3141/mcp', this)" class="text-muted hover:text-bright transition-colors absolute top-3 right-3 opacity-0 group-hover:opacity-100" title="Copy">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+        </div>
+
         <!-- Any MCP Client -->
         <div class="mb-6">
           <h3 class="font-display font-bold text-base text-bright mb-3">Any MCP Client (HTTP)</h3>
@@ -298,7 +328,7 @@
         <div class="bg-warn/5 border border-warn/20 rounded-xl p-4">
           <div class="flex items-start gap-3">
             <svg class="w-5 h-5 text-warn flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-            <p class="text-sm text-subtle"><strong class="text-warn">Important:</strong> Codex and Claude Code load MCP servers at process start. If you add/remove servers, restart the current agent session.</p>
+            <p class="text-sm text-subtle"><strong class="text-warn">Important:</strong> Claude Code, Codex, and Gemini CLI load MCP servers at process start. If you add/remove servers, restart the current agent session.</p>
           </div>
         </div>
       </div>

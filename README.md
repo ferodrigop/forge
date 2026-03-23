@@ -37,7 +37,7 @@
 
 AI coding agents (Claude Code, Codex, etc.) typically run one command at a time. Forge gives them persistent terminals — run your React frontend, Java API, and Postgres migrations in parallel, monitor all three, and only read what changed. Full-stack work without the bottleneck.
 
-Works with **any MCP-compatible client** — Claude Code, Codex, or your own agent.
+Works with **any MCP-compatible client** — Claude Code, Codex, Gemini CLI, or your own agent.
 
 **Key differentiators:**
 - **Real PTY** via `node-pty` (same lib as VS Code terminal) — interactive programs, colors, TUI apps all work
@@ -50,6 +50,17 @@ Works with **any MCP-compatible client** — Claude Code, Codex, or your own age
 ## Quick Start
 
 ### 1. Add to Your Agent
+
+<details>
+<summary><strong>Standalone binary (no Node.js required)</strong></summary>
+
+```bash
+curl -fsSL https://forgemcp.dev/install.sh | sh
+```
+
+Downloads a prebuilt binary for macOS (arm64/x64) or Linux (x64/arm64) to `~/.local/bin`.
+
+</details>
 
 <details open>
 <summary><strong>Claude Code</strong></summary>
@@ -99,6 +110,19 @@ url = "http://127.0.0.1:3141/mcp"
 </details>
 
 <details>
+<summary><strong>Gemini CLI</strong></summary>
+
+```bash
+# Start Forge daemon first
+npx forge-terminal-mcp start -d --dashboard --port 3141
+
+# Add Forge as HTTP MCP server
+gemini mcp add forge --url http://127.0.0.1:3141/mcp
+```
+
+</details>
+
+<details>
 <summary><strong>HTTP MCP (any client)</strong></summary>
 
 Start the daemon (choose one launch mode), then point any MCP client at the HTTP endpoint:
@@ -129,7 +153,7 @@ npx forge-terminal-mcp start -d
 
 Restart your agent and Forge tools are available.
 
-Important: Codex and Claude Code load MCP servers at process start. If you add/remove servers, restart the current agent session.
+Important: Claude Code, Codex, and Gemini CLI load MCP servers at process start. If you add/remove servers, restart the current agent session.
 
 ### 2. Smoke Test (60s)
 
