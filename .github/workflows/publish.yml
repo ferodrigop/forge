@@ -1,17 +1,20 @@
-name: Publish to npm
+name: Publish to npm & GitHub Releases
 
 on:
   release:
     types: [published]
 
 jobs:
-  publish:
+  publish-npm:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -19,8 +22,63 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run build
+      - run: bun run scripts/build-npm.ts
       - run: npm test
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-binaries:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - target: bun-darwin-arm64
+            artifact: forge-darwin-arm64
+          - target: bun-darwin-x64
+            artifact: forge-darwin-x64
+          - target: bun-linux-x64
+            artifact: forge-linux-x64
+          - target: bun-linux-arm64
+            artifact: forge-linux-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: bun run scripts/build-binary.ts --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist-bin/${{ matrix.artifact }}
+
+  upload-release:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: |
+          for dir in artifacts/forge-*/; do
+            name=$(basename "$dir")
+            cp "$dir/$name" "./$name"
+            chmod +x "./$name"
+          done
+          gh release upload "${{ github.event.release.tag_name }}" \
+            forge-darwin-arm64 \
+            forge-darwin-x64 \
+            forge-linux-x64 \
+            forge-linux-arm64
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

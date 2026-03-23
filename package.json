@@ -12,8 +12,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "bun run scripts/build-npm.ts",
+    "build:binary": "bun run scripts/build-binary.ts",
+    "dev": "bun run scripts/build-npm.ts --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/",
@@ -59,7 +60,6 @@
     "@types/node": "^20.17.57",
     "@types/ws": "^8.18.1",
     "eslint": "^9.28.0",
-    "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.1"
   }

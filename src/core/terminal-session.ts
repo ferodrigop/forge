@@ -1,9 +1,15 @@
-import * as pty from "node-pty";
 import { execFileSync } from "node:child_process";
 import { Terminal } from "@xterm/headless";
 import { RingBuffer } from "./ring-buffer.js";
 import { logger } from "../utils/logger.js";
 import type { SessionInfo, SessionStatus } from "./types.js";
+import type { PtyProcess, PtySpawnFn } from "./pty-adapter.js";
+
+// Runtime adapter selection: Bun uses native TTY, Node uses node-pty
+const isBun = typeof (globalThis as Record<string, unknown>).Bun !== "undefined";
+const { spawn: ptySpawn }: { spawn: PtySpawnFn } = isBun
+  ? await import("./bun-pty-adapter.js")
+  : await import("./node-pty-adapter.js");
 
 export interface TerminalSessionOptions {
   id: string;
@@ -28,7 +34,7 @@ export class TerminalSession {
   name?: string;
   readonly tags?: string[];
 
-  private ptyProcess: pty.IPty;
+  private ptyProcess: PtyProcess;
   private xterm: Terminal;
   private ringBuffer: RingBuffer;
   private _status: SessionStatus = "running";
@@ -61,7 +67,7 @@ export class TerminalSession {
 
     this.xterm = new Terminal({ cols, rows, scrollback: 1000, allowProposedApi: true });
 
-    this.ptyProcess = pty.spawn(opts.command, opts.args ?? [], {
+    this.ptyProcess = ptySpawn(opts.command, opts.args ?? [], {
       name: "xterm-256color",
       cols,
       rows,
