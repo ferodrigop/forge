@@ -28,6 +28,11 @@ export class SessionManager {
     this.config = config;
   }
 
+  /** Hot-reload config — affects new sessions and sweep behavior */
+  updateConfig(config: ForgeConfig): void {
+    this.config = config;
+  }
+
   /** Listen for live history events: (sessionId, event) */
   onHistoryEvent(fn: (sessionId: string, event: HistoryEvent) => void): () => void {
     this.historyEmitter.on("history", fn);

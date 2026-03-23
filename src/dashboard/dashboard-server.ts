@@ -10,6 +10,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { SessionManager } from "../core/session-manager.js";
 import type { ForgeConfig } from "../core/types.js";
+import type { ConfigManager } from "../utils/config.js";
 import { ClaudeChats } from "../core/claude-chats.js";
 import { CodexChats } from "../core/codex-chats.js";
 import { GeminiChats } from "../core/gemini-chats.js";
@@ -29,13 +30,18 @@ export class DashboardServer {
   private claudeChats = new ClaudeChats();
   private codexChats = new CodexChats();
   private geminiChats = new GeminiChats();
+  private configManager?: ConfigManager;
 
   constructor(
     private manager: SessionManager,
     private port: number,
-    private config?: ForgeConfig,
+    private config?: ForgeConfig | ConfigManager,
     private vendorDir?: string,
   ) {
+    // Detect ConfigManager vs plain ForgeConfig
+    if (config && "startWatching" in config) {
+      this.configManager = config as ConfigManager;
+    }
     this.wsHandler = new WsHandler(manager);
 
     this.httpServer = createHttpServer(async (req, res) => {
@@ -72,16 +78,16 @@ export class DashboardServer {
           const opts = body ? JSON.parse(body) : {};
 
           // Resolve agent shorthand to configured binary + default tags
-          let command = opts.command || this.config?.shell || "/bin/sh";
+          let command = opts.command || this.getConfig()?.shell || "/bin/sh";
           let tags = opts.tags;
           if (opts.agent === "claude") {
-            command = this.config?.claudePath || "claude";
+            command = this.getConfig()?.claudePath || "claude";
             tags = tags || ["claude-agent"];
           } else if (opts.agent === "codex") {
-            command = this.config?.codexPath || "codex";
+            command = this.getConfig()?.codexPath || "codex";
             tags = tags || ["codex-agent"];
           } else if (opts.agent === "gemini") {
-            command = this.config?.geminiPath || "gemini";
+            command = this.getConfig()?.geminiPath || "gemini";
             tags = tags || ["gemini-agent"];
           }
 
@@ -417,7 +423,7 @@ export class DashboardServer {
             return;
           }
           const session = this.manager.create({
-            command: this.config?.claudePath || "claude",
+            command: this.getConfig()?.claudePath || "claude",
             args: ["--resume", chatId],
             name: `claude: continue ${chatId.slice(0, 8)}...`,
             tags: ["claude-agent"],
@@ -481,7 +487,7 @@ export class DashboardServer {
             res.end(JSON.stringify({ error: "Could not extract session UUID" }));
             return;
           }
-          const codexPath = this.config?.codexPath || "codex";
+          const codexPath = this.getConfig()?.codexPath || "codex";
           const session = this.manager.create({
             command: codexPath,
             args: ["resume", uuidMatch[1]],
@@ -540,7 +546,7 @@ export class DashboardServer {
             res.end(JSON.stringify({ error: "Gemini session not found" }));
             return;
           }
-          const geminiPath = this.config?.geminiPath || "gemini";
+          const geminiPath = this.getConfig()?.geminiPath || "gemini";
           const session = this.manager.create({
             command: geminiPath,
             args: ["--resume", chatMeta.sessionId],
@@ -554,6 +560,43 @@ export class DashboardServer {
         } catch (err) {
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: (err as Error).message }));
+        }
+        return;
+      }
+
+      // ---- Settings API endpoints ----
+
+      if (req.method === "GET" && pathname === "/api/settings") {
+        if (this.configManager) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            config: this.configManager.config,
+            fields: this.configManager.getConfigWithSources(),
+          }));
+        } else {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ config: this.getConfig(), fields: null }));
+        }
+        return;
+      }
+
+      if (req.method === "PUT" && pathname === "/api/settings") {
+        if (!this.configManager) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Settings file not available in this mode" }));
+          return;
+        }
+        try {
+          const body = await this.readBody(req);
+          const updates = JSON.parse(body || "{}");
+          this.configManager.updateFileSettings(updates);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({
+            config: this.configManager.config,
+            fields: this.configManager.getConfigWithSources(),
+          }));
+        } catch (err) {
+          this.respondBodyError(res, err);
         }
         return;
       }
@@ -612,6 +655,12 @@ export class DashboardServer {
       }
       this.wsHandler.handleConnection(ws);
     });
+  }
+
+  /** Get live config — delegates to ConfigManager if available */
+  private getConfig(): ForgeConfig | undefined {
+    if (this.configManager) return this.configManager.config;
+    return this.config as ForgeConfig | undefined;
   }
 
   private async handleMcp(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): Promise<void> {
@@ -756,7 +805,7 @@ export class DashboardServer {
   }
 
   private isAuthorized(req: IncomingMessage): boolean {
-    const token = this.config?.authToken;
+    const token = this.getConfig()?.authToken;
     if (!token) return true;
     const parsedUrl = new URL(req.url || "/", `http://127.0.0.1:${this.port}`);
     const queryToken = parsedUrl.searchParams.get("token");

@@ -800,4 +800,40 @@ export const CSS_STYLES = `
     border: 2px solid #292e42; border-top-color: #7aa2f7;
     border-radius: 50%; animation: spin 0.6s linear infinite;
   }
+
+  /* Settings modal */
+  .settings-modal { max-width: 520px; max-height: 85vh; overflow-y: auto; }
+  .settings-modal code {
+    font-size: 11px; background: #1a1b26; padding: 2px 6px;
+    border-radius: 3px; color: #7aa2f7; font-family: monospace;
+  }
+  .settings-section { margin-bottom: 16px; }
+  .settings-section-title {
+    font-size: 11px; color: #7aa2f7; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 8px; padding-bottom: 4px;
+    border-bottom: 1px solid #292e42;
+  }
+  .settings-source {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-left: 6px;
+    padding: 1px 4px; border-radius: 3px; background: #1a1b26;
+  }
+  .settings-hint {
+    font-size: 10px; color: #565f89; margin-top: 2px;
+  }
+  .settings-save-msg {
+    font-size: 11px; color: #9ece6a; margin-right: auto;
+    display: flex; align-items: center;
+  }
+  .settings-modal .modal-field input:disabled {
+    opacity: 0.5; cursor: not-allowed;
+  }
+  .settings-modal .modal-field input[type="number"] {
+    -moz-appearance: textfield;
+  }
+  .settings-modal .modal-field input[type="number"]::-webkit-inner-spin-button,
+  .settings-modal .modal-field input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
 `;

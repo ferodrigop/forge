@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createServer } from "./server.js";
-import { parseConfig } from "./utils/config.js";
+import { parseConfig, ConfigManager } from "./utils/config.js";
 import { logger, setLogLevel } from "./utils/logger.js";
 import {
   DEFAULT_PORT,
@@ -29,7 +29,8 @@ async function cmdStart(args: string[]): Promise<void> {
   }
 
   // Parse config early to get the actual port
-  const config = parseConfig(args);
+  const configManager = new ConfigManager(args);
+  const config = configManager.config;
   config.dashboard = true;
   const port = config.dashboardPort;
 
@@ -71,12 +72,19 @@ async function cmdStart(args: string[]): Promise<void> {
     maxSessions: config.maxSessions,
   });
 
-  const { manager } = createServer(config);
+  const { manager } = createServer(configManager);
   await manager.init();
 
   const { DashboardServer } = await import("./dashboard/dashboard-server.js");
-  const ds = new DashboardServer(manager, config.dashboardPort, config);
+  const ds = new DashboardServer(manager, config.dashboardPort, configManager);
   await ds.start();
+
+  // Start watching settings file for hot-reload
+  configManager.startWatching();
+  configManager.on("changed", (newConfig) => {
+    manager.updateConfig(newConfig);
+    logger.info("Config hot-reloaded", { maxSessions: newConfig.maxSessions, idleTimeout: newConfig.idleTimeout });
+  });
 
   // Write PID/lock files
   await writeDaemonFiles(process.pid);
@@ -88,6 +96,7 @@ async function cmdStart(args: string[]): Promise<void> {
   // Graceful shutdown
   const shutdown = async () => {
     logger.info("Shutting down daemon...");
+    configManager.stopWatching();
     ds.stop();
     manager.closeAll();
     await cleanDaemonFiles();
@@ -193,14 +202,21 @@ async function cmdStdioProxy(args: string[]): Promise<void> {
   // Bridge stdio to HTTP MCP
   // Read JSON-RPC messages from stdin, POST to /mcp, stream responses to stdout
   const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
-  const config = parseConfig(args);
+  const configManager = new ConfigManager(args);
+  const config = configManager.config;
 
   if (args.includes("--verbose")) {
     setLogLevel("debug");
   }
 
-  const { server, manager } = createServer(config);
+  const { server, manager } = createServer(configManager);
   await manager.init();
+
+  // Start watching settings file for hot-reload
+  configManager.startWatching();
+  configManager.on("changed", (newConfig) => {
+    manager.updateConfig(newConfig);
+  });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -211,13 +227,14 @@ async function cmdStdioProxy(args: string[]): Promise<void> {
   let dashboardServer: { stop(): void } | undefined;
   if (config.dashboard) {
     const { DashboardServer } = await import("./dashboard/dashboard-server.js");
-    const ds = new DashboardServer(manager, config.dashboardPort, config);
+    const ds = new DashboardServer(manager, config.dashboardPort, configManager);
     await ds.start();
     dashboardServer = ds;
   }
 
   const shutdown = () => {
     logger.info("Shutting down...");
+    configManager.stopWatching();
     dashboardServer?.stop();
     manager.closeAll();
     process.exit(0);

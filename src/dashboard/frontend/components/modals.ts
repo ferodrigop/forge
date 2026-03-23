@@ -236,6 +236,190 @@ function DeleteChatModal(props) {
   \`;
 }
 
+function SettingsModal() {
+  var loading = preactHooks.useState(true);
+  var settings = preactHooks.useState(null);
+  var saving = preactHooks.useState(false);
+  var saveMsg = preactHooks.useState('');
+
+  // Editable field values
+  var maxSessions = preactHooks.useState('');
+  var idleTimeout = preactHooks.useState('');
+  var bufferSize = preactHooks.useState('');
+  var exitedTtl = preactHooks.useState('');
+  var shell = preactHooks.useState('');
+  var claudePath = preactHooks.useState('');
+  var codexPath = preactHooks.useState('');
+  var geminiPath = preactHooks.useState('');
+
+  function loadSettings() {
+    loading[1](true);
+    fetch(apiBase + '/api/settings', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        settings[1](data);
+        var c = data.config || {};
+        maxSessions[1](String(c.maxSessions || ''));
+        idleTimeout[1](String(c.idleTimeout || ''));
+        bufferSize[1](String(c.bufferSize || ''));
+        exitedTtl[1](String(c.exitedTtl || ''));
+        shell[1](c.shell || '');
+        claudePath[1](c.claudePath || '');
+        codexPath[1](c.codexPath || '');
+        geminiPath[1](c.geminiPath || '');
+        loading[1](false);
+      })
+      .catch(function() { loading[1](false); });
+  }
+
+  preactHooks.useEffect(function() { loadSettings(); }, []);
+
+  function formatDuration(ms) {
+    var num = parseInt(ms, 10);
+    if (isNaN(num) || num <= 0) return '';
+    if (num >= 86400000) return (num / 86400000).toFixed(1).replace(/\\.0$/, '') + 'd';
+    if (num >= 3600000) return (num / 3600000).toFixed(1).replace(/\\.0$/, '') + 'h';
+    if (num >= 60000) return (num / 60000).toFixed(1).replace(/\\.0$/, '') + 'm';
+    return (num / 1000).toFixed(0) + 's';
+  }
+
+  function formatBytes(bytes) {
+    var num = parseInt(bytes, 10);
+    if (isNaN(num) || num <= 0) return '';
+    if (num >= 1048576) return (num / 1048576).toFixed(1).replace(/\\.0$/, '') + ' MB';
+    if (num >= 1024) return (num / 1024).toFixed(0) + ' KB';
+    return num + ' B';
+  }
+
+  function sourceTag(fieldName) {
+    if (!settings[0] || !settings[0].fields || !settings[0].fields[fieldName]) return null;
+    var src = settings[0].fields[fieldName].source;
+    if (src === 'default') return null;
+    var colors = { cli: '#bb9af7', env: '#e0af68', file: '#7aa2f7' };
+    return html\`<span class="settings-source" style=\${'color:' + (colors[src] || '#565f89')}>\${src}</span>\`;
+  }
+
+  function isOverridden(fieldName) {
+    if (!settings[0] || !settings[0].fields || !settings[0].fields[fieldName]) return false;
+    var src = settings[0].fields[fieldName].source;
+    return src === 'cli' || src === 'env';
+  }
+
+  function save() {
+    saving[1](true);
+    saveMsg[1]('');
+    var updates = {};
+    var ms = parseInt(maxSessions[0], 10);
+    if (!isNaN(ms) && ms > 0) updates.maxSessions = ms;
+    var it = parseInt(idleTimeout[0], 10);
+    if (!isNaN(it) && it >= 0) updates.idleTimeout = it;
+    var bs = parseInt(bufferSize[0], 10);
+    if (!isNaN(bs) && bs >= 1024) updates.bufferSize = bs;
+    var et = parseInt(exitedTtl[0], 10);
+    if (!isNaN(et) && et >= 0) updates.exitedTtl = et;
+    if (shell[0].trim()) updates.shell = shell[0].trim();
+    if (claudePath[0].trim()) updates.claudePath = claudePath[0].trim();
+    if (codexPath[0].trim()) updates.codexPath = codexPath[0].trim();
+    if (geminiPath[0].trim()) updates.geminiPath = geminiPath[0].trim();
+
+    fetch(apiBase + '/api/settings', {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(updates),
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.error) { saveMsg[1](data.error); saving[1](false); return; }
+      settings[1](data);
+      saveMsg[1]('Saved');
+      saving[1](false);
+      setTimeout(function() { saveMsg[1](''); }, 2000);
+    }).catch(function(err) {
+      saveMsg[1]('Save failed');
+      saving[1](false);
+    });
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Escape') activeModal.value = null;
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+  }
+
+  if (loading[0]) return html\`<div class="modal-box settings-modal" onKeyDown=\${onKeyDown}><h3>Settings</h3><div style="padding:16px 0;color:#565f89">Loading…</div></div>\`;
+
+  return html\`
+    <div class="modal-box settings-modal" onKeyDown=\${onKeyDown}>
+      <h3>Settings</h3>
+      <p>Changes are saved to <code>~/.forge/settings.json</code> and apply immediately.</p>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Sessions</div>
+        <div class="modal-field">
+          <label>Max Sessions \${sourceTag('maxSessions')}</label>
+          <input type="number" min="1" value=\${maxSessions[0]} disabled=\${isOverridden('maxSessions')}
+            onInput=\${function(e) { maxSessions[1](e.target.value); }}
+            placeholder="10" />
+          \${isOverridden('maxSessions') ? html\`<div class="settings-hint">Overridden by \${settings[0].fields.maxSessions.source} arg</div>\` : null}
+        </div>
+        <div class="modal-field">
+          <label>Idle Timeout (ms) \${sourceTag('idleTimeout')}</label>
+          <input type="number" min="0" value=\${idleTimeout[0]} disabled=\${isOverridden('idleTimeout')}
+            onInput=\${function(e) { idleTimeout[1](e.target.value); }}
+            placeholder="1800000" />
+          <div class="settings-hint">\${formatDuration(idleTimeout[0]) ? 'Currently: ' + formatDuration(idleTimeout[0]) : 'New sessions will use this timeout'}</div>
+          \${isOverridden('idleTimeout') ? html\`<div class="settings-hint">Overridden by \${settings[0].fields.idleTimeout.source} arg</div>\` : null}
+        </div>
+        <div class="modal-field">
+          <label>Buffer Size (bytes) \${sourceTag('bufferSize')}</label>
+          <input type="number" min="1024" value=\${bufferSize[0]} disabled=\${isOverridden('bufferSize')}
+            onInput=\${function(e) { bufferSize[1](e.target.value); }}
+            placeholder="1048576" />
+          <div class="settings-hint">\${formatBytes(bufferSize[0]) ? 'Currently: ' + formatBytes(bufferSize[0]) : 'Ring buffer for new sessions'}</div>
+        </div>
+        <div class="modal-field">
+          <label>Exited Session TTL (ms) \${sourceTag('exitedTtl')}</label>
+          <input type="number" min="0" value=\${exitedTtl[0]} disabled=\${isOverridden('exitedTtl')}
+            onInput=\${function(e) { exitedTtl[1](e.target.value); }}
+            placeholder="3600000" />
+          <div class="settings-hint">\${formatDuration(exitedTtl[0]) ? 'Currently: ' + formatDuration(exitedTtl[0]) : 'How long to keep exited sessions'}</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Paths</div>
+        <div class="modal-field">
+          <label>Shell \${sourceTag('shell')}</label>
+          <input type="text" value=\${shell[0]} disabled=\${isOverridden('shell')}
+            onInput=\${function(e) { shell[1](e.target.value); }}
+            placeholder="/bin/zsh" />
+        </div>
+        <div class="modal-field">
+          <label>Claude CLI Path \${sourceTag('claudePath')}</label>
+          <input type="text" value=\${claudePath[0]} disabled=\${isOverridden('claudePath')}
+            onInput=\${function(e) { claudePath[1](e.target.value); }}
+            placeholder="claude" />
+        </div>
+        <div class="modal-field">
+          <label>Codex CLI Path \${sourceTag('codexPath')}</label>
+          <input type="text" value=\${codexPath[0]} disabled=\${isOverridden('codexPath')}
+            onInput=\${function(e) { codexPath[1](e.target.value); }}
+            placeholder="codex" />
+        </div>
+        <div class="modal-field">
+          <label>Gemini CLI Path \${sourceTag('geminiPath')}</label>
+          <input type="text" value=\${geminiPath[0]} disabled=\${isOverridden('geminiPath')}
+            onInput=\${function(e) { geminiPath[1](e.target.value); }}
+            placeholder="gemini" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        \${saveMsg[0] ? html\`<span class="settings-save-msg">\${saveMsg[0]}</span>\` : null}
+        <button class="modal-cancel" onClick=\${function() { activeModal.value = null; }}>Close</button>
+        <button class="modal-create" onClick=\${save} disabled=\${saving[0]}>\${saving[0] ? 'Saving…' : 'Save'}</button>
+      </div>
+    </div>
+  \`;
+}
+
 function ModalOverlay() {
   var modal = activeModal.value;
   if (!modal) return null;
@@ -247,6 +431,7 @@ function ModalOverlay() {
   var content;
   if (modal.type === 'newTerminal') content = html\`<\${NewTerminalModal} />\`;
   else if (modal.type === 'deleteChat') content = html\`<\${DeleteChatModal} chatId=\${modal.chatId} source=\${modal.source} />\`;
+  else if (modal.type === 'settings') content = html\`<\${SettingsModal} />\`;
   else return null;
 
   return html\`<div class="modal-overlay" onClick=\${onOverlayClick}>\${content}</div>\`;

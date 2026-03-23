@@ -7,7 +7,16 @@ import { SessionManager } from "./core/session-manager.js";
 import { resolveControl, listControls } from "./utils/control-chars.js";
 import { getTemplate, listTemplates as listBuiltinTemplates } from "./core/templates.js";
 import type { ForgeConfig } from "./core/types.js";
+import type { ConfigManager } from "./utils/config.js";
 import type { Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
+
+/** Accept either a ConfigManager (live config) or a plain ForgeConfig (static) */
+type ConfigSource = ConfigManager | ForgeConfig;
+function resolveConfig(src: ConfigSource): ForgeConfig {
+  return "config" in src && typeof (src as ConfigManager).config === "object" && "startWatching" in src
+    ? (src as ConfigManager).config
+    : src as ForgeConfig;
+}
 
 interface Subscription {
   id: string;
@@ -16,7 +25,10 @@ interface Subscription {
   cleanups: Array<() => void>;
 }
 
-export function createServer(config: ForgeConfig, existingManager?: SessionManager): { server: McpServer; manager: SessionManager } {
+export function createServer(configSource: ConfigSource, existingManager?: SessionManager): { server: McpServer; manager: SessionManager } {
+  // Use a getter so every tool invocation reads live config
+  const getConfig = (): ForgeConfig => resolveConfig(configSource);
+  const config = getConfig(); // initial config for manager creation
   const manager = existingManager ?? new SessionManager(config);
 
   const server = new McpServer({
@@ -44,7 +56,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
     async (params) => {
       try {
         const session = manager.create({
-          command: params.command ?? config.shell,
+          command: params.command ?? getConfig().shell,
           args: params.args,
           cwd: params.cwd,
           env: params.env,
@@ -139,7 +151,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           };
         }
 
-        const command = tmpl.command === "$SHELL" ? config.shell : tmpl.command;
+        const command = tmpl.command === "$SHELL" ? getConfig().shell : tmpl.command;
 
         const session = manager.create({
           command,
@@ -349,7 +361,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           : baseTags;
 
         const session = manager.create({
-          command: config.claudePath,
+          command: getConfig().claudePath,
           args,
           cwd: effectiveCwd,
           name: autoName,
@@ -516,7 +528,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           : baseTags;
 
         const session = manager.create({
-          command: config.codexPath,
+          command: getConfig().codexPath,
           args,
           cwd: effectiveCwd,
           name: autoName,
@@ -689,7 +701,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
           : baseTags;
 
         const session = manager.create({
-          command: config.geminiPath,
+          command: getConfig().geminiPath,
           args,
           cwd: effectiveCwd,
           name: autoName,
@@ -1357,7 +1369,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
             uptime: Math.floor((Date.now() - serverStartTime) / 1000),
             sessions: {
               active: manager.count,
-              max: config.maxSessions,
+              max: getConfig().maxSessions,
             },
             memory: {
               rss: Math.round(mem.rss / 1_048_576),
@@ -1812,7 +1824,7 @@ export function createServer(config: ForgeConfig, existingManager?: SessionManag
         // Build agent command and args
         const isClaude = params.agent === "claude";
         const isGemini = params.agent === "gemini";
-        const command = isClaude ? config.claudePath : isGemini ? config.geminiPath : config.codexPath;
+        const command = isClaude ? getConfig().claudePath : isGemini ? getConfig().geminiPath : getConfig().codexPath;
         const args: string[] = [];
         const agentTag = isClaude ? "claude-agent" : isGemini ? "gemini-agent" : "codex-agent";
 
