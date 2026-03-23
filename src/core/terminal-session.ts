@@ -32,7 +32,7 @@ export class TerminalSession {
   readonly cwd: string;
   readonly createdAt: Date;
   name?: string;
-  readonly tags?: string[];
+  tags?: string[];
 
   private ptyProcess: PtyProcess;
   private xterm: Terminal;
@@ -77,6 +77,7 @@ export class TerminalSession {
 
     this.xterm.onTitleChange((title: string) => {
       this._termTitle = title;
+      this.autoDetectAgentTags(title);
     });
 
     this.ptyProcess.onData((data: string) => {
@@ -282,6 +283,21 @@ export class TerminalSession {
       tokenUsage: this.getStats(),
       ...(this.claudeState && { claudeState: this.claudeState }),
     };
+  }
+
+  /** Auto-detect agent type from terminal title and add appropriate tags */
+  private autoDetectAgentTags(title: string): void {
+    if (!this.tags) this.tags = [];
+
+    const lower = title.toLowerCase();
+    if (lower.includes("claude") && !this.tags.includes("claude-agent")) {
+      this.tags.push("claude-agent");
+      logger.info("Auto-detected Claude agent from terminal title", { id: this.id, title });
+    }
+    if (lower.includes("codex") && !this.tags.includes("codex-agent")) {
+      this.tags.push("codex-agent");
+      logger.info("Auto-detected Codex agent from terminal title", { id: this.id, title });
+    }
   }
 
   private resetIdleTimer(): void {

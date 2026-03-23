@@ -1687,14 +1687,15 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           const bufferBefore = session.readFullBuffer();
 
           // Send the follow-up message to the agent's TUI input.
-          // IMPORTANT: Codex's TUI has a paste burst detector — if text + Enter arrive
-          // in rapid succession, it's treated as a paste (newline inserted) instead of
-          // a submission. We must send text first, wait for the paste burst window to
-          // close (~300ms), then send Enter separately.
-          // Claude Code has the same Enter-to-submit behavior, so this works for both.
+          // We send text first, then wait for the paste burst window to close (~300ms),
+          // then submit. Claude Code requires Escape+Enter; Codex uses plain Enter.
           session.write(formattedPrompt);
           await new Promise<void>((resolve) => setTimeout(resolve, 500));
-          session.write("\r");
+          if (agentType === "claude") {
+            session.write("\x1B\r"); // Escape (exit multi-line mode) + Enter to submit
+          } else {
+            session.write("\r");
+          }
 
           // Wait for the agent to finish its turn
           const turnResult = await waitForTurnCompletion(session, agentType, timeoutMs);
