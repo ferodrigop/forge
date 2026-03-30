@@ -47,6 +47,10 @@ Works with **any MCP-compatible client** — Claude Code, Codex, Gemini CLI, or 
 - **Web dashboard** — real-time Preact-based browser UI to watch what your agents are doing across all terminals, browse past chat sessions, and monitor activity
 - **Zero config** — single `npx` command or HTTP MCP endpoint
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/ferodrigop-forge).
+
 ## Quick Start
 
 ### 1. Add to Your Agent
