@@ -1,86 +1,4 @@
 export const TERMINAL_VIEW_JS = `
-function XTermContainer() {
-  var containerRef = preact.createRef();
-  var resizeObserverRef = { current: null };
-
-  function initTerminal() {
-    var container = containerRef.current;
-    if (!container) return;
-
-    // Dispose previous
-    if (termInstance.value) { termInstance.value.dispose(); termInstance.value = null; }
-    if (fitAddonInstance.value) { fitAddonInstance.value = null; }
-    if (resizeObserverRef.current) { resizeObserverRef.current.disconnect(); resizeObserverRef.current = null; }
-
-    if (!activeSessionId.value) return;
-
-    var term = new Terminal({
-      theme: {
-        background: '#1a1b26', foreground: '#a9b1d6', cursor: '#c0caf5',
-        selectionBackground: '#33467c', black: '#15161e', red: '#f7768e',
-        green: '#9ece6a', yellow: '#e0af68', blue: '#7aa2f7', magenta: '#bb9af7',
-        cyan: '#7dcfff', white: '#a9b1d6', brightBlack: '#414868', brightRed: '#f7768e',
-        brightGreen: '#9ece6a', brightYellow: '#e0af68', brightBlue: '#7aa2f7',
-        brightMagenta: '#bb9af7', brightCyan: '#7dcfff', brightWhite: '#c0caf5',
-      },
-      fontSize: 14,
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-      scrollback: 10000,
-      cursorBlink: true,
-      cursorStyle: 'bar',
-      allowProposedApi: true,
-    });
-
-    var fa = new FitAddon.FitAddon();
-    term.loadAddon(fa);
-    term.open(container);
-
-    var ro = new ResizeObserver(function() {
-      if (fa) { try { fa.fit(); } catch(e) {} }
-    });
-    ro.observe(container);
-    resizeObserverRef.current = ro;
-
-    // macOS keybindings
-    term.attachCustomKeyEventHandler(function(ev) {
-      if (ev.type !== 'keydown') return true;
-      if (ev.metaKey) {
-        if (ev.key === 'ArrowLeft') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x01' }); return false; }   // Home (Ctrl+A)
-        if (ev.key === 'ArrowRight') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x05' }); return false; }  // End (Ctrl+E)
-        if (ev.key === 'Backspace') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x15' }); return false; }   // Kill line (Ctrl+U)
-        if (ev.key === 'ArrowUp') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x1b[1;5A' }); return false; }   // Beginning of input
-        if (ev.key === 'ArrowDown') { wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\x1b[1;5B' }); return false; } // End of input
-      }
-      return true;
-    });
-    term.onData(function(data) { wsSend({ type: 'input', sessionId: activeSessionId.value, data: data }); });
-    term.onResize(function(size) { wsSend({ type: 'resize', sessionId: activeSessionId.value, cols: size.cols, rows: size.rows }); });
-    term.onTitleChange(function(title) { termTitle.value = title || ''; });
-
-    termInstance.value = term;
-    fitAddonInstance.value = fa;
-
-    // Subscribe after fit so backlog renders at correct terminal dimensions
-    setTimeout(function() {
-      if (fa) { try { fa.fit(); } catch(e) {} }
-      if (pendingSubscribe.value) {
-        completeSubscribe(pendingSubscribe.value);
-        pendingSubscribe.value = null;
-      }
-    }, 0);
-  }
-
-  preactHooks.useEffect(function() {
-    initTerminal();
-    return function() {
-      if (termInstance.value) { termInstance.value.dispose(); termInstance.value = null; }
-      if (resizeObserverRef.current) { resizeObserverRef.current.disconnect(); }
-    };
-  }, [activeSessionId.value]);
-
-  return html\`<div id="terminal-container" ref=\${containerRef}></div>\`;
-}
-
 function ActivityLog() {
   var isOpen = activityLogOpen.value;
   var events = (activityEvents.value[activeSessionId.value]) || [];
@@ -321,7 +239,7 @@ function TerminalView() {
       <\${DelegatePromptBanner} />
       <div class="terminal-split">
         <div class="terminal-split-main">
-          <\${XTermContainer} />
+          <\${SplitPaneLayout} />
           \${editorMode.value ? html\`<\${MultilineEditor} />\` : null}
         </div>
         \${codeReviewOpen.value ? html\`<\${CodeReviewPanel} />\` : null}

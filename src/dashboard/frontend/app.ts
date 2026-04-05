@@ -5,6 +5,7 @@ import { TERMINAL_VIEW_JS } from "./components/terminal-view.js";
 import { CHAT_VIEW_JS } from "./components/chat-view.js";
 import { MODALS_JS } from "./components/modals.js";
 import { CODE_REVIEW_JS } from "./components/code-review.js";
+import { SPLIT_PANE_JS } from "./components/split-pane.js";
 
 const APP_COMPONENT_JS = `
 function EmptyState() {
@@ -20,7 +21,7 @@ function EmptyState() {
 
 function MainArea() {
   if (activeChatId.value) return html\`<\${ChatView} />\`;
-  if (activeSessionId.value) return html\`<\${TerminalView} />\`;
+  if (activeSessionId.value || _leafCount(splitRoot.value) > 1) return html\`<\${TerminalView} />\`;
   return html\`<\${EmptyState} />\`;
 }
 
@@ -140,6 +141,29 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     codeReviewOpen.value = !codeReviewOpen.value;
   }
+  // Split pane shortcuts
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === 'Backslash') {
+    e.preventDefault();
+    splitPane('horizontal');
+  }
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Backslash') {
+    e.preventDefault();
+    splitPane('vertical');
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+    if (_leafCount(splitRoot.value) > 1) {
+      e.preventDefault();
+      closePane(focusedPaneId.value);
+    }
+  }
+  if ((e.metaKey || e.ctrlKey) && e.altKey && e.key === 'ArrowRight') {
+    e.preventDefault();
+    cycleFocus('next');
+  }
+  if ((e.metaKey || e.ctrlKey) && e.altKey && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    cycleFocus('prev');
+  }
 });
 
 // Detect desktop app and set traffic light clearance
@@ -177,6 +201,7 @@ ${STATE_JS}
 
 // --- Components ---
 ${SIDEBAR_JS}
+${SPLIT_PANE_JS}
 ${TERMINAL_VIEW_JS}
 ${CHAT_VIEW_JS}
 ${MODALS_JS}

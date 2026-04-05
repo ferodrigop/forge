@@ -849,6 +849,83 @@ export const CSS_STYLES = `
     border-radius: 50%; animation: spin 0.6s linear infinite;
   }
 
+  /* Split Pane Layout */
+  .split-pane-layout {
+    flex: 1; display: flex; flex-direction: column;
+    min-height: 0; min-width: 0; overflow: hidden;
+  }
+  .split-pane { position: relative; }
+  .split-pane-focused { box-shadow: inset 0 0 0 1px #7aa2f733; }
+
+  /* Pane Tab Bar */
+  .pane-tab-bar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 8px; background: #16161e;
+    border-bottom: 1px solid #292e42;
+    font-size: 11px; color: #565f89;
+    height: 26px; flex-shrink: 0;
+    cursor: pointer; user-select: none;
+  }
+  .pane-tab-focused {
+    background: #1a1f36;
+    border-bottom-color: #7aa2f7;
+  }
+  .pane-tab-label {
+    flex: 1; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; color: #565f89; font-size: 11px;
+  }
+  .pane-tab-focused .pane-tab-label { color: #7aa2f7; font-weight: 500; }
+  .pane-tab-actions { display: flex; gap: 1px; flex-shrink: 0; }
+  .pane-tab-btn {
+    background: none; border: none; color: #565f89; cursor: pointer;
+    padding: 2px 3px; display: flex; align-items: center;
+    border-radius: 3px; opacity: 0; transition: all 0.15s;
+    font-size: 13px; line-height: 1;
+  }
+  .pane-tab-bar:hover .pane-tab-btn { opacity: 1; }
+  .pane-tab-btn:hover { color: #7aa2f7; background: #292e42; }
+  .pane-tab-close:hover { color: #f7768e; background: #f7768e22; }
+
+  /* Pane Terminal */
+  .pane-terminal-wrap {
+    flex: 1; min-height: 0; display: flex;
+    flex-direction: column; overflow: hidden;
+  }
+  .pane-terminal-xterm {
+    flex: 1; padding: 4px; min-height: 0; overflow: hidden;
+  }
+
+  /* Pane Empty State */
+  .pane-empty {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; color: #3b4261;
+  }
+  .pane-empty-text { font-size: 13px; color: #565f89; }
+  .pane-empty-hint { font-size: 11px; color: #3b4261; }
+
+  /* Split Dividers */
+  .split-divider {
+    flex-shrink: 0; z-index: 10; position: relative;
+    transition: background 0.15s;
+  }
+  .split-divider-h {
+    width: 3px; cursor: col-resize; background: #292e42;
+  }
+  .split-divider-v {
+    height: 3px; cursor: row-resize; background: #292e42;
+  }
+  .split-divider:hover, .split-divider.dragging { background: #7aa2f7; }
+  .split-divider::after {
+    content: ''; position: absolute;
+  }
+  .split-divider-h::after {
+    top: 0; bottom: 0; left: -3px; right: -3px;
+  }
+  .split-divider-v::after {
+    left: 0; right: 0; top: -3px; bottom: -3px;
+  }
+
   /* Settings modal */
   .settings-modal { max-width: 520px; max-height: 85vh; overflow-y: auto; }
   .settings-modal code {

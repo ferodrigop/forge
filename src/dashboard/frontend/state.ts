@@ -34,6 +34,149 @@ const renamingSessionId = signal(null);
 const chatMessages = signal([]);
 var jsonBuf = '';
 
+// --- Split Pane State ---
+var splitRoot = signal({ type: 'leaf', id: 'pane-1', sessionId: null });
+var focusedPaneId = signal('pane-1');
+var _paneCounter = 1;
+var paneTerminals = {}; // paneId -> { term, fitAddon, sessionId }
+
+function _nextPaneId() { return 'pane-' + (++_paneCounter); }
+
+function _findInTree(node, paneId) {
+  if (node.type === 'leaf') return node.id === paneId ? node : null;
+  for (var i = 0; i < node.children.length; i++) {
+    var f = _findInTree(node.children[i], paneId);
+    if (f) return f;
+  }
+  return null;
+}
+
+function _replaceInTree(node, paneId, replacement) {
+  if (node.type === 'leaf') return node.id === paneId ? replacement : node;
+  return {
+    type: 'split', id: node.id, direction: node.direction,
+    sizes: node.sizes.slice(),
+    children: node.children.map(function(c) { return _replaceInTree(c, paneId, replacement); })
+  };
+}
+
+function _removeFromTree(node, paneId) {
+  if (node.type === 'leaf') return node;
+  for (var i = 0; i < node.children.length; i++) {
+    if (node.children[i].type === 'leaf' && node.children[i].id === paneId) {
+      return node.children[i === 0 ? 1 : 0];
+    }
+  }
+  var newChildren = node.children.map(function(c) { return _removeFromTree(c, paneId); });
+  return { type: 'split', id: node.id, direction: node.direction, sizes: node.sizes.slice(), children: newChildren };
+}
+
+function _firstLeaf(node) {
+  if (node.type === 'leaf') return node;
+  return _firstLeaf(node.children[0]);
+}
+
+function _leafCount(node) {
+  if (node.type === 'leaf') return 1;
+  return node.children.reduce(function(c, child) { return c + _leafCount(child); }, 0);
+}
+
+function _collectLeaves(node, acc) {
+  if (node.type === 'leaf') { acc.push(node); return; }
+  for (var i = 0; i < node.children.length; i++) _collectLeaves(node.children[i], acc);
+}
+
+function splitPane(direction) {
+  var paneId = focusedPaneId.value;
+  var oldNode = _findInTree(splitRoot.value, paneId);
+  if (!oldNode) return;
+  var newId = _nextPaneId();
+  var splitNode = {
+    type: 'split', id: 'split-' + newId, direction: direction,
+    children: [
+      { type: 'leaf', id: paneId, sessionId: oldNode.sessionId },
+      { type: 'leaf', id: newId, sessionId: null }
+    ],
+    sizes: [50, 50]
+  };
+  splitRoot.value = _replaceInTree(splitRoot.value, paneId, splitNode);
+  focusedPaneId.value = newId;
+  activeSessionId.value = null;
+}
+
+function closePane(paneId) {
+  if (splitRoot.value.type === 'leaf') {
+    splitRoot.value = { type: 'leaf', id: splitRoot.value.id, sessionId: null };
+    activeSessionId.value = null;
+    return;
+  }
+  delete paneTerminals[paneId];
+  var newRoot = _removeFromTree(splitRoot.value, paneId);
+  splitRoot.value = newRoot;
+  var fl = _firstLeaf(newRoot);
+  focusedPaneId.value = fl.id;
+  activeSessionId.value = fl.sessionId;
+  var pt = paneTerminals[fl.id];
+  if (pt) {
+    termInstance.value = pt.term;
+    fitAddonInstance.value = pt.fitAddon;
+  }
+}
+
+function setPaneSession(paneId, sessionId) {
+  var node = _findInTree(splitRoot.value, paneId);
+  if (!node || node.sessionId === sessionId) return;
+  function _update(n) {
+    if (n.type === 'leaf') {
+      if (n.id === paneId) return { type: 'leaf', id: n.id, sessionId: sessionId };
+      return n;
+    }
+    return { type: 'split', id: n.id, direction: n.direction, sizes: n.sizes.slice(), children: n.children.map(_update) };
+  }
+  splitRoot.value = _update(splitRoot.value);
+}
+
+function updateSplitSizes(splitId, newSizes) {
+  function _update(n) {
+    if (n.type === 'leaf') return n;
+    var updated = { type: 'split', id: n.id, direction: n.direction, sizes: n.id === splitId ? newSizes : n.sizes.slice(), children: n.children.map(_update) };
+    return updated;
+  }
+  splitRoot.value = _update(splitRoot.value);
+}
+
+function registerPaneTerminal(paneId, term, fitAddon, sid) {
+  paneTerminals[paneId] = { term: term, fitAddon: fitAddon, sessionId: sid };
+}
+
+function unregisterPaneTerminal(paneId) {
+  delete paneTerminals[paneId];
+}
+
+function focusPane(paneId) {
+  var node = _findInTree(splitRoot.value, paneId);
+  if (!node) return;
+  focusedPaneId.value = paneId;
+  activeSessionId.value = node.sessionId;
+  var pt = paneTerminals[paneId];
+  if (pt) {
+    termInstance.value = pt.term;
+    fitAddonInstance.value = pt.fitAddon;
+  }
+}
+
+function cycleFocus(dir) {
+  var leaves = [];
+  _collectLeaves(splitRoot.value, leaves);
+  if (leaves.length <= 1) return;
+  var idx = 0;
+  for (var i = 0; i < leaves.length; i++) {
+    if (leaves[i].id === focusedPaneId.value) { idx = i; break; }
+  }
+  var next = dir === 'next' ? (idx + 1) % leaves.length : (idx - 1 + leaves.length) % leaves.length;
+  focusPane(leaves[next].id);
+}
+
 // --- WebSocket ---
 var ws = null;
 var authToken = null;
@@ -153,18 +296,22 @@ function handleMessage(msg) {
         la[msg.sessionId] = Date.now();
         sessionLastActivity.value = la;
       }
-      if (msg.sessionId === activeSessionId.value && termInstance.value) {
-        var vp = termInstance.value.buffer.active;
-        var wasAtBottom = vp.baseY + termInstance.value.rows >= vp.length - 1;
-        var prevBaseY = vp.baseY;
-        termInstance.value.write(msg.data);
-        if (wasAtBottom) {
-          termInstance.value.scrollToBottom();
-        } else {
-          // write() auto-scrolls — undo that to preserve user's scroll position
-          var newBaseY = termInstance.value.buffer.active.baseY;
-          var drift = newBaseY - prevBaseY;
-          if (drift > 0) termInstance.value.scrollLines(-drift);
+      // Route output to all pane terminals showing this session
+      var _ptKeys = Object.keys(paneTerminals);
+      for (var _pi = 0; _pi < _ptKeys.length; _pi++) {
+        var _pt = paneTerminals[_ptKeys[_pi]];
+        if (_pt && _pt.sessionId === msg.sessionId && _pt.term) {
+          var vp = _pt.term.buffer.active;
+          var wasAtBottom = vp.baseY + _pt.term.rows >= vp.length - 1;
+          var prevBaseY = vp.baseY;
+          _pt.term.write(msg.data);
+          if (wasAtBottom) {
+            _pt.term.scrollToBottom();
+          } else {
+            var newBaseY = _pt.term.buffer.active.baseY;
+            var drift = newBaseY - prevBaseY;
+            if (drift > 0) _pt.term.scrollLines(-drift);
+          }
         }
       }
       break;
@@ -192,15 +339,15 @@ function handleMessage(msg) {
 var pendingSubscribe = signal(null);
 
 function selectSession(id, opts) {
+  if (!id) return;
   if (activeSessionId.value === id) return;
   if (opts && opts.manual) autoFollow.value = false;
   if (activeSessionId.value) wsSend({ type: 'unsubscribe', sessionId: activeSessionId.value });
-  jsonBuf = '';
   activeChatId.value = null;
-  // Set pendingSubscribe — XTermContainer will subscribe after terminal is fit
-  pendingSubscribe.value = id;
+  jsonBuf = '';
   termTitle.value = '';
   activeSessionId.value = id;
+  setPaneSession(focusedPaneId.value, id);
 }
 
 function completeSubscribe(id) {
