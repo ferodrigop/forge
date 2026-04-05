@@ -118,4 +118,59 @@ describe("spawn_gemini", () => {
     expect(result.isError).toBe(true);
     expect((result.content as Array<{ text: string }>)[0].text).toContain("not found");
   });
+
+  it("resume: true resumes latest session", async () => {
+    await setup();
+    const result = await client.callTool({
+      name: "spawn_gemini",
+      arguments: { resume: true },
+    });
+    const text = (result.content as Array<{ text: string }>)[0].text;
+    const info = JSON.parse(text);
+    expect(info.id).toBeDefined();
+    expect(info.name).toBe("gemini: resumed session");
+    expect(info.tags).toContain("gemini-agent");
+
+    // Verify --resume was passed: /bin/echo outputs its args
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 5000 },
+    });
+    const waited = JSON.parse((waitResult.content as Array<{ text: string }>)[0].text);
+    expect(waited.exitCode).toBe(0);
+
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: info.id },
+    });
+    const output = JSON.parse((readResult.content as Array<{ text: string }>)[0].text);
+    expect(output.data).toContain("--resume");
+  }, 10_000);
+
+  it("resume with session ID passes it to gemini", async () => {
+    await setup();
+    const result = await client.callTool({
+      name: "spawn_gemini",
+      arguments: { resume: "abc-123" },
+    });
+    const text = (result.content as Array<{ text: string }>)[0].text;
+    const info = JSON.parse(text);
+    expect(info.id).toBeDefined();
+    expect(info.name).toBe("gemini: resumed session");
+
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 5000 },
+    });
+    const waited = JSON.parse((waitResult.content as Array<{ text: string }>)[0].text);
+    expect(waited.exitCode).toBe(0);
+
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: info.id },
+    });
+    const output = JSON.parse((readResult.content as Array<{ text: string }>)[0].text);
+    expect(output.data).toContain("--resume");
+    expect(output.data).toContain("abc-123");
+  }, 10_000);
 });

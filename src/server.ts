@@ -582,12 +582,13 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
   // --- spawn_gemini ---
   server.tool(
     "spawn_gemini",
-    "Spawn a Gemini CLI agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for headless mode (requires prompt).",
+    "Spawn a Gemini CLI agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for headless mode (requires prompt). Use resume to continue a previous Gemini session.",
     {
       prompt: z.string().optional().describe("The prompt to send to Gemini (required for oneShot mode)"),
       cwd: z.string().optional().describe("Working directory for Gemini (REQUIRED for worktrees — must point to the worktree path, not a session ID)"),
       fromSession: z.string().optional().describe("Copy cwd from an existing session ID (alternative to setting cwd manually)"),
       model: z.string().optional().describe("Model to use"),
+      resume: z.union([z.string(), z.boolean()]).optional().describe("Resume a previous Gemini session. Pass true to resume the latest session, or a session ID/index to resume a specific one (maps to gemini --resume)"),
       name: z.string().max(100).optional().describe("Session name (default: auto-generated from prompt)"),
       tags: z.array(z.string()).max(10).optional().describe("Additional tags (gemini-agent is always included)"),
       bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes (default: from server config)"),
@@ -691,7 +692,15 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           args.push("--sandbox");
         }
 
-        const autoName = params.name ?? (params.prompt ? `gemini: ${params.prompt.slice(0, 60)}` : "gemini: interactive");
+        if (params.resume) {
+          if (typeof params.resume === "string") {
+            args.push("--resume", params.resume);
+          } else {
+            args.push("--resume");
+          }
+        }
+
+        const autoName = params.name ?? (params.resume ? `gemini: resumed session` : params.prompt ? `gemini: ${params.prompt.slice(0, 60)}` : "gemini: interactive");
         const baseTags = ["gemini-agent"];
         if (params.worktree && params.branch) {
           baseTags.push("worktree", `branch:${params.branch}`);
