@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "./server.js";
 import { parseConfig, ConfigManager } from "./utils/config.js";
 import { logger, setLogLevel } from "./utils/logger.js";
@@ -244,6 +244,68 @@ async function cmdStdioProxy(args: string[]): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
+async function cmdSetup(_args: string[]): Promise<void> {
+  process.stderr.write("Setting up Forge with Claude Code...\n");
+
+  // Step 1: Check if daemon is running
+  let status = await getDaemonStatus();
+
+  // Step 2: Start daemon if not running
+  if (!status.running) {
+    process.stderr.write("Starting Forge daemon...\n");
+    const child = spawn(process.argv[0], [process.argv[1], "start", "-d"], {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+
+    // Wait for daemon to be ready (poll /api/sessions with 10s timeout)
+    const deadline = Date.now() + 10_000;
+    let ready = false;
+    while (Date.now() < deadline) {
+      try {
+        await fetch(`http://127.0.0.1:${DEFAULT_PORT}/api/sessions`);
+        ready = true;
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+
+    if (!ready) {
+      process.stderr.write("Error: Forge daemon failed to start within 10s. Check logs.\n");
+      process.exit(1);
+    }
+
+    status = await getDaemonStatus();
+    process.stderr.write(`Forge daemon started (PID ${status.pid}).\n`);
+  } else {
+    process.stderr.write(`Forge daemon already running (PID ${status.pid}).\n`);
+  }
+
+  // Step 3: Register Forge with Claude Code
+  const mcpUrl = `http://127.0.0.1:${DEFAULT_PORT}/mcp`;
+  try {
+    execFileSync("claude", ["mcp", "add", "--transport", "http", "forge", mcpUrl], {
+      stdio: "inherit",
+    });
+  } catch (err: unknown) {
+    const code = (err as { status?: number }).status;
+    if (code === 127 || (err instanceof Error && err.message.includes("ENOENT"))) {
+      process.stderr.write(
+        "Error: 'claude' CLI not found. Install Claude Code first:\n" +
+        "  https://docs.anthropic.com/en/docs/claude-code\n",
+      );
+    } else {
+      process.stderr.write(`Error registering Forge with Claude Code: ${err}\n`);
+    }
+    process.exit(1);
+  }
+
+  // Step 4: Success
+  process.stderr.write(`\nForge is ready! MCP server registered at ${mcpUrl}\n`);
+}
+
 // ─── Main CLI dispatcher ──────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -255,6 +317,7 @@ async function main(): Promise<void> {
 forge — Persistent terminal MCP server for AI coding agents
 
 Usage:
+  forge setup          Auto-start daemon + register MCP with Claude Code
   forge start [-d]     Start daemon (foreground, or -d for detached/background)
   forge stop           Stop daemon, kill all sessions
   forge status         Show daemon status, PID, session count
@@ -292,6 +355,9 @@ Legacy stdio config (.mcp.json):
       break;
     case "status":
       await cmdStatus();
+      break;
+    case "setup":
+      await cmdSetup(args.slice(1));
       break;
     default:
       // Backward compat: no subcommand → stdio proxy mode
