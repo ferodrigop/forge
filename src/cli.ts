@@ -1,4 +1,7 @@
 import { spawn, execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { createServer } from "./server.js";
 import { parseConfig, ConfigManager } from "./utils/config.js";
 import { logger, setLogLevel } from "./utils/logger.js";
@@ -244,78 +247,234 @@ async function cmdStdioProxy(args: string[]): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
-async function cmdSetup(_args: string[]): Promise<void> {
-  process.stderr.write("Setting up Forge with Claude Code...\n");
+// ─── Agent registration helpers ───────────────────────────────
 
-  // Step 1: Check if daemon is running
-  let status = await getDaemonStatus();
+type AgentDef = {
+  name: string;
+  description: string;
+  register: (mcpUrl: string) => void;
+};
 
-  // Step 2: Start daemon if not running
-  if (!status.running) {
-    process.stderr.write("Starting Forge daemon...\n");
-    const child = spawn(process.argv[0], [process.argv[1], "start", "-d"], {
-      detached: true,
-      stdio: "ignore",
-    });
-    child.unref();
+function cliIsAvailable(bin: string): boolean {
+  try {
+    execFileSync(bin, ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-    // Wait for daemon to be ready (poll /api/sessions with 10s timeout)
-    const deadline = Date.now() + 10_000;
-    let ready = false;
-    while (Date.now() < deadline) {
-      try {
-        await fetch(`http://127.0.0.1:${DEFAULT_PORT}/api/sessions`);
-        ready = true;
-        break;
-      } catch {
-        await new Promise((r) => setTimeout(r, 300));
-      }
+function mergeJsonConfig(filePath: string, rootKey: string, serverName: string, entry: Record<string, unknown>): void {
+  let config: Record<string, unknown> = {};
+  if (existsSync(filePath)) {
+    try {
+      config = JSON.parse(readFileSync(filePath, "utf-8"));
+    } catch {
+      process.stderr.write(`Warning: could not parse ${filePath}, creating new file.\n`);
     }
-
-    if (!ready) {
-      process.stderr.write("Error: Forge daemon failed to start within 10s. Check logs.\n");
-      process.exit(1);
-    }
-
-    const newStatus = await getDaemonStatus();
-    process.stderr.write(`Forge daemon started (PID ${newStatus.pid ?? "unknown"}).\n`);
   } else {
-    process.stderr.write(`Forge daemon already running (PID ${status.pid}).\n`);
+    const dir = filePath.substring(0, filePath.lastIndexOf("/"));
+    mkdirSync(dir, { recursive: true });
   }
 
-  // Step 3: Register Forge with Claude Code
+  const servers = (config[rootKey] ?? {}) as Record<string, unknown>;
+  if (servers[serverName]) {
+    process.stderr.write(`Forge already registered in ${filePath}\n`);
+    return;
+  }
+
+  servers[serverName] = entry;
+  config[rootKey] = servers;
+  writeFileSync(filePath, JSON.stringify(config, null, 2) + "\n");
+  process.stderr.write(`Wrote forge config to ${filePath}\n`);
+}
+
+function registerViaCli(bin: string, listArgs: string[], addArgs: string[], notFoundUrl: string): void {
+  // Check if already registered
+  try {
+    const listing = execFileSync(bin, listArgs, { encoding: "utf-8" });
+    if (listing.includes("forge")) {
+      process.stderr.write(`Forge already registered with ${bin}.\n`);
+      return;
+    }
+  } catch {
+    // list failed — will be caught below in add
+  }
+
+  try {
+    execFileSync(bin, addArgs, { stdio: "inherit" });
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      process.stderr.write(`Error: '${bin}' CLI not found. Install it first:\n  ${notFoundUrl}\n`);
+    } else {
+      process.stderr.write(`Error registering Forge with ${bin}: ${err}\n`);
+    }
+    process.exit(1);
+  }
+}
+
+const AGENTS: AgentDef[] = [
+  {
+    name: "claude-code",
+    description: "Claude Code",
+    register(mcpUrl) {
+      registerViaCli(
+        "claude",
+        ["mcp", "list"],
+        ["mcp", "add", "--transport", "http", "forge", mcpUrl],
+        "https://docs.anthropic.com/en/docs/claude-code",
+      );
+    },
+  },
+  {
+    name: "gemini-cli",
+    description: "Gemini CLI",
+    register(mcpUrl) {
+      registerViaCli(
+        "gemini",
+        ["mcp", "list"],
+        ["mcp", "add", "--transport", "http", "forge", mcpUrl],
+        "https://github.com/google-gemini/gemini-cli",
+      );
+    },
+  },
+  {
+    name: "codex-cli",
+    description: "Codex CLI (OpenAI)",
+    register(mcpUrl) {
+      registerViaCli(
+        "codex",
+        ["mcp", "list"],
+        ["mcp", "add", "forge", "--url", mcpUrl],
+        "https://github.com/openai/codex",
+      );
+    },
+  },
+  {
+    name: "cursor",
+    description: "Cursor",
+    register(mcpUrl) {
+      mergeJsonConfig(
+        join(homedir(), ".cursor", "mcp.json"),
+        "mcpServers",
+        "forge",
+        { url: mcpUrl },
+      );
+    },
+  },
+  {
+    name: "windsurf",
+    description: "Windsurf",
+    register(mcpUrl) {
+      mergeJsonConfig(
+        join(homedir(), ".codeium", "windsurf", "mcp_config.json"),
+        "mcpServers",
+        "forge",
+        { serverUrl: mcpUrl },
+      );
+    },
+  },
+  {
+    name: "copilot",
+    description: "GitHub Copilot CLI",
+    register(mcpUrl) {
+      mergeJsonConfig(
+        join(homedir(), ".copilot", "mcp-config.json"),
+        "mcpServers",
+        "forge",
+        { type: "http", url: mcpUrl },
+      );
+    },
+  },
+  {
+    name: "deep-agents",
+    description: "Deep Agents (LangChain)",
+    register(mcpUrl) {
+      mergeJsonConfig(
+        join(homedir(), ".deepagents", ".mcp.json"),
+        "mcpServers",
+        "forge",
+        { type: "http", url: mcpUrl },
+      );
+    },
+  },
+];
+
+const AGENT_NAMES = AGENTS.map((a) => a.name);
+
+async function ensureDaemonRunning(): Promise<void> {
+  const status = await getDaemonStatus();
+  if (status.running) {
+    process.stderr.write(`Forge daemon already running (PID ${status.pid}).\n`);
+    return;
+  }
+
+  process.stderr.write("Starting Forge daemon...\n");
+  const child = spawn(process.argv[0], [process.argv[1], "start", "-d"], {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    try {
+      await fetch(`http://127.0.0.1:${DEFAULT_PORT}/api/sessions`);
+      const newStatus = await getDaemonStatus();
+      process.stderr.write(`Forge daemon started (PID ${newStatus.pid ?? "unknown"}).\n`);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+
+  process.stderr.write("Error: Forge daemon failed to start within 10s. Check logs.\n");
+  process.exit(1);
+}
+
+async function cmdSetup(args: string[]): Promise<void> {
+  // Parse --agent flag
+  const agentIdx = args.indexOf("--agent");
+  const agentName = agentIdx !== -1 ? args[agentIdx + 1] : undefined;
+
+  if (args.includes("--list-agents")) {
+    process.stderr.write("Supported agents:\n");
+    for (const agent of AGENTS) {
+      process.stderr.write(`  ${agent.name.padEnd(16)} ${agent.description}\n`);
+    }
+    return;
+  }
+
+  if (agentIdx !== -1 && !agentName) {
+    process.stderr.write("Error: --agent requires a value. Use --list-agents to see options.\n");
+    process.exit(1);
+  }
+
+  if (agentName && !AGENT_NAMES.includes(agentName)) {
+    process.stderr.write(`Error: unknown agent '${agentName}'. Use --list-agents to see options.\n`);
+    process.exit(1);
+  }
+
   const mcpUrl = `http://127.0.0.1:${DEFAULT_PORT}/mcp`;
 
-  // Check if forge is already registered (idempotent)
-  let alreadyRegistered = false;
-  try {
-    const listing = execFileSync("claude", ["mcp", "list"], { encoding: "utf-8" });
-    alreadyRegistered = listing.includes("forge");
-  } catch {
-    // claude not found or mcp list failed — will be caught below
+  if (!agentName) {
+    // No agent specified — print generic config
+    process.stderr.write("No --agent specified. Showing manual configuration:\n\n");
+    process.stderr.write(`Forge MCP URL: ${mcpUrl}\n\n`);
+    process.stderr.write("Add to your agent's MCP config (JSON):\n");
+    process.stderr.write(JSON.stringify({ mcpServers: { forge: { type: "http", url: mcpUrl } } }, null, 2) + "\n\n");
+    process.stderr.write("Or run with a specific agent:\n");
+    process.stderr.write("  forge setup --agent claude-code\n");
+    process.stderr.write("  forge setup --list-agents\n");
+    return;
   }
 
-  if (!alreadyRegistered) {
-    try {
-      execFileSync("claude", ["mcp", "add", "--transport", "http", "forge", mcpUrl], {
-        stdio: "inherit",
-      });
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-        process.stderr.write(
-          "Error: 'claude' CLI not found. Install Claude Code first:\n" +
-          "  https://docs.anthropic.com/en/docs/claude-code\n",
-        );
-      } else {
-        process.stderr.write(`Error registering Forge with Claude Code: ${err}\n`);
-      }
-      process.exit(1);
-    }
-  } else {
-    process.stderr.write("Forge MCP server already registered with Claude Code.\n");
-  }
+  const agent = AGENTS.find((a) => a.name === agentName)!;
+  process.stderr.write(`Setting up Forge with ${agent.description}...\n`);
 
-  // Step 4: Success
+  await ensureDaemonRunning();
+  agent.register(mcpUrl);
+
   process.stderr.write(`\nForge is ready! MCP server registered at ${mcpUrl}\n`);
 }
 
@@ -330,10 +489,12 @@ async function main(): Promise<void> {
 forge — Persistent terminal MCP server for AI coding agents
 
 Usage:
-  forge setup          Auto-start daemon + register MCP with Claude Code
-  forge start [-d]     Start daemon (foreground, or -d for detached/background)
-  forge stop           Stop daemon, kill all sessions
-  forge status         Show daemon status, PID, session count
+  forge setup --agent <name>  Auto-start daemon + register MCP with an AI agent
+  forge setup --list-agents  List supported agents
+  forge setup                Show manual MCP config (no agent specified)
+  forge start [-d]           Start daemon (foreground, or -d for detached/background)
+  forge stop                 Stop daemon, kill all sessions
+  forge status               Show daemon status, PID, session count
 
 Daemon options (forge start):
   --max-sessions <n>   Max concurrent sessions (default: 10)
