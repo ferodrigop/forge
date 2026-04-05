@@ -128,7 +128,7 @@ export function saveSettingsFile(settings: Partial<ForgeConfig>): void {
 
 import type { CustomAgentConfig } from "../core/agent-registry.js";
 
-function parseAgentsConfig(raw: Record<string, unknown>): Record<string, CustomAgentConfig> {
+export function parseAgentsConfig(raw: Record<string, unknown>): Record<string, CustomAgentConfig> | undefined {
   const agents: Record<string, CustomAgentConfig> = {};
   for (const [id, val] of Object.entries(raw)) {
     if (!val || typeof val !== "object") continue;
@@ -142,7 +142,14 @@ function parseAgentsConfig(raw: Record<string, unknown>): Record<string, CustomA
     if (typeof v.modelFlag === "string") agent.modelFlag = v.modelFlag;
     if (typeof v.defaultModel === "string") agent.defaultModel = v.defaultModel;
     if (v.submitKey === "enter" || v.submitKey === "escape-enter") agent.submitKey = v.submitKey;
-    if (typeof v.turnCompletePattern === "string") agent.turnCompletePattern = v.turnCompletePattern;
+    if (typeof v.turnCompletePattern === "string") {
+      try {
+        new RegExp(v.turnCompletePattern);
+        agent.turnCompletePattern = v.turnCompletePattern;
+      } catch {
+        logger.warn(`Agent "${id}": invalid turnCompletePattern regex "${v.turnCompletePattern}", ignoring`);
+      }
+    }
     if (typeof v.promptDelay === "number") agent.promptDelay = v.promptDelay;
     if (v.env && typeof v.env === "object" && !Array.isArray(v.env)) {
       agent.env = Object.fromEntries(
@@ -151,7 +158,7 @@ function parseAgentsConfig(raw: Record<string, unknown>): Record<string, CustomA
     }
     agents[id] = agent;
   }
-  return Object.keys(agents).length > 0 ? agents : undefined!;
+  return Object.keys(agents).length > 0 ? agents : undefined;
 }
 
 // ─── Merge helper ───────────────────────────────────────────

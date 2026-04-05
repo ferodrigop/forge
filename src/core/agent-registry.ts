@@ -8,6 +8,7 @@
  */
 
 import type { ForgeConfig } from "./types.js";
+import { logger } from "../utils/logger.js";
 
 // ─── Custom agent config (JSON-serializable, for settings.json) ──
 
@@ -219,7 +220,9 @@ export class AgentRegistry {
     // Custom agents from config
     if (config.agents) {
       for (const [id, custom] of Object.entries(config.agents)) {
-        // Custom agents can override built-ins
+        if (this.agents.has(id)) {
+          logger.warn(`Custom agent "${id}" overrides built-in agent`);
+        }
         this.agents.set(id, customToDefinition(id, custom));
       }
     }
