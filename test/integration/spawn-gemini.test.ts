@@ -35,7 +35,23 @@ describe("spawn_gemini", () => {
     const info = JSON.parse(text);
     expect(info.id).toBeDefined();
     expect(info.tags).toContain("gemini-agent");
-  });
+
+    // Verify the session actually ran: /bin/echo receives the prompt as an arg and exits
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 5000 },
+    });
+    const waited = JSON.parse((waitResult.content as Array<{ text: string }>)[0].text);
+    expect(waited.matched).toBe(true);
+    expect(waited.exitCode).toBe(0);
+
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: info.id },
+    });
+    const output = JSON.parse((readResult.content as Array<{ text: string }>)[0].text);
+    expect(output.data).toContain("hello");
+  }, 10_000);
 
   it("spawns an interactive gemini session", async () => {
     await setup();

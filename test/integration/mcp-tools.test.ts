@@ -811,10 +811,12 @@ describe("MCP Tools E2E", () => {
   // --- revive_terminal ---
 
   it("revive_terminal recreates an exited session", async () => {
-    // Create a terminal that exits quickly
+    // Use /bin/sh -c so the command itself is /bin/sh (which revive preserves).
+    // Note: revive_terminal only preserves command, cwd, cols, rows, name, tags — NOT args.
+    // So the revived session spawns a bare /bin/sh (interactive shell), which stays running.
     const createResult = await client.callTool({
       name: "create_terminal",
-      arguments: { command: "/bin/echo", args: ["hello"], name: "ephemeral", tags: ["revive-test"] },
+      arguments: { command: "/bin/sh", args: ["-c", "echo original-output && exit 0"], name: "ephemeral", tags: ["revive-test"] },
     });
     const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
 
@@ -826,7 +828,7 @@ describe("MCP Tools E2E", () => {
     const waitParsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
     expect(waitParsed.matched).toBe(true);
 
-    // Revive
+    // Revive — spawns a bare /bin/sh (args are not preserved by design)
     const reviveResult = await client.callTool({
       name: "revive_terminal",
       arguments: { sessionId: info.id },
@@ -838,6 +840,21 @@ describe("MCP Tools E2E", () => {
     expect(revived.id).not.toBe(info.id);
     expect(revived.name).toBe("ephemeral");
     expect(revived.tags).toContain("revive-test");
+
+    // Verify the revived session is actually running and usable
+    expect(revived.status).toBe("running");
+    expect(revived.command).toBe("/bin/sh");
+    await client.callTool({
+      name: "write_terminal",
+      arguments: { id: revived.id, input: "echo revived-output" },
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: revived.id },
+    });
+    const output = JSON.parse((readResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(output.data).toContain("revived-output");
   }, 10_000);
 
   it("revive_terminal on running session returns error", async () => {
