@@ -86,4 +86,38 @@ describe("parseConfig", () => {
     const config = parseConfig(["--codex-path", "/usr/local/bin/codex"]);
     expect(config.codexPath).toBe("/usr/local/bin/codex");
   });
+
+  it("default models are undefined when not set", () => {
+    const config = parseConfig([]);
+    expect(config.claudeDefaultModel).toBeUndefined();
+    expect(config.codexDefaultModel).toBeUndefined();
+    expect(config.geminiDefaultModel).toBeUndefined();
+  });
+
+  it("parses default model CLI flags", () => {
+    const config = parseConfig([
+      "--claude-default-model", "sonnet",
+      "--codex-default-model", "o3",
+      "--gemini-default-model", "gemini-2.5-pro",
+    ]);
+    expect(config.claudeDefaultModel).toBe("sonnet");
+    expect(config.codexDefaultModel).toBe("o3");
+    expect(config.geminiDefaultModel).toBe("gemini-2.5-pro");
+  });
+
+  it("reads default models from env vars", () => {
+    process.env.FORGE_CLAUDE_DEFAULT_MODEL = "opus";
+    process.env.FORGE_CODEX_DEFAULT_MODEL = "o4-mini";
+    process.env.FORGE_GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+    const config = parseConfig([]);
+    expect(config.claudeDefaultModel).toBe("opus");
+    expect(config.codexDefaultModel).toBe("o4-mini");
+    expect(config.geminiDefaultModel).toBe("gemini-2.5-flash");
+  });
+
+  it("CLI default model flags take precedence over env vars", () => {
+    process.env.FORGE_CLAUDE_DEFAULT_MODEL = "opus";
+    const config = parseConfig(["--claude-default-model", "sonnet"]);
+    expect(config.claudeDefaultModel).toBe("sonnet");
+  });
 });

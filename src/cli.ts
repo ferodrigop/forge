@@ -512,6 +512,9 @@ Daemon options (forge start):
   --shell <path>       Default shell (default: $SHELL)
   --claude-path <path> Path to claude CLI (default: claude)
   --codex-path <path>  Path to codex CLI (default: codex)
+  --claude-default-model <m>  Default model for spawn_claude (e.g., sonnet, opus)
+  --codex-default-model <m>  Default model for spawn_codex
+  --gemini-default-model <m> Default model for spawn_gemini
   --auth-token <token> Require Bearer token for /mcp, /api, /ws
   --port <n>           HTTP port (default: 3141)
   --verbose            Enable debug logging

@@ -344,8 +344,9 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         }
         // Interactive mode: prompt is sent to stdin after launch
 
-        if (params.model) {
-          args.push("--model", params.model);
+        const claudeModel = params.model ?? getConfig().claudeDefaultModel;
+        if (claudeModel) {
+          args.push("--model", claudeModel);
         }
         if (params.maxBudget) {
           args.push("--max-budget-usd", String(params.maxBudget));
@@ -514,8 +515,9 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           args.push("exec", params.prompt!);
         }
 
-        if (params.model) {
-          args.push("--model", params.model);
+        const codexModel = params.model ?? getConfig().codexDefaultModel;
+        if (codexModel) {
+          args.push("--model", codexModel);
         }
 
         const autoName = params.name ?? (params.prompt ? `codex: ${params.prompt.slice(0, 60)}` : "codex: interactive");
@@ -683,8 +685,9 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           args.push("-p", params.prompt!);
         }
 
-        if (params.model) {
-          args.push("--model", params.model);
+        const geminiModel = params.model ?? getConfig().geminiDefaultModel;
+        if (geminiModel) {
+          args.push("--model", geminiModel);
         }
 
         if (params.sandbox) {

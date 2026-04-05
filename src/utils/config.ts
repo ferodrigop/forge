@@ -52,6 +52,9 @@ function parseCli(argv: string[]): Partial<ForgeConfig> {
   const cp = strArg(argv, "--claude-path");    if (cp !== undefined) result.claudePath = cp;
   const cx = strArg(argv, "--codex-path");     if (cx !== undefined) result.codexPath = cx;
   const gp = strArg(argv, "--gemini-path");   if (gp !== undefined) result.geminiPath = gp;
+  const cdm = strArg(argv, "--claude-default-model"); if (cdm !== undefined) result.claudeDefaultModel = cdm;
+  const xdm = strArg(argv, "--codex-default-model");  if (xdm !== undefined) result.codexDefaultModel = xdm;
+  const gdm = strArg(argv, "--gemini-default-model");  if (gdm !== undefined) result.geminiDefaultModel = gdm;
   const at = strArg(argv, "--auth-token");     if (at !== undefined) result.authToken = at;
   const et = intArg(argv, "--exited-ttl");     if (et !== undefined) result.exitedTtl = et;
   return result;
@@ -70,6 +73,9 @@ function parseEnv(): Partial<ForgeConfig> {
   if (process.env.FORGE_CLAUDE_PATH) result.claudePath = process.env.FORGE_CLAUDE_PATH;
   if (process.env.FORGE_CODEX_PATH) result.codexPath = process.env.FORGE_CODEX_PATH;
   if (process.env.FORGE_GEMINI_PATH) result.geminiPath = process.env.FORGE_GEMINI_PATH;
+  if (process.env.FORGE_CLAUDE_DEFAULT_MODEL) result.claudeDefaultModel = process.env.FORGE_CLAUDE_DEFAULT_MODEL;
+  if (process.env.FORGE_CODEX_DEFAULT_MODEL) result.codexDefaultModel = process.env.FORGE_CODEX_DEFAULT_MODEL;
+  if (process.env.FORGE_GEMINI_DEFAULT_MODEL) result.geminiDefaultModel = process.env.FORGE_GEMINI_DEFAULT_MODEL;
   if (process.env.FORGE_AUTH_TOKEN) result.authToken = process.env.FORGE_AUTH_TOKEN;
   const et = envInt("FORGE_EXITED_TTL");       if (et !== undefined) result.exitedTtl = et;
   return result;
@@ -91,6 +97,9 @@ export function loadSettingsFile(): Partial<ForgeConfig> {
     if (typeof parsed.claudePath === "string" && parsed.claudePath) result.claudePath = parsed.claudePath;
     if (typeof parsed.codexPath === "string" && parsed.codexPath) result.codexPath = parsed.codexPath;
     if (typeof parsed.geminiPath === "string" && parsed.geminiPath) result.geminiPath = parsed.geminiPath;
+    if (typeof parsed.claudeDefaultModel === "string" && parsed.claudeDefaultModel) result.claudeDefaultModel = parsed.claudeDefaultModel;
+    if (typeof parsed.codexDefaultModel === "string" && parsed.codexDefaultModel) result.codexDefaultModel = parsed.codexDefaultModel;
+    if (typeof parsed.geminiDefaultModel === "string" && parsed.geminiDefaultModel) result.geminiDefaultModel = parsed.geminiDefaultModel;
     if (typeof parsed.authToken === "string") result.authToken = parsed.authToken;
     if (typeof parsed.exitedTtl === "number" && parsed.exitedTtl >= 0) result.exitedTtl = parsed.exitedTtl;
     return result;
@@ -125,6 +134,9 @@ function merge(cli: Partial<ForgeConfig>, env: Partial<ForgeConfig>, file: Parti
     claudePath:    cli.claudePath    ?? env.claudePath    ?? file.claudePath    ?? DEFAULT_CONFIG.claudePath,
     codexPath:     cli.codexPath     ?? env.codexPath     ?? file.codexPath     ?? DEFAULT_CONFIG.codexPath,
     geminiPath:    cli.geminiPath    ?? env.geminiPath    ?? file.geminiPath    ?? DEFAULT_CONFIG.geminiPath,
+    claudeDefaultModel: cli.claudeDefaultModel ?? env.claudeDefaultModel ?? file.claudeDefaultModel ?? DEFAULT_CONFIG.claudeDefaultModel,
+    codexDefaultModel:  cli.codexDefaultModel  ?? env.codexDefaultModel  ?? file.codexDefaultModel  ?? DEFAULT_CONFIG.codexDefaultModel,
+    geminiDefaultModel: cli.geminiDefaultModel ?? env.geminiDefaultModel ?? file.geminiDefaultModel ?? DEFAULT_CONFIG.geminiDefaultModel,
     authToken:     cli.authToken     ?? env.authToken     ?? file.authToken     ?? DEFAULT_CONFIG.authToken,
     exitedTtl:     cli.exitedTtl     ?? env.exitedTtl     ?? file.exitedTtl     ?? DEFAULT_CONFIG.exitedTtl,
   };

@@ -8,6 +8,9 @@ export interface ForgeConfig {
   claudePath: string;
   codexPath: string;
   geminiPath: string;
+  claudeDefaultModel?: string;
+  codexDefaultModel?: string;
+  geminiDefaultModel?: string;
   authToken?: string;
   exitedTtl: number;
 }
@@ -51,6 +54,9 @@ export const DEFAULT_CONFIG: ForgeConfig = {
   claudePath: process.env.FORGE_CLAUDE_PATH || "claude",
   codexPath: process.env.FORGE_CODEX_PATH || "codex",
   geminiPath: process.env.FORGE_GEMINI_PATH || "gemini",
+  claudeDefaultModel: process.env.FORGE_CLAUDE_DEFAULT_MODEL,
+  codexDefaultModel: process.env.FORGE_CODEX_DEFAULT_MODEL,
+  geminiDefaultModel: process.env.FORGE_GEMINI_DEFAULT_MODEL,
   authToken: process.env.FORGE_AUTH_TOKEN,
   exitedTtl: 3_600_000, // 1 hour
 };

@@ -89,6 +89,43 @@ describe("ConfigManager", () => {
     const cm = new ConfigManager(["--max-sessions", "abc"]);
     expect(cm.config.maxSessions).toBe(10); // default
   });
+
+  it("parses default model CLI flags", () => {
+    const cm = new ConfigManager([
+      "--claude-default-model", "sonnet",
+      "--codex-default-model", "o3",
+      "--gemini-default-model", "gemini-2.5-pro",
+    ]);
+    expect(cm.config.claudeDefaultModel).toBe("sonnet");
+    expect(cm.config.codexDefaultModel).toBe("o3");
+    expect(cm.config.geminiDefaultModel).toBe("gemini-2.5-pro");
+  });
+
+  it("reads default models from env vars", () => {
+    process.env.FORGE_CLAUDE_DEFAULT_MODEL = "opus";
+    process.env.FORGE_CODEX_DEFAULT_MODEL = "o4-mini";
+    process.env.FORGE_GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+    const cm = new ConfigManager([]);
+    expect(cm.config.claudeDefaultModel).toBe("opus");
+    expect(cm.config.codexDefaultModel).toBe("o4-mini");
+    expect(cm.config.geminiDefaultModel).toBe("gemini-2.5-flash");
+  });
+
+  it("CLI default model takes precedence over env var", () => {
+    process.env.FORGE_CLAUDE_DEFAULT_MODEL = "opus";
+    const cm = new ConfigManager(["--claude-default-model", "sonnet"]);
+    expect(cm.config.claudeDefaultModel).toBe("sonnet");
+  });
+
+  it("reports correct source for default model fields", () => {
+    process.env.FORGE_CODEX_DEFAULT_MODEL = "o3";
+    const cm = new ConfigManager(["--claude-default-model", "sonnet"]);
+    const fields = cm.getConfigWithSources();
+    expect(fields.claudeDefaultModel.source).toBe("cli");
+    expect(fields.claudeDefaultModel.value).toBe("sonnet");
+    expect(fields.codexDefaultModel.source).toBe("env");
+    expect(fields.codexDefaultModel.value).toBe("o3");
+  });
 });
 
 describe("saveSettingsFile", () => {
