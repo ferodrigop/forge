@@ -277,29 +277,42 @@ async function cmdSetup(_args: string[]): Promise<void> {
       process.exit(1);
     }
 
-    status = await getDaemonStatus();
-    process.stderr.write(`Forge daemon started (PID ${status.pid}).\n`);
+    const newStatus = await getDaemonStatus();
+    process.stderr.write(`Forge daemon started (PID ${newStatus.pid ?? "unknown"}).\n`);
   } else {
     process.stderr.write(`Forge daemon already running (PID ${status.pid}).\n`);
   }
 
   // Step 3: Register Forge with Claude Code
   const mcpUrl = `http://127.0.0.1:${DEFAULT_PORT}/mcp`;
+
+  // Check if forge is already registered (idempotent)
+  let alreadyRegistered = false;
   try {
-    execFileSync("claude", ["mcp", "add", "--transport", "http", "forge", mcpUrl], {
-      stdio: "inherit",
-    });
-  } catch (err: unknown) {
-    const code = (err as { status?: number }).status;
-    if (code === 127 || (err instanceof Error && err.message.includes("ENOENT"))) {
-      process.stderr.write(
-        "Error: 'claude' CLI not found. Install Claude Code first:\n" +
-        "  https://docs.anthropic.com/en/docs/claude-code\n",
-      );
-    } else {
-      process.stderr.write(`Error registering Forge with Claude Code: ${err}\n`);
+    const listing = execFileSync("claude", ["mcp", "list"], { encoding: "utf-8" });
+    alreadyRegistered = listing.includes("forge");
+  } catch {
+    // claude not found or mcp list failed — will be caught below
+  }
+
+  if (!alreadyRegistered) {
+    try {
+      execFileSync("claude", ["mcp", "add", "--transport", "http", "forge", mcpUrl], {
+        stdio: "inherit",
+      });
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        process.stderr.write(
+          "Error: 'claude' CLI not found. Install Claude Code first:\n" +
+          "  https://docs.anthropic.com/en/docs/claude-code\n",
+        );
+      } else {
+        process.stderr.write(`Error registering Forge with Claude Code: ${err}\n`);
+      }
+      process.exit(1);
     }
-    process.exit(1);
+  } else {
+    process.stderr.write("Forge MCP server already registered with Claude Code.\n");
   }
 
   // Step 4: Success
