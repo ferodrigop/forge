@@ -25,6 +25,7 @@ function XTermContainer() {
       },
       fontSize: 14,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+      scrollback: 10000,
       cursorBlink: true,
       cursorStyle: 'bar',
       allowProposedApi: true,

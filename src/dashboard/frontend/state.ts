@@ -153,11 +153,18 @@ function handleMessage(msg) {
         sessionLastActivity.value = la;
       }
       if (msg.sessionId === activeSessionId.value && termInstance.value) {
-        // Capture scroll position BEFORE write (write updates buffer synchronously)
         var vp = termInstance.value.buffer.active;
-        var wasAtBottom = vp.baseY + termInstance.value.rows >= vp.length - 5;
+        var wasAtBottom = vp.baseY + termInstance.value.rows >= vp.length - 1;
+        var prevBaseY = vp.baseY;
         termInstance.value.write(msg.data);
-        if (wasAtBottom) termInstance.value.scrollToBottom();
+        if (wasAtBottom) {
+          termInstance.value.scrollToBottom();
+        } else {
+          // write() auto-scrolls — undo that to preserve user's scroll position
+          var newBaseY = termInstance.value.buffer.active.baseY;
+          var drift = newBaseY - prevBaseY;
+          if (drift > 0) termInstance.value.scrollLines(-drift);
+        }
       }
       break;
     case 'history':
