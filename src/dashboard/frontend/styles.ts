@@ -350,7 +350,15 @@ export const CSS_STYLES = `
     text-align: left; white-space: nowrap;
   }
   .group-popover-item:hover { background: #292e42; color: #c0caf5; }
-  .group-popover-item .agent-icon { color: #e0af68; flex-shrink: 0; }
+  .group-popover-item .agent-icon { flex-shrink: 0; }
+  .group-popover-item .agent-icon.claude { color: #bb9af7; }
+  .group-popover-item .agent-icon.codex { color: #9ece6a; }
+  .group-popover-item .agent-icon.gemini { color: #7aa2f7; }
+  .group-popover-item .agent-icon.cursor { color: #e0af68; }
+  .group-popover-item .agent-icon.windsurf { color: #2ac3de; }
+  .group-popover-item .agent-icon.copilot { color: #c0caf5; }
+  .group-popover-item .agent-icon.deep-agents { color: #ff9e64; }
+  .group-popover-divider { height: 1px; background: #292e42; margin: 4px 6px; }
 
   #main {
     flex: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden;

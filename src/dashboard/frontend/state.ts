@@ -204,7 +204,7 @@ function selectSession(id) {
 function completeSubscribe(id) {
   wsSend({ type: 'subscribe', sessionId: id });
   var s = sessions.value.find(function(s) { return s.id === id; });
-  if (s && s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0 || s.tags.indexOf('gemini-agent') >= 0)) {
+  if (s && s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0 || s.tags.indexOf('gemini-agent') >= 0 || s.tags.indexOf('cursor-agent') >= 0 || s.tags.indexOf('windsurf-agent') >= 0 || s.tags.indexOf('copilot-agent') >= 0 || s.tags.indexOf('deep-agents-agent') >= 0)) {
     wsSend({ type: 'get_history', sessionId: id });
   }
 }
@@ -402,5 +402,25 @@ function createClaudeSession(cwd) {
 
 function createCodexSession(cwd) {
   createTerminal({ agent: 'codex', cwd: cwd });
+}
+
+function createGeminiSession(cwd) {
+  createTerminal({ agent: 'gemini', cwd: cwd });
+}
+
+function createCursorSession(cwd) {
+  createTerminal({ agent: 'cursor', cwd: cwd });
+}
+
+function createWindsurfSession(cwd) {
+  createTerminal({ agent: 'windsurf', cwd: cwd });
+}
+
+function createCopilotSession(cwd) {
+  createTerminal({ agent: 'copilot', cwd: cwd });
+}
+
+function createDeepAgentsSession(cwd) {
+  createTerminal({ agent: 'deep-agents', cwd: cwd });
 }
 `;

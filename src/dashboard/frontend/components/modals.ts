@@ -251,6 +251,10 @@ function SettingsModal() {
   var claudePath = preactHooks.useState('');
   var codexPath = preactHooks.useState('');
   var geminiPath = preactHooks.useState('');
+  var cursorPath = preactHooks.useState('');
+  var windsurfPath = preactHooks.useState('');
+  var copilotPath = preactHooks.useState('');
+  var deepAgentsPath = preactHooks.useState('');
 
   function loadSettings() {
     loading[1](true);
@@ -267,6 +271,10 @@ function SettingsModal() {
         claudePath[1](c.claudePath || '');
         codexPath[1](c.codexPath || '');
         geminiPath[1](c.geminiPath || '');
+        cursorPath[1](c.cursorPath || '');
+        windsurfPath[1](c.windsurfPath || '');
+        copilotPath[1](c.copilotPath || '');
+        deepAgentsPath[1](c.deepAgentsPath || '');
         loading[1](false);
       })
       .catch(function() { loading[1](false); });
@@ -321,6 +329,10 @@ function SettingsModal() {
     if (claudePath[0].trim()) updates.claudePath = claudePath[0].trim();
     if (codexPath[0].trim()) updates.codexPath = codexPath[0].trim();
     if (geminiPath[0].trim()) updates.geminiPath = geminiPath[0].trim();
+    if (cursorPath[0].trim()) updates.cursorPath = cursorPath[0].trim();
+    if (windsurfPath[0].trim()) updates.windsurfPath = windsurfPath[0].trim();
+    if (copilotPath[0].trim()) updates.copilotPath = copilotPath[0].trim();
+    if (deepAgentsPath[0].trim()) updates.deepAgentsPath = deepAgentsPath[0].trim();
 
     fetch(apiBase + '/api/settings', {
       method: 'PUT',
@@ -408,6 +420,30 @@ function SettingsModal() {
           <input type="text" value=\${geminiPath[0]} disabled=\${isOverridden('geminiPath')}
             onInput=\${function(e) { geminiPath[1](e.target.value); }}
             placeholder="gemini" />
+        </div>
+        <div class="modal-field">
+          <label>Cursor Path \${sourceTag('cursorPath')}</label>
+          <input type="text" value=\${cursorPath[0]} disabled=\${isOverridden('cursorPath')}
+            onInput=\${function(e) { cursorPath[1](e.target.value); }}
+            placeholder="cursor" />
+        </div>
+        <div class="modal-field">
+          <label>Windsurf Path \${sourceTag('windsurfPath')}</label>
+          <input type="text" value=\${windsurfPath[0]} disabled=\${isOverridden('windsurfPath')}
+            onInput=\${function(e) { windsurfPath[1](e.target.value); }}
+            placeholder="windsurf" />
+        </div>
+        <div class="modal-field">
+          <label>Copilot Path \${sourceTag('copilotPath')}</label>
+          <input type="text" value=\${copilotPath[0]} disabled=\${isOverridden('copilotPath')}
+            onInput=\${function(e) { copilotPath[1](e.target.value); }}
+            placeholder="copilot" />
+        </div>
+        <div class="modal-field">
+          <label>Deep Agents Path \${sourceTag('deepAgentsPath')}</label>
+          <input type="text" value=\${deepAgentsPath[0]} disabled=\${isOverridden('deepAgentsPath')}
+            onInput=\${function(e) { deepAgentsPath[1](e.target.value); }}
+            placeholder="deep-agents" />
         </div>
       </div>
 

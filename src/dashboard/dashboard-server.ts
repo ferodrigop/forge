@@ -89,6 +89,18 @@ export class DashboardServer {
           } else if (opts.agent === "gemini") {
             command = this.getConfig()?.geminiPath || "gemini";
             tags = tags || ["gemini-agent"];
+          } else if (opts.agent === "cursor") {
+            command = this.getConfig()?.cursorPath || "cursor";
+            tags = tags || ["cursor-agent"];
+          } else if (opts.agent === "windsurf") {
+            command = this.getConfig()?.windsurfPath || "windsurf";
+            tags = tags || ["windsurf-agent"];
+          } else if (opts.agent === "copilot") {
+            command = this.getConfig()?.copilotPath || "copilot";
+            tags = tags || ["copilot-agent"];
+          } else if (opts.agent === "deep-agents") {
+            command = this.getConfig()?.deepAgentsPath || "deep-agents";
+            tags = tags || ["deep-agents-agent"];
           }
 
           const session = manager.create({
@@ -102,7 +114,7 @@ export class DashboardServer {
           });
 
           // Preserve agent sessions after exit (consistent with MCP spawn tools)
-          if (opts.agent === "claude" || opts.agent === "codex" || opts.agent === "gemini") {
+          if (opts.agent && opts.agent !== undefined) {
             session.preserveAfterExit();
           }
           res.writeHead(200, { "Content-Type": "application/json" });

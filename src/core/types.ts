@@ -11,6 +11,10 @@ export interface ForgeConfig {
   claudeDefaultModel?: string;
   codexDefaultModel?: string;
   geminiDefaultModel?: string;
+  cursorPath: string;
+  windsurfPath: string;
+  copilotPath: string;
+  deepAgentsPath: string;
   authToken?: string;
   exitedTtl: number;
 }
@@ -57,6 +61,10 @@ export const DEFAULT_CONFIG: ForgeConfig = {
   claudeDefaultModel: process.env.FORGE_CLAUDE_DEFAULT_MODEL,
   codexDefaultModel: process.env.FORGE_CODEX_DEFAULT_MODEL,
   geminiDefaultModel: process.env.FORGE_GEMINI_DEFAULT_MODEL,
+  cursorPath: process.env.FORGE_CURSOR_PATH || "cursor",
+  windsurfPath: process.env.FORGE_WINDSURF_PATH || "windsurf",
+  copilotPath: process.env.FORGE_COPILOT_PATH || "copilot",
+  deepAgentsPath: process.env.FORGE_DEEP_AGENTS_PATH || "deep-agents",
   authToken: process.env.FORGE_AUTH_TOKEN,
   exitedTtl: 3_600_000, // 1 hour
 };

@@ -137,6 +137,10 @@ function merge(cli: Partial<ForgeConfig>, env: Partial<ForgeConfig>, file: Parti
     claudeDefaultModel: cli.claudeDefaultModel ?? env.claudeDefaultModel ?? file.claudeDefaultModel ?? DEFAULT_CONFIG.claudeDefaultModel,
     codexDefaultModel:  cli.codexDefaultModel  ?? env.codexDefaultModel  ?? file.codexDefaultModel  ?? DEFAULT_CONFIG.codexDefaultModel,
     geminiDefaultModel: cli.geminiDefaultModel ?? env.geminiDefaultModel ?? file.geminiDefaultModel ?? DEFAULT_CONFIG.geminiDefaultModel,
+    cursorPath:    cli.cursorPath    ?? env.cursorPath    ?? file.cursorPath    ?? DEFAULT_CONFIG.cursorPath,
+    windsurfPath:  cli.windsurfPath  ?? env.windsurfPath  ?? file.windsurfPath  ?? DEFAULT_CONFIG.windsurfPath,
+    copilotPath:   cli.copilotPath   ?? env.copilotPath   ?? file.copilotPath   ?? DEFAULT_CONFIG.copilotPath,
+    deepAgentsPath: cli.deepAgentsPath ?? env.deepAgentsPath ?? file.deepAgentsPath ?? DEFAULT_CONFIG.deepAgentsPath,
     authToken:     cli.authToken     ?? env.authToken     ?? file.authToken     ?? DEFAULT_CONFIG.authToken,
     exitedTtl:     cli.exitedTtl     ?? env.exitedTtl     ?? file.exitedTtl     ?? DEFAULT_CONFIG.exitedTtl,
   };

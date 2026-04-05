@@ -170,6 +170,36 @@ function TerminalGroup(props) {
     createCodexSession(cwd);
   }
 
+  function onNewGemini(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createGeminiSession(cwd);
+  }
+
+  function onNewCursor(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createCursorSession(cwd);
+  }
+
+  function onNewWindsurf(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createWindsurfSession(cwd);
+  }
+
+  function onNewCopilot(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createCopilotSession(cwd);
+  }
+
+  function onNewDeepAgents(e) {
+    e.stopPropagation();
+    activeGroupPopover.value = null;
+    createDeepAgentsSession(cwd);
+  }
+
   // Close popover on outside click
   preactHooks.useEffect(function() {
     if (!popoverOpen) return;
@@ -209,12 +239,33 @@ function TerminalGroup(props) {
                 <span>Terminal</span>
               </button>
               <button class="group-popover-item" onClick=\${onNewClaude}>
-                <svg class="agent-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12l-1.5-3.5L3 7l3.5-1.5z"/><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/></svg>
+                <svg class="agent-icon claude" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12l-1.5-3.5L3 7l3.5-1.5z"/><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/></svg>
                 <span>Claude Code</span>
               </button>
               <button class="group-popover-item" onClick=\${onNewCodex}>
-                <svg class="agent-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12l-1.5-3.5L3 7l3.5-1.5z"/><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/></svg>
+                <svg class="agent-icon codex" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12l-1.5-3.5L3 7l3.5-1.5z"/><path d="M12 2l.5 1.5L14 4l-1.5.5L12 6l-.5-1.5L10 4l1.5-.5z"/></svg>
                 <span>Codex</span>
+              </button>
+              <button class="group-popover-item" onClick=\${onNewGemini}>
+                <svg class="agent-icon gemini" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v14"/><path d="M3 3.5Q8 8 3 12.5"/><path d="M13 3.5Q8 8 13 12.5"/></svg>
+                <span>Gemini</span>
+              </button>
+              <div class="group-popover-divider"></div>
+              <button class="group-popover-item" onClick=\${onNewCursor}>
+                <svg class="agent-icon cursor" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2l2 12 3-4 4-1z"/><path d="M9 9l4 4"/></svg>
+                <span>Cursor</span>
+              </button>
+              <button class="group-popover-item" onClick=\${onNewWindsurf}>
+                <svg class="agent-icon windsurf" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10Q5 6 8 8Q11 10 14 6"/><path d="M2 13Q5 9 8 11Q11 13 14 9"/></svg>
+                <span>Windsurf</span>
+              </button>
+              <button class="group-popover-item" onClick=\${onNewCopilot}>
+                <svg class="agent-icon copilot" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="5.5" cy="9.5" r="1.5"/><circle cx="10.5" cy="9.5" r="1.5"/><path d="M4 12.5Q8 15 12 12.5"/></svg>
+                <span>Copilot</span>
+              </button>
+              <button class="group-popover-item" onClick=\${onNewDeepAgents}>
+                <svg class="agent-icon deep-agents" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="3" r="2"/><circle cx="3" cy="11" r="2"/><circle cx="13" cy="11" r="2"/><path d="M8 5v2L3 11M8 7l5 4"/></svg>
+                <span>Deep Agents</span>
               </button>
             </div>
           \` : null}
