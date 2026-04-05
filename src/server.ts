@@ -943,10 +943,10 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         const progressTotal = Math.ceil(timeoutMs / 2000);
         const progressInterval = progressToken ? setInterval(() => {
           progressTick++;
-          extra.sendNotification({
+          void extra.sendNotification({
             method: "notifications/progress",
             params: { progressToken, progress: progressTick, total: progressTotal },
-          });
+          }).catch(() => {});
         }, 2000) : null;
 
         // --- waitForExit mode ---
@@ -1667,16 +1667,19 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
       const progressToken = extra?.meta?.progressToken;
       let progressTick = 0;
       const progressTotal = Math.ceil(timeoutMs / 2000);
+      let activeProgressInterval: ReturnType<typeof setInterval> | null = null;
       const startProgress = () => {
         if (!progressToken) return null;
         progressTick = 0;
-        return setInterval(() => {
+        const interval = setInterval(() => {
           progressTick++;
-          extra.sendNotification({
+          void extra.sendNotification({
             method: "notifications/progress",
             params: { progressToken, progress: progressTick, total: progressTotal },
-          });
+          }).catch(() => {});
         }, 2000);
+        activeProgressInterval = interval;
+        return interval;
       };
 
       // Format prompt with orchestrator attribution
@@ -2056,6 +2059,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           }],
         };
       } catch (err) {
+        if (activeProgressInterval) clearInterval(activeProgressInterval);
         return {
           content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
           isError: true,
