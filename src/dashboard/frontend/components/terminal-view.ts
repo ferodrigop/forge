@@ -265,12 +265,12 @@ function MultilineEditor() {
       var text = ta.value;
       if (!text) return;
       // Send each line followed by enter, to simulate typing into the terminal
-      var lines = text.split('\\n');
+      var lines = text.replace(/\n$/, '').split('\n');
       for (var i = 0; i < lines.length; i++) {
-        if (i > 0) wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\n' });
-        if (lines[i]) wsSend({ type: 'input', sessionId: activeSessionId.value, data: lines[i] });
+        if (i > 0) wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\r' });
+        wsSend({ type: 'input', sessionId: activeSessionId.value, data: lines[i] });
       }
-      wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\r' });
+      wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\r' });
       ta.value = '';
       autoResize();
     }

@@ -490,7 +490,7 @@ export const CSS_STYLES = `
     display: flex; align-items: center; justify-content: space-between;
     padding: 4px 12px; font-size: 11px; color: #565f89;
   }
-  .multiline-editor-hint { font-size: 10px; color: #3b4261; }
+  .multiline-editor-hint { font-size: 10px; color: #565f89; }
   .multiline-editor-textarea {
     background: #1a1b26; color: #a9b1d6; border: none; outline: none;
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
