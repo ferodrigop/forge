@@ -2,11 +2,11 @@ export const SPLIT_PANE_JS = `
 function PaneTerminal(props) {
   var paneId = props.paneId;
   var sessionId = props.sessionId;
-  var containerRef = preact.createRef();
-  var termRef = { current: null };
-  var fitRef = { current: null };
-  var roRef = { current: null };
-  var subRef = { current: null };
+  var containerRef = preactHooks.useRef(null);
+  var termRef = preactHooks.useRef(null);
+  var fitRef = preactHooks.useRef(null);
+  var roRef = preactHooks.useRef(null);
+  var subRef = preactHooks.useRef(null);
 
   function cleanupTerm() {
     if (termRef.current) {
@@ -190,6 +190,7 @@ function SplitDivider(props) {
     function onUp() {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
       divider.classList.remove('dragging');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
@@ -210,6 +211,7 @@ function SplitDivider(props) {
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
   }
 
   return html\`<div class=\${'split-divider' + (isH ? ' split-divider-h' : ' split-divider-v')} onMouseDown=\${onMouseDown}></div>\`;

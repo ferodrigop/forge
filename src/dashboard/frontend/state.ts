@@ -336,8 +336,6 @@ function handleMessage(msg) {
   }
 }
 
-var pendingSubscribe = signal(null);
-
 function selectSession(id, opts) {
   if (!id) return;
   if (activeSessionId.value === id) return;
@@ -348,14 +346,6 @@ function selectSession(id, opts) {
   termTitle.value = '';
   activeSessionId.value = id;
   setPaneSession(focusedPaneId.value, id);
-}
-
-function completeSubscribe(id) {
-  wsSend({ type: 'subscribe', sessionId: id });
-  var s = sessions.value.find(function(s) { return s.id === id; });
-  if (s && s.tags && (s.tags.indexOf('claude-agent') >= 0 || s.tags.indexOf('codex-agent') >= 0 || s.tags.indexOf('gemini-agent') >= 0 || s.tags.indexOf('cursor-agent') >= 0 || s.tags.indexOf('windsurf-agent') >= 0 || s.tags.indexOf('copilot-agent') >= 0 || s.tags.indexOf('deep-agents-agent') >= 0)) {
-    wsSend({ type: 'get_history', sessionId: id });
-  }
 }
 
 function closeSession(id) {
