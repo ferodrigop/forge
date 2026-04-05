@@ -25,6 +25,7 @@ const sessionLastActivity = signal({}); // sessionId -> timestamp
 const wsConnected = signal(false);
 const sidebarCollapsed = signal(false);
 const codeReviewOpen = signal(false);
+const editorMode = signal(false);
 const termTitle = signal('');
 const chatLoading = signal(false);
 const chatSearchQuery = signal('');

@@ -481,6 +481,25 @@ export const CSS_STYLES = `
   .status-bar-btn:hover { color: #7aa2f7; border-color: #7aa2f7; }
   .status-bar-btn.active { color: #7aa2f7; background: #1a1f36; border-color: #7aa2f7; }
 
+  /* Multi-line editor */
+  .multiline-editor {
+    border-top: 1px solid #292e42; background: #16161e;
+    display: flex; flex-direction: column;
+  }
+  .multiline-editor-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 12px; font-size: 11px; color: #565f89;
+  }
+  .multiline-editor-hint { font-size: 10px; color: #3b4261; }
+  .multiline-editor-textarea {
+    background: #1a1b26; color: #a9b1d6; border: none; outline: none;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
+    font-size: 14px; padding: 8px 12px; resize: none;
+    min-height: 60px; max-height: 200px; line-height: 1.5;
+  }
+  .multiline-editor-textarea::placeholder { color: #3b4261; }
+  .multiline-editor-textarea:focus { background: #1e2030; }
+
   /* Changes Panel */
   .cr-panel {
     width: 420px; min-width: 320px; max-width: 50vw;

@@ -189,6 +189,9 @@ function TerminalStatusBar() {
       \${durationText ? html\`<span class="status-bar-item" style="color:#565f89">\u23f1 \${durationText}</span>\` : null}
       \${activityText ? html\`<span class="status-bar-item \${'activity-' + (activityText === 'Active' ? 'active' : 'idle')}">\${activityText}</span>\` : null}
       <span class="status-bar-spacer"></span>
+      <button class=\${'status-bar-btn' + (editorMode.value ? ' active' : '')} title="Toggle multi-line editor (editor mode)" onClick=\${function() { editorMode.value = !editorMode.value; }}>
+        \u270e Editor
+      </button>
       <span class="status-bar-item">\${activeSession.id}</span>
       <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>
     </div>
@@ -243,6 +246,63 @@ function DelegatePromptBanner() {
   \`;
 }
 
+function MultilineEditor() {
+  var textareaRef = preact.createRef();
+
+  function autoResize() {
+    var ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    var maxH = 200;
+    ta.style.height = Math.min(ta.scrollHeight, maxH) + 'px';
+  }
+
+  function handleKeyDown(ev) {
+    if (ev.key === 'Enter' && !ev.shiftKey) {
+      ev.preventDefault();
+      var ta = textareaRef.current;
+      if (!ta) return;
+      var text = ta.value;
+      if (!text) return;
+      // Send each line followed by enter, to simulate typing into the terminal
+      var lines = text.split('\\n');
+      for (var i = 0; i < lines.length; i++) {
+        if (i > 0) wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\n' });
+        if (lines[i]) wsSend({ type: 'input', sessionId: activeSessionId.value, data: lines[i] });
+      }
+      wsSend({ type: 'input', sessionId: activeSessionId.value, data: '\\r' });
+      ta.value = '';
+      autoResize();
+    }
+    if (ev.key === 'Escape') {
+      editorMode.value = false;
+      if (termInstance.value) termInstance.value.focus();
+    }
+  }
+
+  preactHooks.useEffect(function() {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+
+  return html\`
+    <div class="multiline-editor">
+      <div class="multiline-editor-header">
+        <span class="multiline-editor-hint">Shift+Enter newline \u00b7 Enter submit \u00b7 Esc close</span>
+      </div>
+      <textarea
+        ref=\${textareaRef}
+        class="multiline-editor-textarea"
+        placeholder="Type multi-line input..."
+        onKeyDown=\${handleKeyDown}
+        onInput=\${autoResize}
+        rows="3"
+      />
+    </div>
+  \`;
+}
+
 function TerminalView() {
   var activeSession = sessions.value.find(function(s) { return s.id === activeSessionId.value; });
   var headerLabel = activeSession && activeSession.name ? activeSession.name : activeSessionId.value;
@@ -262,6 +322,7 @@ function TerminalView() {
       <div class="terminal-split">
         <div class="terminal-split-main">
           <\${XTermContainer} />
+          \${editorMode.value ? html\`<\${MultilineEditor} />\` : null}
         </div>
         \${codeReviewOpen.value ? html\`<\${CodeReviewPanel} />\` : null}
       </div>
