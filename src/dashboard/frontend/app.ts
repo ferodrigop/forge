@@ -53,7 +53,7 @@ function TopBar() {
         </svg>
       </button>
       <img class="topbar-logo" src="/logo.png" alt="" />
-      <span class="topbar-title" aria-hidden="true">Forge</span>
+      <span class="topbar-title">Forge</span>
       <button
         id="new-terminal-btn"
         aria-label="New terminal"

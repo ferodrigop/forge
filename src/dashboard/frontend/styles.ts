@@ -84,7 +84,7 @@ export const CSS_STYLES = `
     height: 36px;
   }
   .topbar-toggle {
-    background: none; border: none; color: #737aa2; cursor: pointer;
+    background: none; border: none; color: #7982a9; cursor: pointer;
     padding: 3px; display: flex; align-items: center; border-radius: 4px;
   }
   .topbar-toggle:hover { color: #7aa2f7; background: #292e42; }
@@ -110,7 +110,7 @@ export const CSS_STYLES = `
     border-radius: 4px;
     border: 1px solid #292e42;
     background: transparent;
-    color: #737aa2;
+    color: #7982a9;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
@@ -128,7 +128,7 @@ export const CSS_STYLES = `
     text-align: center;
     font-size: 12px;
     font-weight: 500;
-    color: #737aa2;
+    color: #7982a9;
     cursor: pointer;
     border: none;
     background: transparent;
@@ -155,7 +155,7 @@ export const CSS_STYLES = `
     background: none;
     border: 1px solid #292e42;
     border-radius: 4px;
-    color: #737aa2;
+    color: #7982a9;
     cursor: pointer;
     padding: 2px 6px;
     display: flex;
@@ -164,7 +164,7 @@ export const CSS_STYLES = `
     font-size: 11px;
     transition: color 0.15s, border-color 0.15s;
   }
-  .auto-follow-btn:hover { color: #a9b1d6; border-color: #6b7394; }
+  .auto-follow-btn:hover { color: #a9b1d6; border-color: #7c849b; }
   .auto-follow-btn.active { color: #9ece6a; border-color: #9ece6a; }
 
   #session-list, #chat-list {
@@ -197,7 +197,7 @@ export const CSS_STYLES = `
     transition: border-color 0.15s;
   }
   #chat-search:focus { border-color: #7aa2f7; }
-  #chat-search::placeholder { color: #6b7394; }
+  #chat-search::placeholder { color: #7c849b; }
   .chat-search-clear {
     position: absolute;
     right: 4px;
@@ -205,7 +205,7 @@ export const CSS_STYLES = `
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: #737aa2;
+    color: #7982a9;
     cursor: pointer;
     font-size: 11px;
     padding: 2px 4px;
@@ -215,7 +215,7 @@ export const CSS_STYLES = `
   .chat-search-clear:hover { color: #c0caf5; background: #292e42; }
   .chat-search-status {
     padding: 6px 12px;
-    color: #737aa2;
+    color: #7982a9;
     font-size: 11px;
   }
 
@@ -232,7 +232,7 @@ export const CSS_STYLES = `
     padding: 4px 0;
     background: #1a1b26;
     border: none;
-    color: #737aa2;
+    color: #7982a9;
     font-size: 11px;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
@@ -243,7 +243,7 @@ export const CSS_STYLES = `
   /* Drag handles */
   .drag-handle {
     flex-shrink: 0; width: 12px; display: flex; align-items: center;
-    justify-content: center; color: #6b7394; cursor: grab;
+    justify-content: center; color: #7c849b; cursor: grab;
     opacity: 0; transition: opacity 0.15s, color 0.15s;
     padding: 2px 0;
   }
@@ -261,7 +261,7 @@ export const CSS_STYLES = `
     position: relative;
   }
   .session-item:hover .drag-handle { opacity: 1; }
-  .session-item:hover .drag-handle:hover { color: #737aa2; }
+  .session-item:hover .drag-handle:hover { color: #7982a9; }
   .session-item:hover { background: #1a1b26; }
   .session-item.active { background: #292e42; }
 
@@ -294,7 +294,7 @@ export const CSS_STYLES = `
 
   .chat-project-group .drag-handle.group-drag-handle { opacity: 0; }
   .chat-project-group:hover .drag-handle.group-drag-handle { opacity: 1; }
-  .chat-project-group:hover .drag-handle.group-drag-handle:hover { color: #737aa2; }
+  .chat-project-group:hover .drag-handle.group-drag-handle:hover { color: #7982a9; }
 
   .session-item .status-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
@@ -328,19 +328,19 @@ export const CSS_STYLES = `
     flex-shrink: 0; letter-spacing: 0.3px; line-height: 1.3;
   }
   .session-item .session-cmd .delegate-badge.oneshot {
-    background: #292e42; color: #737aa2;
+    background: #292e42; color: #7982a9;
   }
   .session-item .session-cmd .delegate-badge.interactive {
     background: #1a3a5c; color: #7aa2f7;
   }
   .session-item .session-meta {
-    font-size: 11px; color: #737aa2; font-family: monospace;
+    font-size: 11px; color: #7982a9; font-family: monospace;
     display: flex; align-items: center; gap: 6px;
   }
 
   .session-item .close-btn {
     flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
-    border: none; background: transparent; color: #737aa2;
+    border: none; background: transparent; color: #7982a9;
     font-size: 14px; cursor: pointer; display: flex;
     align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
   }
@@ -353,7 +353,7 @@ export const CSS_STYLES = `
   }
   .session-dots-btn {
     width: 20px; height: 20px; border-radius: 4px;
-    border: none; background: transparent; color: #737aa2;
+    border: none; background: transparent; color: #7982a9;
     font-size: 14px; cursor: pointer; display: flex;
     align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
     line-height: 1;
@@ -402,12 +402,12 @@ export const CSS_STYLES = `
     overflow: hidden; text-overflow: ellipsis;
   }
   .chat-item .chat-meta {
-    font-size: 11px; color: #737aa2; display: flex;
+    font-size: 11px; color: #7982a9; display: flex;
     align-items: center; gap: 6px; margin-top: 2px;
   }
   .chat-item .close-btn {
     float: right; width: 18px; height: 18px; border-radius: 4px;
-    border: none; background: transparent; color: #737aa2;
+    border: none; background: transparent; color: #7982a9;
     font-size: 13px; cursor: pointer; opacity: 0; transition: all 0.15s;
     display: inline-flex; align-items: center; justify-content: center;
   }
@@ -425,18 +425,18 @@ export const CSS_STYLES = `
   }
   .chat-project-group:hover { background: #1e2030; }
   .chat-project-group .chevron {
-    font-size: 9px; color: #737aa2; transition: transform 0.15s;
+    font-size: 9px; color: #7982a9; transition: transform 0.15s;
     flex-shrink: 0; width: 12px; text-align: center;
   }
   .chat-project-group .chevron.collapsed { transform: rotate(-90deg); }
   .chat-project-group .group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chat-project-group .group-stats {
-    font-weight: 400; color: #737aa2; font-size: 10px; flex-shrink: 0;
+    font-weight: 400; color: #7982a9; font-size: 10px; flex-shrink: 0;
   }
 
   .chat-project-group .group-action-btn {
     flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px;
-    border: none; background: transparent; color: #737aa2;
+    border: none; background: transparent; color: #7982a9;
     font-size: 14px; cursor: pointer; display: flex;
     align-items: center; justify-content: center; opacity: 0; transition: all 0.15s;
     padding: 0; line-height: 1;
@@ -481,11 +481,11 @@ export const CSS_STYLES = `
 
   #terminal-header {
     padding: 10px 16px; border-bottom: 1px solid #292e42;
-    font-size: 13px; color: #737aa2;
+    font-size: 13px; color: #7982a9;
     display: flex; align-items: center; justify-content: space-between;
   }
   #terminal-header .session-label { color: #7aa2f7; font-weight: 500; }
-  #terminal-header .header-time { font-size: 11px; color: #737aa2; }
+  #terminal-header .header-time { font-size: 11px; color: #7982a9; }
 
   .delegate-prompt-banner {
     padding: 10px 16px; border-bottom: 1px solid #292e42;
@@ -501,7 +501,7 @@ export const CSS_STYLES = `
   .delegate-agent-badge svg { width: 12px; height: 12px; }
   .delegate-mode-badge {
     font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 3px;
-    background: #292e42; color: #737aa2; text-transform: uppercase; letter-spacing: 0.5px;
+    background: #292e42; color: #7982a9; text-transform: uppercase; letter-spacing: 0.5px;
   }
   .delegate-prompt-text {
     font-size: 13px; color: #c0caf5; line-height: 1.5;
@@ -528,7 +528,7 @@ export const CSS_STYLES = `
   #terminal-status-bar {
     display: flex; align-items: center; gap: 8px;
     padding: 4px 12px; border-top: 1px solid #292e42; background: #16161e;
-    font-size: 11px; color: #737aa2; font-family: monospace;
+    font-size: 11px; color: #7982a9; font-family: monospace;
   }
   #terminal-status-bar .status-bar-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #terminal-status-bar .status-bar-spacer { flex: 1; }
@@ -536,13 +536,13 @@ export const CSS_STYLES = `
     padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 500;
   }
   #terminal-status-bar .status-badge.running { background: #1a3a2a; color: #9ece6a; }
-  #terminal-status-bar .status-badge.exited { background: #292e42; color: #737aa2; }
+  #terminal-status-bar .status-badge.exited { background: #292e42; color: #7982a9; }
   #terminal-status-bar .activity-active { color: #9ece6a; font-size: 11px; }
-  #terminal-status-bar .activity-idle { color: #737aa2; font-size: 11px; }
+  #terminal-status-bar .activity-idle { color: #7982a9; font-size: 11px; }
 
   /* Voice input */
   .voice-btn {
-    background: none; border: none; color: #737aa2; cursor: pointer;
+    background: none; border: none; color: #7982a9; cursor: pointer;
     padding: 2px 4px; display: flex; align-items: center; border-radius: 3px;
     transition: color 0.15s, background 0.15s;
   }
@@ -553,6 +553,8 @@ export const CSS_STYLES = `
   .voice-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   .voice-btn.recording svg { animation: voice-pulse 1s ease-in-out infinite; }
+  @keyframes voice-spin { to { transform: rotate(360deg); } }
+  .voice-spinner-svg { animation: voice-spin 1s linear infinite; transform-origin: center; }
   .voice-recording-dot {
     width: 6px; height: 6px; border-radius: 50%; background: #f7768e;
     margin-right: 4px; animation: voice-pulse 1s ease-in-out infinite;
@@ -570,7 +572,7 @@ export const CSS_STYLES = `
   #activity-log-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 6px 12px; cursor: pointer; user-select: none;
-    color: #737aa2; font-size: 11px; font-weight: 600;
+    color: #7982a9; font-size: 11px; font-weight: 600;
     border-top: 1px solid #292e42; background: #16161e;
   }
   #activity-log-header:hover { color: #a9b1d6; }
@@ -580,8 +582,8 @@ export const CSS_STYLES = `
   }
   .activity-event .activity-icon { width: 16px; text-align: center; flex-shrink: 0; }
   .activity-event .activity-name { font-weight: 500; color: #c0caf5; }
-  .activity-event .activity-detail { color: #737aa2; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .activity-event .activity-time { color: #6b7394; font-size: 10px; flex-shrink: 0; }
+  .activity-event .activity-detail { color: #7982a9; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .activity-event .activity-time { color: #7c849b; font-size: 10px; flex-shrink: 0; }
   .activity-event.error { color: #f7768e; }
 
   /* Terminal split layout */
@@ -592,7 +594,7 @@ export const CSS_STYLES = `
   /* Status bar button */
   .status-bar-btn {
     background: none; border: 1px solid #292e42; border-radius: 3px;
-    color: #737aa2; cursor: pointer; padding: 1px 5px;
+    color: #7982a9; cursor: pointer; padding: 1px 5px;
     display: flex; align-items: center; margin-right: 4px;
   }
   .status-bar-btn:hover { color: #7aa2f7; border-color: #7aa2f7; }
@@ -605,16 +607,16 @@ export const CSS_STYLES = `
   }
   .multiline-editor-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 4px 12px; font-size: 11px; color: #737aa2;
+    padding: 4px 12px; font-size: 11px; color: #7982a9;
   }
-  .multiline-editor-hint { font-size: 10px; color: #737aa2; }
+  .multiline-editor-hint { font-size: 10px; color: #7982a9; }
   .multiline-editor-textarea {
     background: #1a1b26; color: #a9b1d6; border: none; outline: none;
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
     font-size: 14px; padding: 8px 12px; resize: none;
     min-height: 60px; max-height: 200px; line-height: 1.5;
   }
-  .multiline-editor-textarea::placeholder { color: #6b7394; }
+  .multiline-editor-textarea::placeholder { color: #7c849b; }
   .multiline-editor-textarea:focus { background: #1e2030; }
 
   /* Changes Panel */
@@ -629,7 +631,7 @@ export const CSS_STYLES = `
   }
   .cr-title { font-size: 13px; font-weight: 600; color: #c0caf5; }
   .cr-close {
-    background: none; border: none; color: #737aa2; cursor: pointer;
+    background: none; border: none; color: #7982a9; cursor: pointer;
     font-size: 14px; padding: 2px 4px; border-radius: 3px;
   }
   .cr-close:hover { color: #f7768e; background: #292e42; }
@@ -643,7 +645,7 @@ export const CSS_STYLES = `
   .cr-branch-name { color: #7aa2f7; font-weight: 500; font-family: monospace; }
   .cr-ahead { color: #9ece6a; font-size: 11px; }
   .cr-behind { color: #f7768e; font-size: 11px; }
-  .cr-stats { color: #737aa2; font-size: 11px; margin-left: auto; }
+  .cr-stats { color: #7982a9; font-size: 11px; margin-left: auto; }
 
   .cr-filter-bar {
     display: flex; align-items: center; gap: 4px;
@@ -651,19 +653,19 @@ export const CSS_STYLES = `
   }
   .cr-filter-btn {
     background: none; border: 1px solid #292e42; border-radius: 4px;
-    color: #737aa2; cursor: pointer; padding: 2px 8px; font-size: 11px;
+    color: #7982a9; cursor: pointer; padding: 2px 8px; font-size: 11px;
   }
-  .cr-filter-btn:hover { color: #a9b1d6; border-color: #6b7394; }
+  .cr-filter-btn:hover { color: #a9b1d6; border-color: #7c849b; }
   .cr-filter-btn.active { color: #7aa2f7; border-color: #7aa2f7; background: #1a1f36; }
   .cr-filter-spacer { flex: 1; }
 
   /* Generic small button */
   .cr-btn {
     background: none; border: 1px solid #292e42; border-radius: 3px;
-    color: #737aa2; cursor: pointer; padding: 1px 6px; font-size: 11px;
+    color: #7982a9; cursor: pointer; padding: 1px 6px; font-size: 11px;
     white-space: nowrap;
   }
-  .cr-btn:hover { color: #a9b1d6; border-color: #6b7394; }
+  .cr-btn:hover { color: #a9b1d6; border-color: #7c849b; }
   .cr-btn:disabled { opacity: 0.4; cursor: default; }
   .cr-btn-stage { color: #9ece6a; border-color: #9ece6a44; }
   .cr-btn-stage:hover { background: #9ece6a22; }
@@ -697,7 +699,7 @@ export const CSS_STYLES = `
     border-bottom: 1px solid #1a1b26;
   }
   .cr-file-header:hover { background: #1a1f36; }
-  .cr-file-chevron { color: #737aa2; font-size: 9px; width: 12px; flex-shrink: 0; }
+  .cr-file-chevron { color: #7982a9; font-size: 9px; width: 12px; flex-shrink: 0; }
   .cr-file-status { font-weight: 600; font-family: monospace; font-size: 11px; width: 14px; flex-shrink: 0; text-align: center; }
   .cr-file-path { color: #a9b1d6; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cr-new-badge, .cr-del-badge, .cr-rename-badge {
@@ -708,7 +710,7 @@ export const CSS_STYLES = `
   .cr-del-badge { background: #f7768e22; color: #f7768e; border: 1px solid #f7768e44; }
   .cr-rename-badge { background: #7dcfff22; color: #7dcfff; border: 1px solid #7dcfff44; }
   .cr-file-spacer { flex: 1; }
-  .cr-empty-files { padding: 20px 12px; color: #6b7394; font-size: 12px; text-align: center; }
+  .cr-empty-files { padding: 20px 12px; color: #7c849b; font-size: 12px; text-align: center; }
 
   /* Diff viewer */
   .cr-diff {
@@ -722,7 +724,7 @@ export const CSS_STYLES = `
   .cr-diff-line { display: flex; min-height: 18px; line-height: 18px; min-width: 100%; }
   .cr-diff-num {
     width: 40px; min-width: 40px; text-align: right; padding-right: 8px;
-    color: #6b7394; user-select: none; flex-shrink: 0;
+    color: #7c849b; user-select: none; flex-shrink: 0;
   }
   .cr-diff-content {
     flex: 1; white-space: pre; padding-right: 8px;
@@ -732,8 +734,8 @@ export const CSS_STYLES = `
   .cr-diff-removed { background: #f7768e15; color: #f7768e; }
   .cr-diff-removed .cr-diff-num { color: #f7768e66; }
   .cr-diff-hunk { color: #7aa2f7; background: #7aa2f710; padding: 2px 0; }
-  .cr-diff-meta { color: #737aa2; }
-  .cr-diff-loading { padding: 8px 12px; color: #737aa2; font-size: 11px; }
+  .cr-diff-meta { color: #7982a9; }
+  .cr-diff-loading { padding: 8px 12px; color: #7982a9; font-size: 11px; }
 
   /* Commit section */
   .cr-commit-section {
@@ -746,12 +748,12 @@ export const CSS_STYLES = `
     resize: vertical; min-height: 42px;
   }
   .cr-commit-input:focus { border-color: #7aa2f7; }
-  .cr-commit-input::placeholder { color: #6b7394; }
+  .cr-commit-input::placeholder { color: #7c849b; }
   .cr-commit-actions {
     display: flex; align-items: center; justify-content: space-between;
     margin-top: 6px;
   }
-  .cr-commit-staged { font-size: 11px; color: #737aa2; }
+  .cr-commit-staged { font-size: 11px; color: #7982a9; }
   .cr-commit-result {
     margin-top: 4px; font-size: 11px; padding: 4px 8px;
     border-radius: 3px;
@@ -765,7 +767,7 @@ export const CSS_STYLES = `
   }
 
   .cr-loading, .cr-error, .cr-empty {
-    padding: 20px 12px; color: #737aa2; font-size: 12px; text-align: center;
+    padding: 20px 12px; color: #7982a9; font-size: 12px; text-align: center;
   }
   .cr-error { color: #f7768e; }
   .cr-retry {
@@ -785,18 +787,18 @@ export const CSS_STYLES = `
   .chat-bubble.human { align-self: flex-end; background: #292e42; color: #c0caf5; border-bottom-right-radius: 4px; }
   .chat-bubble.assistant { align-self: flex-start; background: #1e2030; color: #a9b1d6; border-bottom-left-radius: 4px; }
   .chat-bubble.system {
-    align-self: center; background: transparent; color: #6b7394;
+    align-self: center; background: transparent; color: #7c849b;
     border: 1px dashed #292e42; font-size: 11px; max-width: 95%;
     padding: 6px 12px; font-family: monospace; opacity: 0.7; cursor: pointer;
   }
-  .chat-bubble.system:hover { opacity: 1; border-color: #6b7394; }
+  .chat-bubble.system:hover { opacity: 1; border-color: #7c849b; }
   .chat-bubble.system .system-summary { display: flex; align-items: center; gap: 6px; }
   .chat-bubble.system .system-chevron { font-size: 8px; transition: transform 0.15s; }
   .chat-bubble.system .system-chevron.open { transform: rotate(90deg); }
   .chat-bubble.system .system-full {
     display: none; margin-top: 6px; padding-top: 6px;
     border-top: 1px dashed #292e42; white-space: pre-wrap; word-break: break-word;
-    max-height: 200px; overflow-y: auto; font-size: 10px; color: #737aa2;
+    max-height: 200px; overflow-y: auto; font-size: 10px; color: #7982a9;
   }
   .chat-bubble.system .system-full.visible { display: block; }
   .chat-bubble .tool-block {
@@ -817,9 +819,9 @@ export const CSS_STYLES = `
 
   #empty-state {
     flex: 1; display: flex; align-items: center; justify-content: center;
-    color: #737aa2; font-size: 14px; flex-direction: column; gap: 8px;
+    color: #7982a9; font-size: 14px; flex-direction: column; gap: 8px;
   }
-  #empty-state .hint { font-size: 12px; color: #6b7394; }
+  #empty-state .hint { font-size: 12px; color: #7c849b; }
 
   #connection-status {
     padding: 8px 16px; border-top: 1px solid #292e42;
@@ -843,14 +845,14 @@ export const CSS_STYLES = `
     padding: 20px 24px; min-width: 320px; max-width: 440px; width: 90vw;
   }
   .modal-box h3 { font-size: 14px; color: #c0caf5; margin-bottom: 8px; font-weight: 600; }
-  .modal-box p { font-size: 12px; color: #737aa2; margin-bottom: 16px; }
+  .modal-box p { font-size: 12px; color: #7982a9; margin-bottom: 16px; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .modal-actions button {
     padding: 6px 14px; border-radius: 4px; font-size: 12px;
     cursor: pointer; border: 1px solid #292e42; font-weight: 500;
   }
   .modal-actions .modal-cancel {
-    background: transparent; color: #a9b1d6; border-color: #6b7394;
+    background: transparent; color: #a9b1d6; border-color: #7c849b;
   }
   .modal-actions .modal-cancel:hover { background: #292e42; }
   .modal-actions .modal-delete {
@@ -862,14 +864,14 @@ export const CSS_STYLES = `
   }
   .modal-actions .modal-create:hover { background: #7aa2f733; }
   .modal-field { margin-bottom: 12px; }
-  .modal-field label { display: block; font-size: 11px; color: #737aa2; margin-bottom: 4px; font-weight: 500; }
+  .modal-field label { display: block; font-size: 11px; color: #7982a9; margin-bottom: 4px; font-weight: 500; }
   .modal-field input {
     width: 100%; background: #1a1b26; border: 1px solid #292e42;
     border-radius: 4px; padding: 6px 10px; color: #c0caf5;
     font-size: 12px; outline: none; font-family: monospace;
   }
   .modal-field input:focus { border-color: #7aa2f7; }
-  .modal-field input::placeholder { color: #6b7394; }
+  .modal-field input::placeholder { color: #7c849b; }
 
   /* CWD input row with browse button */
   .cwd-input-row { display: flex; gap: 6px; align-items: center; }
@@ -901,7 +903,7 @@ export const CSS_STYLES = `
     font-size: 12px; color: #c0caf5; font-weight: 600; flex: 1;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .ft-header-count { font-size: 10px; color: #737aa2; white-space: nowrap; }
+  .ft-header-count { font-size: 10px; color: #7982a9; white-space: nowrap; }
   .ft-back-btn {
     background: none; border: 1px solid #3b4261; border-radius: 4px;
     color: #7aa2f7; cursor: pointer; padding: 2px 5px; display: flex;
@@ -931,7 +933,7 @@ export const CSS_STYLES = `
     width: 14px; height: 14px; display: flex;
     align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .ft-chevron { color: #737aa2; transition: transform 0.12s; }
+  .ft-chevron { color: #7982a9; transition: transform 0.12s; }
   .ft-chevron.open { color: #7aa2f7; }
 
   .ft-row-body {
@@ -947,12 +949,12 @@ export const CSS_STYLES = `
   }
 
   .ft-loading, .ft-empty {
-    font-size: 11px; color: #737aa2; padding: 4px 8px;
+    font-size: 11px; color: #7982a9; padding: 4px 8px;
   }
 
   #new-terminal-btn {
     font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 4px;
-    border: 1px solid #292e42; background: transparent; color: #737aa2;
+    border: 1px solid #292e42; background: transparent; color: #7982a9;
     cursor: pointer; transition: all 0.15s;
   }
   #new-terminal-btn:hover { background: #292e42; color: #7aa2f7; border-color: #7aa2f7; }
@@ -979,7 +981,7 @@ export const CSS_STYLES = `
     display: flex; align-items: center; gap: 4px;
     padding: 0 8px; background: #16161e;
     border-bottom: 1px solid #292e42;
-    font-size: 11px; color: #737aa2;
+    font-size: 11px; color: #7982a9;
     height: 26px; flex-shrink: 0;
     cursor: pointer; user-select: none;
   }
@@ -989,12 +991,12 @@ export const CSS_STYLES = `
   }
   .pane-tab-label {
     flex: 1; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; color: #737aa2; font-size: 11px;
+    white-space: nowrap; color: #7982a9; font-size: 11px;
   }
   .pane-tab-focused .pane-tab-label { color: #7aa2f7; font-weight: 500; }
   .pane-tab-actions { display: flex; gap: 1px; flex-shrink: 0; }
   .pane-tab-btn {
-    background: none; border: none; color: #737aa2; cursor: pointer;
+    background: none; border: none; color: #7982a9; cursor: pointer;
     padding: 2px 3px; display: flex; align-items: center;
     border-radius: 3px; opacity: 0; transition: all 0.15s;
     font-size: 13px; line-height: 1;
@@ -1017,10 +1019,10 @@ export const CSS_STYLES = `
   .pane-empty {
     flex: 1; display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 8px; color: #6b7394;
+    gap: 8px; color: #7c849b;
   }
-  .pane-empty-text { font-size: 13px; color: #737aa2; }
-  .pane-empty-hint { font-size: 11px; color: #6b7394; }
+  .pane-empty-text { font-size: 13px; color: #7982a9; }
+  .pane-empty-hint { font-size: 11px; color: #7c849b; }
 
   /* Split Dividers */
   .split-divider {
@@ -1063,7 +1065,7 @@ export const CSS_STYLES = `
     padding: 1px 4px; border-radius: 3px; background: #1a1b26;
   }
   .settings-hint {
-    font-size: 10px; color: #737aa2; margin-top: 2px;
+    font-size: 10px; color: #7982a9; margin-top: 2px;
   }
   .settings-save-msg {
     font-size: 11px; color: #9ece6a; margin-right: auto;

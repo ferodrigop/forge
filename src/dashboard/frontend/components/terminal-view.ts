@@ -48,7 +48,7 @@ function ActivityLog() {
       \${isOpen ? html\`
         <div id="activity-log" role="log" aria-label="Activity log" aria-live="polite">
           \${items.length === 0
-            ? html\`<div style="padding:8px 12px;color:#6b7394;font-size:11px;">No tool calls yet</div>\`
+            ? html\`<div style="padding:8px 12px;color:#7c849b;font-size:11px;">No tool calls yet</div>\`
             : items
           }
         </div>
@@ -104,7 +104,7 @@ function TerminalStatusBar() {
     <div id="terminal-status-bar" role="toolbar" aria-label="Terminal status">
       <span class="status-bar-item" title=\${cwd} aria-label=\${'Working directory: ' + home}>\u{1F4C2} \${home}</span>
       \${ioText ? html\`<span class="status-bar-item" style="color:#7dcfff" aria-label=\${'I/O: ' + ioText}>\${ioText}</span>\` : null}
-      \${durationText ? html\`<span class="status-bar-item" style="color:#737aa2" aria-label=\${'Duration: ' + durationText}>\u23f1 \${durationText}</span>\` : null}
+      \${durationText ? html\`<span class="status-bar-item" style="color:#7982a9" aria-label=\${'Duration: ' + durationText}>\u23f1 \${durationText}</span>\` : null}
       \${activityText ? html\`<span class="status-bar-item \${'activity-' + (activityText === 'Active' ? 'active' : 'idle')}" role="status">\${activityText}</span>\` : null}
       <span class="status-bar-spacer"></span>
       <button class=\${'status-bar-btn' + (editorMode.value ? ' active' : '')} aria-label="Toggle multi-line editor" aria-pressed=\${editorMode.value} title="Toggle multi-line editor (editor mode)" onClick=\${function() { editorMode.value = !editorMode.value; }}>
@@ -122,7 +122,7 @@ function TerminalStatusBar() {
         >
           \${voiceState.value === 'recording' ? html\`<span class="voice-recording-dot" aria-hidden="true"></span>\` : null}
           \${voiceState.value === 'transcribing'
-            ? html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>\`
+            ? html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" class="voice-spinner-svg"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>\`
             : html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>\`
           }
         </button>
@@ -182,7 +182,7 @@ function DelegatePromptBanner() {
 }
 
 function MultilineEditor() {
-  var textareaRef = preact.createRef();
+  var textareaRef = preactHooks.useRef(null);
 
   function autoResize() {
     var ta = textareaRef.current;
@@ -252,7 +252,7 @@ function TerminalView() {
   return html\`
     <div id="main">
       <div id="terminal-header">
-        <span><h2 class="sr-only">Terminal Session</h2>Session: <span class="session-label">\${headerLabel}</span> <\${ClaudeStatusBadge} /></span>
+        <div><span class="sr-only" role="heading" aria-level="2">Terminal Session</span>Session: <span class="session-label">\${headerLabel}</span> <\${ClaudeStatusBadge} /></div>
         \${startedText ? html\`<span class="header-time">\${startedText}</span>\` : null}
       </div>
       <\${DelegatePromptBanner} />

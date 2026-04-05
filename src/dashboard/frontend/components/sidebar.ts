@@ -238,7 +238,7 @@ function TerminalGroup(props) {
   var copiedArr = preactHooks.useState(false);
   var isCopied = copiedArr[0];
   var setCopied = copiedArr[1];
-  var copyTimerRef = preact.createRef();
+  var copyTimerRef = preactHooks.useRef(null);
 
   function onCopy(e) {
     e.stopPropagation();
@@ -489,7 +489,7 @@ function TerminalGroup(props) {
 function SessionList() {
   var ss = sessions.value;
   if (ss.length === 0) {
-    return html\`<div style="padding:12px;color:#6b7394;font-size:12px;">No sessions</div>\`;
+    return html\`<div style="padding:12px;color:#7c849b;font-size:12px;">No sessions</div>\`;
   }
 
   // Group by shortened cwd
@@ -608,7 +608,7 @@ function ChatProjectGroup(props) {
 }
 
 function ChatsPanel() {
-  var searchRef = preact.createRef();
+  var searchRef = preactHooks.useRef(null);
 
   function onSearchKeyDown(e) {
     if (e.key === 'Enter') {
@@ -637,11 +637,11 @@ function ChatsPanel() {
   var content;
   if (loading) {
     var loadLabel = query ? 'Searching...' : 'Loading chats...';
-    content = html\`<div style="padding:12px;color:#737aa2;font-size:12px;display:flex;align-items:center;gap:8px;"><span class="chat-spinner"></span> \${loadLabel}</div>\`;
+    content = html\`<div style="padding:12px;color:#7982a9;font-size:12px;display:flex;align-items:center;gap:8px;"><span class="chat-spinner"></span> \${loadLabel}</div>\`;
   } else if (cs.length === 0 && query) {
     content = html\`<div class="chat-search-status">No results for "\${query}"</div>\`;
   } else if (cs.length === 0) {
-    content = html\`<div class="chat-search-status" style="color:#6b7394">No chats found</div>\`;
+    content = html\`<div class="chat-search-status" style="color:#7c849b">No chats found</div>\`;
   } else {
     var groups = {};
     cs.forEach(function(c) {
@@ -666,7 +666,7 @@ function ChatsPanel() {
         <button role="radio" aria-checked=\${source === 'gemini'} class=\${'chat-source-btn' + (source === 'gemini' ? ' active' : '')} onClick=\${function() { chatSource.value = 'gemini'; }}>Gemini</button>
       </div>
       <div class="chat-search-wrap">
-        <svg class="chat-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6b7394" stroke-width="1.5" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" /><line x1="10" y1="10" x2="14.5" y2="14.5" /></svg>
+        <svg class="chat-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7c849b" stroke-width="1.5" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" /><line x1="10" y1="10" x2="14.5" y2="14.5" /></svg>
         <input ref=\${searchRef} type="text" id="chat-search" aria-label="Search chats" placeholder="Search by title... (Enter)" onKeyDown=\${onSearchKeyDown} />
         \${clearBtn}
       </div>

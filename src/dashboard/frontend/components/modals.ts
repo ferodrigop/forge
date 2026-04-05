@@ -90,9 +90,9 @@ function FolderTreeNode(props) {
 }
 
 function NewTerminalModal() {
-  var nameRef = preact.createRef();
-  var commandRef = preact.createRef();
-  var cwdRef = preact.createRef();
+  var nameRef = preactHooks.useRef(null);
+  var commandRef = preactHooks.useRef(null);
+  var cwdRef = preactHooks.useRef(null);
   var showBrowser = preactHooks.useState(false);
   var selectedPath = preactHooks.useState('');
   var cwdError = preactHooks.useState('');
@@ -375,7 +375,7 @@ function SettingsModal() {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
   }
 
-  if (loading[0]) return html\`<div class="modal-box settings-modal" role="dialog" aria-modal="true" aria-label="Settings" onKeyDown=\${onKeyDown}><h3>Settings</h3><div style="padding:16px 0;color:#737aa2">Loading…</div></div>\`;
+  if (loading[0]) return html\`<div class="modal-box settings-modal" role="dialog" aria-modal="true" aria-label="Settings" onKeyDown=\${onKeyDown}><h3>Settings</h3><div style="padding:16px 0;color:#7982a9">Loading…</div></div>\`;
 
   return html\`
     <div class="modal-box settings-modal" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title" onKeyDown=\${onKeyDown}>
@@ -498,7 +498,7 @@ function ModalOverlay() {
   var modal = activeModal.value;
   if (!modal) return null;
 
-  var overlayRef = preact.createRef();
+  var overlayRef = preactHooks.useRef(null);
   var previousFocusRef = preactHooks.useRef(null);
 
   // Store the element that had focus before modal opened
