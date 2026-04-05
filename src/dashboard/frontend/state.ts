@@ -35,6 +35,9 @@ const chatMessages = signal([]);
 const voiceAvailable = signal(false);
 const voiceState = signal('idle'); // 'idle' | 'recording' | 'transcribing'
 const voiceError = signal(''); // brief error message shown in status bar
+const sessionOrder = signal([]); // custom session ordering within groups: [sessionId, ...]
+const groupOrder = signal([]); // custom group ordering: [groupLabel, ...]
+const dragState = signal(null); // { type: 'session'|'group', id: string, sourceGroup?: string }
 var jsonBuf = '';
 
 // --- Split Pane State ---

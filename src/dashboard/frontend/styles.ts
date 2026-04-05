@@ -193,18 +193,61 @@ export const CSS_STYLES = `
   .chat-source-btn:hover { background: #292e42; color: #c0caf5; }
   .chat-source-btn.active { background: #292e42; color: #7aa2f7; font-weight: 600; }
 
+  /* Drag handles */
+  .drag-handle {
+    flex-shrink: 0; width: 12px; display: flex; align-items: center;
+    justify-content: center; color: #3b4261; cursor: grab;
+    opacity: 0; transition: opacity 0.15s, color 0.15s;
+    padding: 2px 0;
+  }
+  .drag-handle:active { cursor: grabbing; }
+
   .session-item {
-    padding: 10px 12px;
+    padding: 10px 8px 10px 4px;
     border-radius: 6px;
     cursor: pointer;
     margin-bottom: 4px;
     transition: background 0.15s;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    position: relative;
   }
+  .session-item:hover .drag-handle { opacity: 1; }
+  .session-item:hover .drag-handle:hover { color: #565f89; }
   .session-item:hover { background: #1a1b26; }
   .session-item.active { background: #292e42; }
+
+  /* Session drag feedback */
+  .session-item.dragging { opacity: 0.4; }
+  .session-item.drop-before::before {
+    content: ''; position: absolute; top: -2px; left: 8px; right: 8px;
+    height: 2px; background: #7aa2f7; border-radius: 1px;
+    box-shadow: 0 0 6px #7aa2f744;
+  }
+  .session-item.drop-after::after {
+    content: ''; position: absolute; bottom: -2px; left: 8px; right: 8px;
+    height: 2px; background: #7aa2f7; border-radius: 1px;
+    box-shadow: 0 0 6px #7aa2f744;
+  }
+
+  /* Group drag feedback */
+  .terminal-group-wrapper { position: relative; }
+  .terminal-group-wrapper.dragging { opacity: 0.4; }
+  .terminal-group-wrapper.drop-before::before {
+    content: ''; position: absolute; top: -2px; left: 4px; right: 4px;
+    height: 2px; background: #7aa2f7; border-radius: 1px; z-index: 10;
+    box-shadow: 0 0 6px #7aa2f744;
+  }
+  .terminal-group-wrapper.drop-after::after {
+    content: ''; position: absolute; bottom: -2px; left: 4px; right: 4px;
+    height: 2px; background: #7aa2f7; border-radius: 1px; z-index: 10;
+    box-shadow: 0 0 6px #7aa2f744;
+  }
+
+  .chat-project-group .drag-handle.group-drag-handle { opacity: 0; }
+  .chat-project-group:hover .drag-handle.group-drag-handle { opacity: 1; }
+  .chat-project-group:hover .drag-handle.group-drag-handle:hover { color: #565f89; }
 
   .session-item .status-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;

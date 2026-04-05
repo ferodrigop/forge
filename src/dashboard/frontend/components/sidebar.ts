@@ -92,11 +92,82 @@ function SessionItem(props) {
     </button>
   </div>\` : null;
 
+  var isDragOver = preactHooks.useState(false);
+  var isDragOverItem = isDragOver[0];
+  var setDragOverItem = isDragOver[1];
+  var dragOverPos = preactHooks.useState(null);
+  var dragPos = dragOverPos[0];
+  var setDragPos = dragOverPos[1];
+
+  function onDragStart(e) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'session', id: s.id }));
+    dragState.value = { type: 'session', id: s.id };
+    e.currentTarget.classList.add('dragging');
+  }
+
+  function onDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    dragState.value = null;
+    setDragOverItem(false);
+    setDragPos(null);
+  }
+
+  function onDragOver(e) {
+    if (!dragState.value || dragState.value.type !== 'session' || dragState.value.id === s.id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var rect = e.currentTarget.getBoundingClientRect();
+    var midY = rect.top + rect.height / 2;
+    setDragPos(e.clientY < midY ? 'before' : 'after');
+    setDragOverItem(true);
+  }
+
+  function onDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverItem(false);
+      setDragPos(null);
+    }
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    setDragOverItem(false);
+    setDragPos(null);
+    if (!dragState.value || dragState.value.type !== 'session') return;
+    var dragId = dragState.value.id;
+    if (dragId === s.id) return;
+
+    // Reorder: compute current order from sessions list, then move dragId next to s.id
+    var currentSessions = sessions.value;
+    var ids = currentSessions.map(function(sess) { return sess.id; });
+    var fromIdx = ids.indexOf(dragId);
+    var toIdx = ids.indexOf(s.id);
+    if (fromIdx < 0 || toIdx < 0) return;
+    ids.splice(fromIdx, 1);
+    var insertIdx = ids.indexOf(s.id);
+    if (dragPos === 'after') insertIdx += 1;
+    ids.splice(insertIdx, 0, dragId);
+    sessionOrder.value = ids;
+    dragState.value = null;
+  }
+
+  var dropClass = isDragOverItem && dragPos ? ' drop-' + dragPos : '';
+
   return html\`
     <div
-      class=\${'session-item' + (s.id === activeSessionId.value ? ' active' : '')}
+      class=\${'session-item' + (s.id === activeSessionId.value ? ' active' : '') + dropClass}
       onClick=\${function() { if (!isRenaming) selectSession(s.id, { manual: true }); }}
+      draggable=\${!isRenaming}
+      onDragStart=\${onDragStart}
+      onDragEnd=\${onDragEnd}
+      onDragOver=\${onDragOver}
+      onDragLeave=\${onDragLeave}
+      onDrop=\${onDrop}
     >
+      <span class="drag-handle" onMouseDown=\${function(e) { e.stopPropagation(); }}>
+        <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>
+      </span>
       <span class=\${'status-dot ' + s.status}></span>
       <div class="session-info">
         <div class="session-cmd">
@@ -212,17 +283,108 @@ function TerminalGroup(props) {
     return function() { document.removeEventListener('click', handler, true); };
   }, [popoverOpen]);
 
+  var groupDragOver = preactHooks.useState(false);
+  var isGroupDragOver = groupDragOver[0];
+  var setGroupDragOver = groupDragOver[1];
+  var groupDragPos = preactHooks.useState(null);
+  var gDragPos = groupDragPos[0];
+  var setGDragPos = groupDragPos[1];
+
+  function onGroupDragStart(e) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'group', id: label }));
+    dragState.value = { type: 'group', id: label };
+    e.currentTarget.parentElement.classList.add('dragging');
+  }
+
+  function onGroupDragEnd(e) {
+    e.currentTarget.parentElement.classList.remove('dragging');
+    dragState.value = null;
+    setGroupDragOver(false);
+    setGDragPos(null);
+  }
+
+  function onGroupDragOver(e) {
+    if (!dragState.value || dragState.value.type !== 'group' || dragState.value.id === label) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var rect = e.currentTarget.getBoundingClientRect();
+    var midY = rect.top + rect.height / 2;
+    setGDragPos(e.clientY < midY ? 'before' : 'after');
+    setGroupDragOver(true);
+  }
+
+  function onGroupDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setGroupDragOver(false);
+      setGDragPos(null);
+    }
+  }
+
+  function onGroupDrop(e) {
+    e.preventDefault();
+    setGroupDragOver(false);
+    setGDragPos(null);
+    if (!dragState.value || dragState.value.type !== 'group') return;
+    var dragLabel = dragState.value.id;
+    if (dragLabel === label) return;
+
+    // Compute current group keys from sessions
+    var ss = sessions.value;
+    var groupKeys = [];
+    ss.forEach(function(s) {
+      var cwd = s.cwd || 'unknown';
+      var lbl;
+      try { lbl = cwd.replace(/^\\/Users\\/[^/]+/, '~').replace(/^\\/home\\/[^/]+/, '~'); }
+      catch(e) { lbl = cwd; }
+      var parts = lbl.split('/').filter(function(p) { return p; });
+      if (parts.length > 0) lbl = parts[parts.length - 1];
+      if (groupKeys.indexOf(lbl) < 0) groupKeys.push(lbl);
+    });
+
+    // Apply existing groupOrder if any
+    if (groupOrder.value.length > 0) {
+      groupKeys.sort(function(a, b) {
+        var ai = groupOrder.value.indexOf(a);
+        var bi = groupOrder.value.indexOf(b);
+        if (ai < 0) ai = 9999;
+        if (bi < 0) bi = 9999;
+        return ai - bi;
+      });
+    }
+
+    var fromIdx = groupKeys.indexOf(dragLabel);
+    if (fromIdx < 0) return;
+    groupKeys.splice(fromIdx, 1);
+    var toIdx = groupKeys.indexOf(label);
+    if (gDragPos === 'after') toIdx += 1;
+    groupKeys.splice(toIdx, 0, dragLabel);
+    groupOrder.value = groupKeys;
+    dragState.value = null;
+  }
+
+  var groupDropClass = isGroupDragOver && gDragPos ? ' drop-' + gDragPos : '';
+
   return html\`
-    <div>
+    <div class=\${'terminal-group-wrapper' + groupDropClass}>
       <div
         class="chat-project-group"
         title=\${cwd}
+        draggable="true"
+        onDragStart=\${onGroupDragStart}
+        onDragEnd=\${onGroupDragEnd}
+        onDragOver=\${onGroupDragOver}
+        onDragLeave=\${onGroupDragLeave}
+        onDrop=\${onGroupDrop}
         onClick=\${function() {
           var cg = Object.assign({}, collapsedTermGroups.value);
           cg[label] = !cg[label];
           collapsedTermGroups.value = cg;
         }}
       >
+        <span class="drag-handle group-drag-handle" onMouseDown=\${function(e) { e.stopPropagation(); }}>
+          <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>
+        </span>
         <span class=\${'chevron' + (isCollapsed ? ' collapsed' : '')}>\u25bc</span>
         <span class="group-name">\${label}</span>
         <span class="group-stats">\${stats}</span>
@@ -298,6 +460,31 @@ function SessionList() {
   });
 
   var keys = Object.keys(groups);
+
+  // Apply custom group ordering
+  if (groupOrder.value.length > 0) {
+    keys.sort(function(a, b) {
+      var ai = groupOrder.value.indexOf(a);
+      var bi = groupOrder.value.indexOf(b);
+      if (ai < 0) ai = 9999;
+      if (bi < 0) bi = 9999;
+      return ai - bi;
+    });
+  }
+
+  // Apply custom session ordering within groups
+  if (sessionOrder.value.length > 0) {
+    keys.forEach(function(k) {
+      groups[k].sort(function(a, b) {
+        var ai = sessionOrder.value.indexOf(a.id);
+        var bi = sessionOrder.value.indexOf(b.id);
+        if (ai < 0) ai = 9999;
+        if (bi < 0) bi = 9999;
+        return ai - bi;
+      });
+    });
+  }
+
   return html\`\${keys.map(function(label) {
     return html\`<\${TerminalGroup} key=\${label} label=\${label} items=\${groups[label]} />\`;
   })}\`;
