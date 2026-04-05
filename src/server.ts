@@ -925,6 +925,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
       timeout: z.number().int().min(100).max(300_000).optional().describe("Timeout in ms (default: 30000)"),
     },
     async (params, extra) => {
+      let progressInterval: ReturnType<typeof setInterval> | null = null;
       try {
         if (!params.pattern && !params.waitForExit) {
           return {
@@ -938,10 +939,10 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         const start = Date.now();
 
         // Progress notification helper
-        const progressToken = extra?.meta?.progressToken;
+        const progressToken = extra?._meta?.progressToken;
         let progressTick = 0;
         const progressTotal = Math.ceil(timeoutMs / 2000);
-        const progressInterval = progressToken ? setInterval(() => {
+        progressInterval = progressToken ? setInterval(() => {
           progressTick++;
           void extra.sendNotification({
             method: "notifications/progress",
@@ -1665,7 +1666,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
       const isInteractive = params.mode === "interactive";
 
       // Progress notification helper
-      const progressToken = extra?.meta?.progressToken;
+      const progressToken = extra?._meta?.progressToken;
       let progressTick = 0;
       const progressTotal = Math.ceil(timeoutMs / 2000);
       let activeProgressInterval: ReturnType<typeof setInterval> | null = null;
