@@ -60,7 +60,7 @@ subscribe_events({
 })
 ```
 
-Returns `{ subscriptionId }`. Use `unsubscribe_events({ id: subscriptionId })` to cancel.
+Returns `{ subscriptionId }`. Use `unsubscribe_events({ subscriptionId: "sub-id-here" })` to cancel.
 
 ### Combining patterns for automation
 Chain `wait_for` calls to orchestrate multi-step workflows:
