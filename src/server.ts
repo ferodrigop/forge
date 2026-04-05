@@ -285,7 +285,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             };
           }
 
-          const baseCwd = params.cwd ?? process.cwd();
+          const baseCwd = effectiveCwd ?? process.cwd();
 
           // Get the git repo root
           let repoRoot: string;
@@ -459,7 +459,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             };
           }
 
-          const baseCwd = params.cwd ?? process.cwd();
+          const baseCwd = effectiveCwd ?? process.cwd();
 
           let repoRoot: string;
           try {
@@ -628,7 +628,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             };
           }
 
-          const baseCwd = params.cwd ?? process.cwd();
+          const baseCwd = effectiveCwd ?? process.cwd();
 
           let repoRoot: string;
           try {
@@ -1848,7 +1848,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             };
           }
 
-          const baseCwd = params.cwd ?? process.cwd();
+          const baseCwd = effectiveCwd ?? process.cwd();
           let repoRoot: string;
           try {
             repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
