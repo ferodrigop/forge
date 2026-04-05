@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ensureMcpConfig } from "../../src/utils/mcp-config.js";
@@ -63,6 +63,24 @@ describe("ensureMcpConfig", () => {
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     expect(config.existing).toBe(true);
     expect(config.mcpServers).toBeUndefined();
+  });
+
+  it("does not overwrite existing .gemini/settings.json", () => {
+    const geminiDir = join(dir, ".gemini");
+    const configPath = join(geminiDir, "settings.json");
+    mkdirSync(geminiDir, { recursive: true });
+    writeFileSync(configPath, '{"existing": true}\n');
+
+    ensureMcpConfig(dir, "http://127.0.0.1:3141/mcp");
+
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    expect(config.existing).toBe(true);
+    expect(config.mcpServers).toBeUndefined();
+  });
+
+  it("does not throw on write failure", () => {
+    // Pass a non-existent nested path that can't be written to
+    expect(() => ensureMcpConfig("/dev/null/bad/path", "http://127.0.0.1:3141/mcp")).not.toThrow();
   });
 
   it("uses custom port in URL", () => {
