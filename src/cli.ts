@@ -1,6 +1,6 @@
 import { spawn, execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 import { createServer } from "./server.js";
 import { parseConfig, ConfigManager } from "./utils/config.js";
@@ -322,6 +322,34 @@ function registerViaCli(bin: string, listArgs: string[], addArgs: string[], notF
   }
 }
 
+/**
+ * Walk from `startDir` up to the filesystem root, collecting every `.mcp.json` found.
+ * Stops early once it reaches the user's home directory (inclusive).
+ */
+export function discoverMcpJsonFiles(startDir: string = process.cwd()): string[] {
+  const found: string[] = [];
+  const home = homedir();
+  let dir = resolve(startDir);
+
+  while (true) {
+    const candidate = join(dir, ".mcp.json");
+    if (existsSync(candidate)) {
+      found.push(candidate);
+    }
+    // Stop after checking home directory (don't go above it)
+    if (dir === home) break;
+    const parent = dirname(dir);
+    if (parent === dir) break; // filesystem root
+    dir = parent;
+  }
+
+  return found;
+}
+
+function registerMcpJsonFile(filePath: string, mcpUrl: string): void {
+  mergeJsonConfig(filePath, "mcpServers", "forge", { type: "http", url: mcpUrl });
+}
+
 const AGENTS: AgentDef[] = [
   {
     name: "claude-code",
@@ -467,14 +495,25 @@ async function cmdSetup(args: string[]): Promise<void> {
   const mcpUrl = `http://127.0.0.1:${DEFAULT_PORT}/mcp`;
 
   if (!agentName) {
-    // No agent specified — print generic config
-    process.stderr.write("No --agent specified. Showing manual configuration:\n\n");
-    process.stderr.write(`Forge MCP URL: ${mcpUrl}\n\n`);
-    process.stderr.write("Add to your agent's MCP config (JSON):\n");
-    process.stderr.write(JSON.stringify({ mcpServers: { forge: { type: "http", url: mcpUrl } } }, null, 2) + "\n\n");
-    process.stderr.write("Or run with a specific agent:\n");
-    process.stderr.write("  forge setup --agent claude-code\n");
-    process.stderr.write("  forge setup --list-agents\n");
+    // No agent specified — auto-discover .mcp.json files
+    const discovered = discoverMcpJsonFiles();
+    if (discovered.length > 0) {
+      await ensureDaemonRunning();
+      process.stderr.write(`\nDiscovered ${discovered.length} .mcp.json file(s):\n`);
+      for (const filePath of discovered) {
+        process.stderr.write(`  ${filePath}\n`);
+        registerMcpJsonFile(filePath, mcpUrl);
+      }
+      process.stderr.write(`\nForge is ready! MCP server registered at ${mcpUrl}\n`);
+    } else {
+      process.stderr.write("No .mcp.json files found. Showing manual configuration:\n\n");
+      process.stderr.write(`Forge MCP URL: ${mcpUrl}\n\n`);
+      process.stderr.write("Add to your agent's MCP config (JSON):\n");
+      process.stderr.write(JSON.stringify({ mcpServers: { forge: { type: "http", url: mcpUrl } } }, null, 2) + "\n\n");
+      process.stderr.write("Or run with a specific agent:\n");
+      process.stderr.write("  forge setup --agent claude-code\n");
+      process.stderr.write("  forge setup --list-agents\n");
+    }
     return;
   }
 
@@ -500,7 +539,7 @@ forge — Persistent terminal MCP server for AI coding agents
 Usage:
   forge setup --agent <name>  Auto-start daemon + register MCP with an AI agent
   forge setup --list-agents  List supported agents
-  forge setup                Show manual MCP config (no agent specified)
+  forge setup                Auto-discover .mcp.json files and register Forge
   forge start [-d]           Start daemon (foreground, or -d for detached/background)
   forge stop                 Stop daemon, kill all sessions
   forge status               Show daemon status, PID, session count
