@@ -93,6 +93,40 @@ describe("MCP Tools E2E", () => {
     expect(output.data).toContain("mcp-test");
   });
 
+  it("write_and_send_terminal sends text with escape and enter", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const writeResult = await client.callTool({
+      name: "write_and_send_terminal",
+      arguments: { id: info.id, input: "echo write-and-send-test" },
+    });
+    const text = (writeResult.content as Array<{ type: string; text: string }>)[0].text;
+    expect(text).toContain("write + escape + enter");
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    const readResult = await client.callTool({
+      name: "read_terminal",
+      arguments: { id: info.id },
+    });
+    const output = JSON.parse((readResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(output.data).toContain("write-and-send-test");
+  });
+
+  it("write_and_send_terminal returns error for invalid session", async () => {
+    const result = await client.callTool({
+      name: "write_and_send_terminal",
+      arguments: { id: "nonexistent", input: "hello" },
+    });
+    expect(result.isError).toBe(true);
+    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+    expect(text).toContain("Error");
+  });
+
   it("read_screen returns clean text", async () => {
     const createResult = await client.callTool({
       name: "create_terminal",

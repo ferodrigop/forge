@@ -783,6 +783,32 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     }
   );
 
+  // --- write_and_send_terminal ---
+  server.tool(
+    "write_and_send_terminal",
+    "Write text to a terminal and submit it in one step. Sends text (no trailing newline), then Escape (to exit multi-line mode), then Enter (to submit). Ideal for Claude Code sessions where the 3-step write→escape→enter pattern is needed.",
+    {
+      id: z.string().describe("Session ID"),
+      input: z.string().describe("Text to send"),
+    },
+    async (params) => {
+      try {
+        const session = manager.getOrThrow(params.id);
+        // Write text + Escape + Enter (carriage return)
+        const data = params.input + "\x1B" + "\r";
+        session.write(data);
+        return {
+          content: [{ type: "text" as const, text: `Sent ${data.length} bytes to session ${params.id} (write + escape + enter)` }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // --- read_terminal ---
   const MAX_READ_BYTES = 30_000; // 30KB cap to prevent MCP tool result token overflow
 
