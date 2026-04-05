@@ -1555,6 +1555,23 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
    * The quiet period is configurable (default 5s) — short enough to be responsive,
    * long enough to avoid false positives during tool execution pauses.
    */
+  function getFilesChanged(wtPath: string): string[] | undefined {
+    try {
+      const diff = execFileSync("git", ["diff", "--name-only", "HEAD"], {
+        cwd: wtPath, encoding: "utf-8", stdio: "pipe",
+      }).trim();
+      const staged = execFileSync("git", ["diff", "--name-only", "--cached", "HEAD"], {
+        cwd: wtPath, encoding: "utf-8", stdio: "pipe",
+      }).trim();
+      const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
+        cwd: wtPath, encoding: "utf-8", stdio: "pipe",
+      }).trim();
+      const all = [...new Set([...diff.split("\n"), ...staged.split("\n"), ...untracked.split("\n")].filter(Boolean))];
+      if (all.length > 0) return all;
+    } catch { /* ignore git errors */ }
+    return undefined;
+  }
+
   function waitForTurnCompletion(
     session: ReturnType<typeof manager.create>,
     agentType: "claude" | "codex" | "gemini",
@@ -1657,7 +1674,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           const session = manager.get(params.sessionId);
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: `Error: session "${params.sessionId}" not found. It may have exited or been closed.` }],
+              content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: `Session "${params.sessionId}" not found. It may have exited or been closed.` }) }],
               isError: true,
             };
           }
@@ -1710,6 +1727,8 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             : newOutput;
 
           if (turnResult.reason === "exited") {
+            const followUpWorktree = info.tags?.includes("worktree") ? info.cwd : undefined;
+            const filesChanged = followUpWorktree ? getFilesChanged(followUpWorktree) : undefined;
             return {
               content: [{
                 type: "text" as const,
@@ -1720,6 +1739,8 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
                   output,
                   duration,
                   sessionId: params.sessionId,
+                  worktreePath: followUpWorktree,
+                  filesChanged,
                 }, null, 2),
               }],
             };
@@ -1761,7 +1782,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         // ─── First call — spawn a new agent ───
         if (!params.agent) {
           return {
-            content: [{ type: "text" as const, text: "Error: 'agent' is required when spawning a new delegate (no sessionId provided)" }],
+            content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: "'agent' is required when spawning a new delegate (no sessionId provided)" }) }],
             isError: true,
           };
         }
@@ -1774,7 +1795,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         if (params.worktree) {
           if (!params.branch) {
             return {
-              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
+              content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: "'branch' is required when worktree is true" }) }],
               isError: true,
             };
           }
@@ -1785,7 +1806,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
           } catch {
             return {
-              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
+              content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: "Not inside a git repository (required for worktree)" }) }],
               isError: true,
             };
           }
@@ -1807,13 +1828,13 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
                 });
               } catch (err2) {
                 return {
-                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
+                  content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: `Creating worktree failed: ${(err2 as Error).message}` }) }],
                   isError: true,
                 };
               }
             } else {
               return {
-                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
+                content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: `Creating worktree failed: ${msg}` }) }],
                 isError: true,
               };
             }
@@ -1890,6 +1911,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             : rawOutput;
 
           if (turnResult.reason === "exited") {
+            const filesChanged = worktreePath ? getFilesChanged(worktreePath) : undefined;
             return {
               content: [{
                 type: "text" as const,
@@ -1901,6 +1923,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
                   duration,
                   sessionId,
                   worktreePath: worktreePath || undefined,
+                  filesChanged,
                 }, null, 2),
               }],
             };
@@ -2001,6 +2024,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         }
 
         // Completed — keep session visible (preserveAfterExit already set)
+        const filesChanged = worktreePath ? getFilesChanged(worktreePath) : undefined;
         return {
           content: [{
             type: "text" as const,
@@ -2012,12 +2036,13 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
               duration,
               sessionId,
               worktreePath: worktreePath || undefined,
+              filesChanged,
             }, null, 2),
           }],
         };
       } catch (err) {
         return {
-          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: (err as Error).message }) }],
           isError: true,
         };
       }
