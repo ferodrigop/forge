@@ -1555,7 +1555,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
    * The quiet period is configurable (default 5s) — short enough to be responsive,
    * long enough to avoid false positives during tool execution pauses.
    */
-  function getFilesChanged(wtPath: string): string[] | undefined {
+  function getFilesChanged(wtPath: string, baseSha?: string): string[] | undefined {
     try {
       const diff = execFileSync("git", ["diff", "--name-only", "HEAD"], {
         cwd: wtPath, encoding: "utf-8", stdio: "pipe",
@@ -1566,7 +1566,14 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
       const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
         cwd: wtPath, encoding: "utf-8", stdio: "pipe",
       }).trim();
-      const all = [...new Set([...diff.split("\n"), ...staged.split("\n"), ...untracked.split("\n")].filter(Boolean))];
+      const parts = [diff, staged, untracked];
+      if (baseSha) {
+        const committed = execFileSync("git", ["diff", "--name-only", `${baseSha}...HEAD`], {
+          cwd: wtPath, encoding: "utf-8", stdio: "pipe",
+        }).trim();
+        parts.push(committed);
+      }
+      const all = [...new Set(parts.flatMap(p => p.split("\n")).filter(Boolean))];
       if (all.length > 0) return all;
     } catch { /* ignore git errors */ }
     return undefined;
@@ -1728,7 +1735,8 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
           if (turnResult.reason === "exited") {
             const followUpWorktree = info.tags?.includes("worktree") ? info.cwd : undefined;
-            const filesChanged = followUpWorktree ? getFilesChanged(followUpWorktree) : undefined;
+            const followUpBaseSha = info.tags?.find(t => t.startsWith("base:"))?.slice(5);
+            const filesChanged = followUpWorktree ? getFilesChanged(followUpWorktree, followUpBaseSha) : undefined;
             return {
               content: [{
                 type: "text" as const,
@@ -1843,6 +1851,16 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           effectiveCwd = worktreePath;
         }
 
+        // Capture base SHA for worktree diff (before agent makes changes)
+        let baseSha: string | undefined;
+        if (worktreePath) {
+          try {
+            baseSha = execFileSync("git", ["rev-parse", "HEAD"], {
+              cwd: worktreePath, encoding: "utf-8", stdio: "pipe",
+            }).trim();
+          } catch { /* ignore */ }
+        }
+
         // Build agent command and args
         const isClaude = params.agent === "claude";
         const isGemini = params.agent === "gemini";
@@ -1884,6 +1902,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         const tags = ["delegate-task", agentTag, `mode:${modeLabel}`];
         if (worktreePath && params.branch) {
           tags.push("worktree", `branch:${params.branch}`);
+          if (baseSha) tags.push(`base:${baseSha}`);
         }
 
         session = manager.create({
@@ -1911,7 +1930,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             : rawOutput;
 
           if (turnResult.reason === "exited") {
-            const filesChanged = worktreePath ? getFilesChanged(worktreePath) : undefined;
+            const filesChanged = worktreePath ? getFilesChanged(worktreePath, baseSha) : undefined;
             return {
               content: [{
                 type: "text" as const,
@@ -2024,7 +2043,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         }
 
         // Completed — keep session visible (preserveAfterExit already set)
-        const filesChanged = worktreePath ? getFilesChanged(worktreePath) : undefined;
+        const filesChanged = worktreePath ? getFilesChanged(worktreePath, baseSha) : undefined;
         return {
           content: [{
             type: "text" as const,
