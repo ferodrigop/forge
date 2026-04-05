@@ -1063,6 +1063,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           }],
         };
       } catch (err) {
+        if (progressInterval) clearInterval(progressInterval);
         return {
           content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
           isError: true,
