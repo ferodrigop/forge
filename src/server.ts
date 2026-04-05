@@ -1306,6 +1306,64 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     }
   );
 
+  // --- broadcast_write ---
+  server.tool(
+    "broadcast_write",
+    "Send the same input to multiple terminal sessions. Target sessions by IDs or tag. Returns per-session results with inline errors.",
+    {
+      ids: z.array(z.string()).min(1).max(20).optional().describe("Session IDs to write to"),
+      tag: z.string().optional().describe("Send to all sessions matching this tag"),
+      input: z.string().describe("Text to send"),
+      newline: z.boolean().optional().describe("Append newline (default: true)"),
+      submit: z.boolean().optional().describe("Submit input in Claude Code sessions (sends Escape then Enter after text). Overrides newline."),
+    },
+    async (params) => {
+      if (!params.ids && !params.tag) {
+        return {
+          content: [{ type: "text" as const, text: "Error: must provide either 'ids' or 'tag'" }],
+          isError: true,
+        };
+      }
+
+      // Resolve target session IDs
+      let targetIds: string[];
+      if (params.ids) {
+        targetIds = params.ids;
+      } else {
+        const sessions = manager.listByTag(params.tag!);
+        targetIds = sessions.map((s) => s.id);
+        if (targetIds.length === 0) {
+          return {
+            content: [{ type: "text" as const, text: `No sessions found with tag '${params.tag}'` }],
+          };
+        }
+      }
+
+      // Build the data to write (same logic as write_terminal)
+      let data: string;
+      if (params.submit) {
+        data = params.input + "\x1B" + "\r";
+      } else {
+        data = params.newline === false ? params.input : params.input + "\n";
+      }
+
+      const results: Array<Record<string, unknown>> = [];
+      for (const id of targetIds) {
+        try {
+          const session = manager.getOrThrow(id);
+          session.write(data);
+          results.push({ id, success: true, bytes: data.length });
+        } catch (err) {
+          results.push({ id, success: false, error: (err as Error).message });
+        }
+      }
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }],
+      };
+    }
+  );
+
   // --- send_control ---
   server.tool(
     "send_control",

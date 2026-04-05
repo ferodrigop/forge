@@ -612,6 +612,113 @@ describe("MCP Tools E2E", () => {
     expect(result.isError).toBeUndefined();
   });
 
+  // --- broadcast_write (#7) ---
+
+  it("broadcast_write sends to multiple sessions by ids", async () => {
+    const r1 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const r2 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const id1 = JSON.parse((r1.content as Array<{ type: string; text: string }>)[0].text).id;
+    const id2 = JSON.parse((r2.content as Array<{ type: string; text: string }>)[0].text).id;
+
+    const result = await client.callTool({
+      name: "broadcast_write",
+      arguments: { ids: [id1, id2], input: "echo broadcast-test" },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0]).toEqual({ id: id1, success: true, bytes: expect.any(Number) });
+    expect(parsed[1]).toEqual({ id: id2, success: true, bytes: expect.any(Number) });
+
+    // Verify the input was actually received
+    await new Promise((r) => setTimeout(r, 500));
+    const read1 = await client.callTool({ name: "read_terminal", arguments: { id: id1 } });
+    const read2 = await client.callTool({ name: "read_terminal", arguments: { id: id2 } });
+    expect(JSON.parse((read1.content as Array<{ type: string; text: string }>)[0].text).data).toContain("broadcast-test");
+    expect(JSON.parse((read2.content as Array<{ type: string; text: string }>)[0].text).data).toContain("broadcast-test");
+  });
+
+  it("broadcast_write sends to sessions by tag", async () => {
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["broadcast-group"] },
+    });
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["broadcast-group"] },
+    });
+    await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh", tags: ["other-group"] },
+    });
+
+    const result = await client.callTool({
+      name: "broadcast_write",
+      arguments: { tag: "broadcast-group", input: "echo tag-broadcast" },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed).toHaveLength(2);
+    expect(parsed.every((r: Record<string, unknown>) => r.success === true)).toBe(true);
+  });
+
+  it("broadcast_write returns error for missing ids and tag", async () => {
+    const result = await client.callTool({
+      name: "broadcast_write",
+      arguments: { input: "hello" },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("must provide either");
+  });
+
+  it("broadcast_write returns empty results for non-matching tag", async () => {
+    const result = await client.callTool({
+      name: "broadcast_write",
+      arguments: { tag: "nonexistent-tag", input: "hello" },
+    });
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("No sessions found");
+  });
+
+  it("broadcast_write includes inline error for bad id", async () => {
+    const r1 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const id1 = JSON.parse((r1.content as Array<{ type: string; text: string }>)[0].text).id;
+
+    const result = await client.callTool({
+      name: "broadcast_write",
+      arguments: { ids: [id1, "bad-id-xyz"], input: "echo partial" },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].success).toBe(true);
+    expect(parsed[1].success).toBe(false);
+    expect(parsed[1].error).toContain("not found");
+    // Tool-level isError should not be set (partial results are useful)
+    expect(result.isError).toBeUndefined();
+  });
+
+  it("broadcast_write respects newline=false", async () => {
+    const r1 = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const id1 = JSON.parse((r1.content as Array<{ type: string; text: string }>)[0].text).id;
+
+    const result = await client.callTool({
+      name: "broadcast_write",
+      arguments: { ids: [id1], input: "partial", newline: false },
+    });
+    const parsed = JSON.parse((result.content as Array<{ type: string; text: string }>)[0].text);
+    // "partial" without newline = 7 bytes
+    expect(parsed[0].bytes).toBe(7);
+  });
+
   // --- V0.5.0: Event Notifications (#24) ---
 
   it("subscribe_events returns subscriptionId", async () => {
