@@ -102,6 +102,9 @@ export function loadSettingsFile(): Partial<ForgeConfig> {
     if (typeof parsed.geminiDefaultModel === "string" && parsed.geminiDefaultModel) result.geminiDefaultModel = parsed.geminiDefaultModel;
     if (typeof parsed.authToken === "string") result.authToken = parsed.authToken;
     if (typeof parsed.exitedTtl === "number" && parsed.exitedTtl >= 0) result.exitedTtl = parsed.exitedTtl;
+    if (parsed.agents && typeof parsed.agents === "object" && !Array.isArray(parsed.agents)) {
+      result.agents = parseAgentsConfig(parsed.agents);
+    }
     return result;
   } catch {
     return {};
@@ -119,6 +122,36 @@ export function saveSettingsFile(settings: Partial<ForgeConfig>): void {
   }
   const merged = { ...existing, ...settings };
   writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+}
+
+// ─── Agent config parser ────────────────────────────────────
+
+import type { CustomAgentConfig } from "../core/agent-registry.js";
+
+function parseAgentsConfig(raw: Record<string, unknown>): Record<string, CustomAgentConfig> {
+  const agents: Record<string, CustomAgentConfig> = {};
+  for (const [id, val] of Object.entries(raw)) {
+    if (!val || typeof val !== "object") continue;
+    const v = val as Record<string, unknown>;
+    if (typeof v.command !== "string" || !v.command) continue;
+    const agent: CustomAgentConfig = { command: v.command };
+    if (typeof v.name === "string") agent.name = v.name;
+    if (typeof v.tag === "string") agent.tag = v.tag;
+    if (Array.isArray(v.oneshotArgs)) agent.oneshotArgs = v.oneshotArgs.filter((a): a is string => typeof a === "string");
+    if (Array.isArray(v.interactiveArgs)) agent.interactiveArgs = v.interactiveArgs.filter((a): a is string => typeof a === "string");
+    if (typeof v.modelFlag === "string") agent.modelFlag = v.modelFlag;
+    if (typeof v.defaultModel === "string") agent.defaultModel = v.defaultModel;
+    if (v.submitKey === "enter" || v.submitKey === "escape-enter") agent.submitKey = v.submitKey;
+    if (typeof v.turnCompletePattern === "string") agent.turnCompletePattern = v.turnCompletePattern;
+    if (typeof v.promptDelay === "number") agent.promptDelay = v.promptDelay;
+    if (v.env && typeof v.env === "object" && !Array.isArray(v.env)) {
+      agent.env = Object.fromEntries(
+        Object.entries(v.env).filter(([, ev]) => typeof ev === "string"),
+      ) as Record<string, string>;
+    }
+    agents[id] = agent;
+  }
+  return Object.keys(agents).length > 0 ? agents : undefined!;
 }
 
 // ─── Merge helper ───────────────────────────────────────────
@@ -143,6 +176,7 @@ function merge(cli: Partial<ForgeConfig>, env: Partial<ForgeConfig>, file: Parti
     deepAgentsPath: cli.deepAgentsPath ?? env.deepAgentsPath ?? file.deepAgentsPath ?? DEFAULT_CONFIG.deepAgentsPath,
     authToken:     cli.authToken     ?? env.authToken     ?? file.authToken     ?? DEFAULT_CONFIG.authToken,
     exitedTtl:     cli.exitedTtl     ?? env.exitedTtl     ?? file.exitedTtl     ?? DEFAULT_CONFIG.exitedTtl,
+    agents:        file.agents       ?? DEFAULT_CONFIG.agents,
   };
 }
 

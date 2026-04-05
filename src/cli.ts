@@ -568,6 +568,11 @@ MCP config (recommended — add to ~/.claude/settings.json):
 
 Legacy stdio config (.mcp.json):
   { "mcpServers": { "forge": { "command": "node", "args": ["path/to/forge/dist/cli.js"] } } }
+
+Custom agents (add to ~/.forge/settings.json):
+  { "agents": { "aider": { "command": "aider", "name": "Aider",
+    "oneshotArgs": ["--message", "{prompt}"], "modelFlag": "--model" } } }
+  Then use spawn_agent or delegate_task with agent: "aider"
 `);
     process.exit(0);
   }

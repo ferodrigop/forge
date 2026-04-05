@@ -1,3 +1,5 @@
+import type { CustomAgentConfig } from "./agent-registry.js";
+
 export interface ForgeConfig {
   maxSessions: number;
   idleTimeout: number;
@@ -17,6 +19,8 @@ export interface ForgeConfig {
   deepAgentsPath: string;
   authToken?: string;
   exitedTtl: number;
+  /** Custom agent definitions (merged with built-in agents). */
+  agents?: Record<string, CustomAgentConfig>;
 }
 
 export interface SessionInfo {

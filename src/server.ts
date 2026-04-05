@@ -7,6 +7,8 @@ import { SessionManager } from "./core/session-manager.js";
 import { resolveControl, listControls } from "./utils/control-chars.js";
 import { getTemplate, listTemplates as listBuiltinTemplates } from "./core/templates.js";
 import { ensureMcpConfig } from "./utils/mcp-config.js";
+import { AgentRegistry } from "./core/agent-registry.js";
+import type { AgentDefinition } from "./core/agent-registry.js";
 import type { ForgeConfig } from "./core/types.js";
 import type { ConfigManager } from "./utils/config.js";
 import type { Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
@@ -26,11 +28,19 @@ interface Subscription {
   cleanups: Array<() => void>;
 }
 
-export function createServer(configSource: ConfigSource, existingManager?: SessionManager): { server: McpServer; manager: SessionManager } {
+export function createServer(configSource: ConfigSource, existingManager?: SessionManager): { server: McpServer; manager: SessionManager; registry: AgentRegistry } {
   // Use a getter so every tool invocation reads live config
   const getConfig = (): ForgeConfig => resolveConfig(configSource);
   const config = getConfig(); // initial config for manager creation
   const manager = existingManager ?? new SessionManager(config);
+  const registry = new AgentRegistry(config);
+
+  // Rebuild registry when config changes
+  if ("on" in configSource && typeof (configSource as ConfigManager).on === "function") {
+    (configSource as ConfigManager).on("changed", (newConfig: ForgeConfig) => {
+      registry.rebuild(newConfig);
+    });
+  }
 
   const server = new McpServer({
     name: "forge-terminal-mcp",
@@ -43,6 +53,146 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
   function ensureWorktreeMcpConfig(worktreePath: string): void {
     const mcpUrl = `http://127.0.0.1:${getConfig().dashboardPort}/mcp`;
     ensureMcpConfig(worktreePath, mcpUrl, getConfig().authToken);
+  }
+
+  // ─── Shared helpers for agent spawn tools ──────────────────────
+
+  /** Resolve effective cwd from explicit cwd, fromSession, or process.cwd(). */
+  function resolveCwd(explicitCwd?: string, fromSession?: string): { cwd?: string; error?: string } {
+    if (explicitCwd) return { cwd: explicitCwd };
+    if (fromSession) {
+      const sourceSession = manager.get(fromSession);
+      if (!sourceSession) return { error: `fromSession "${fromSession}" not found` };
+      return { cwd: sourceSession.getInfo().cwd };
+    }
+    return {};
+  }
+
+  /** Create a git worktree. Returns { worktreePath } on success or { error } on failure. */
+  function createWorktree(baseCwd: string | undefined, branch: string): { worktreePath?: string; error?: string } {
+    const cwd = baseCwd ?? process.cwd();
+
+    let repoRoot: string;
+    try {
+      repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf-8" }).trim();
+    } catch {
+      return { error: "Not inside a git repository (required for worktree)" };
+    }
+
+    const repoName = path.basename(repoRoot);
+    const branchSuffix = branch.split("/").pop() ?? branch;
+    const worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
+
+    try {
+      execFileSync("git", ["worktree", "add", worktreePath, "-b", branch], {
+        cwd: repoRoot, encoding: "utf-8", stdio: "pipe",
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg.includes("already exists")) {
+        try {
+          execFileSync("git", ["worktree", "add", worktreePath, branch], {
+            cwd: repoRoot, encoding: "utf-8", stdio: "pipe",
+          });
+        } catch (err2) {
+          return { error: `Creating worktree failed: ${(err2 as Error).message}` };
+        }
+      } else {
+        return { error: `Creating worktree failed: ${msg}` };
+      }
+    }
+
+    ensureWorktreeMcpConfig(worktreePath);
+    return { worktreePath };
+  }
+
+  /** Generic agent spawn — used by spawn_agent and the legacy spawn_claude/codex/gemini wrappers. */
+  function spawnAgentSession(
+    agent: AgentDefinition,
+    params: {
+      prompt: string;
+      cwd?: string;
+      fromSession?: string;
+      model?: string;
+      name?: string;
+      tags?: string[];
+      bufferSize?: number;
+      worktree?: boolean;
+      branch?: string;
+      oneShot?: boolean;
+      extra?: Record<string, unknown>;
+    },
+  ): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+    // Resolve cwd
+    const cwdResult = resolveCwd(params.cwd, params.fromSession);
+    if (cwdResult.error) {
+      return { content: [{ type: "text" as const, text: `Error: ${cwdResult.error}` }], isError: true };
+    }
+    let effectiveCwd = cwdResult.cwd;
+    let worktreePath: string | undefined;
+
+    // Create worktree if requested
+    if (params.worktree) {
+      if (!params.branch) {
+        return { content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }], isError: true };
+      }
+      const wtResult = createWorktree(effectiveCwd, params.branch);
+      if (wtResult.error) {
+        return { content: [{ type: "text" as const, text: `Error: ${wtResult.error}` }], isError: true };
+      }
+      worktreePath = wtResult.worktreePath;
+      effectiveCwd = worktreePath;
+    }
+
+    const isOneShot = params.oneShot === true;
+    const args = isOneShot
+      ? agent.buildOneshotArgs(params.prompt, params.model, params.extra)
+      : agent.buildInteractiveArgs(params.prompt, params.model, params.extra);
+
+    const autoName = params.name ?? `${agent.id}: ${params.prompt.slice(0, 60)}`;
+    const baseTags = [agent.tag];
+    if (params.worktree && params.branch) {
+      baseTags.push("worktree", `branch:${params.branch}`);
+    }
+    const mergedTags = params.tags
+      ? [...new Set([...baseTags, ...params.tags])]
+      : baseTags;
+
+    const session = manager.create({
+      command: agent.command,
+      args,
+      cwd: effectiveCwd,
+      env: agent.env,
+      name: autoName,
+      tags: mergedTags,
+      bufferSize: params.bufferSize,
+    });
+
+    session.preserveAfterExit();
+    session.enableRespawnOnExit(getConfig().shell);
+
+    // Interactive mode: send prompt to stdin after agent starts up
+    if (!isOneShot) {
+      setTimeout(() => {
+        try {
+          session.write(params.prompt);
+          setTimeout(() => {
+            try { session.write(agent.submitSequence); } catch { /* exited */ }
+          }, 500);
+        } catch { /* exited */ }
+      }, agent.promptDelay);
+    }
+
+    const info = session.getInfo();
+    const result: Record<string, unknown> = { ...info };
+    if (worktreePath) {
+      result.worktreePath = worktreePath;
+      result.branch = params.branch;
+    }
+
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
   }
 
   // --- create_terminal ---
@@ -250,7 +400,50 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     }
   );
 
-  // --- spawn_claude ---
+  // --- spawn_agent (generic) ---
+  server.tool(
+    "spawn_agent",
+    `Spawn any registered CLI agent in a new terminal session. Available agents: ${registry.listIds().join(", ")}. Use this for agents beyond the built-in claude/codex/gemini, or as a single tool for all agents. Agent-specific params can be passed via 'extra' (e.g., maxBudget for Claude, sandbox/resume for Gemini).`,
+    {
+      agent: z.string().describe(`Agent ID (e.g., ${registry.listIds().map(id => `'${id}'`).join(", ")})`),
+      prompt: z.string().describe("The prompt to send to the agent"),
+      cwd: z.string().optional().describe("Working directory"),
+      fromSession: z.string().optional().describe("Copy cwd from an existing session ID"),
+      model: z.string().optional().describe("Model override"),
+      name: z.string().max(100).optional().describe("Session name"),
+      tags: z.array(z.string()).max(10).optional().describe("Additional tags"),
+      bufferSize: z.number().int().min(1024).max(10_485_760).optional().describe("Ring buffer size in bytes"),
+      worktree: z.boolean().optional().describe("Create a git worktree for isolated file changes"),
+      branch: z.string().optional().describe("Branch name for the worktree"),
+      oneShot: z.boolean().optional().describe("Run in one-shot mode (process prompt and exit). Default: false (interactive)"),
+      extra: z.record(z.unknown()).optional().describe("Agent-specific params (e.g., { maxBudget: 5 } for Claude, { sandbox: true } for Gemini)"),
+    },
+    async (params) => {
+      try {
+        const agent = registry.getOrThrow(params.agent);
+        return spawnAgentSession(agent, {
+          prompt: params.prompt,
+          cwd: params.cwd,
+          fromSession: params.fromSession,
+          model: params.model,
+          name: params.name,
+          tags: params.tags,
+          bufferSize: params.bufferSize,
+          worktree: params.worktree,
+          branch: params.branch,
+          oneShot: params.oneShot,
+          extra: params.extra as Record<string, unknown>,
+        });
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- spawn_claude (backward-compat wrapper) ---
   server.tool(
     "spawn_claude",
     "Spawn a Claude Code agent in a new terminal session. IMPORTANT: cwd must be set explicitly — there is no session inheritance. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous --print mode. Use worktree + branch to run in an isolated git worktree.",
@@ -269,149 +462,11 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     },
     async (params) => {
       try {
-        // Resolve cwd: explicit > fromSession > process.cwd()
-        let effectiveCwd = params.cwd;
-        if (!effectiveCwd && params.fromSession) {
-          const sourceSession = manager.get(params.fromSession);
-          if (!sourceSession) {
-            return {
-              content: [{ type: "text" as const, text: `Error: fromSession "${params.fromSession}" not found` }],
-              isError: true,
-            };
-          }
-          effectiveCwd = sourceSession.getInfo().cwd;
-        }
-        let worktreePath: string | undefined;
-
-        // Create git worktree if requested
-        if (params.worktree) {
-          if (!params.branch) {
-            return {
-              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
-              isError: true,
-            };
-          }
-
-          const baseCwd = effectiveCwd ?? process.cwd();
-
-          // Get the git repo root
-          let repoRoot: string;
-          try {
-            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
-          } catch {
-            return {
-              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
-              isError: true,
-            };
-          }
-
-          // Derive worktree path from branch name (e.g., feature/budgets → repo-budgets)
-          const repoName = path.basename(repoRoot);
-          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
-          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
-
-          try {
-            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
-              cwd: repoRoot,
-              encoding: "utf-8",
-              stdio: "pipe",
-            });
-          } catch (err) {
-            const msg = (err as Error).message;
-            // Branch might already exist — try without -b
-            if (msg.includes("already exists")) {
-              try {
-                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
-                  cwd: repoRoot,
-                  encoding: "utf-8",
-                  stdio: "pipe",
-                });
-              } catch (err2) {
-                return {
-                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
-                  isError: true,
-                };
-              }
-            } else {
-              return {
-                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
-                isError: true,
-              };
-            }
-          }
-
-          effectiveCwd = worktreePath;
-          ensureWorktreeMcpConfig(worktreePath);
-        }
-
-        const isOneShot = params.oneShot === true;
-        const args: string[] = [];
-
-        if (isOneShot) {
-          args.push("--print", "--output-format", "stream-json", "--verbose", params.prompt);
-        }
-        // Interactive mode: prompt is sent to stdin after launch
-
-        const claudeModel = params.model ?? getConfig().claudeDefaultModel;
-        if (claudeModel) {
-          args.push("--model", claudeModel);
-        }
-        if (params.maxBudget) {
-          args.push("--max-budget-usd", String(params.maxBudget));
-        }
-
-        const autoName = params.name ?? `claude: ${params.prompt.slice(0, 60)}`;
-        const baseTags = ["claude-agent"];
-        if (params.worktree && params.branch) {
-          baseTags.push("worktree", `branch:${params.branch}`);
-        }
-        const mergedTags = params.tags
-          ? [...new Set([...baseTags, ...params.tags])]
-          : baseTags;
-
-        const session = manager.create({
-          command: getConfig().claudePath,
-          args,
-          cwd: effectiveCwd,
-          name: autoName,
-          tags: mergedTags,
-          bufferSize: params.bufferSize,
+        const agent = registry.getOrThrow("claude");
+        return spawnAgentSession(agent, {
+          ...params,
+          extra: { maxBudget: params.maxBudget },
         });
-
-        // Keep session data readable after exit so orchestrator can diagnose failures
-        session.preserveAfterExit();
-        session.enableRespawnOnExit(getConfig().shell);
-
-        // Interactive mode: send the prompt to stdin after Claude starts up.
-        // Text and Enter are sent separately to avoid paste burst detection issues.
-        if (!isOneShot) {
-          setTimeout(() => {
-            try {
-              session.write(params.prompt);
-              setTimeout(() => {
-                try { session.write("\r"); } catch { /* exited */ }
-              }, 500);
-            } catch {
-              // Session may have exited before we could write
-            }
-          }, 2000); // Wait for Claude to initialize and show the prompt
-        }
-
-        const info = session.getInfo();
-        const result: Record<string, unknown> = { ...info };
-        if (worktreePath) {
-          result.worktreePath = worktreePath;
-          result.branch = params.branch;
-        }
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
       } catch (err) {
         return {
           content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
@@ -421,7 +476,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     }
   );
 
-  // --- spawn_codex ---
+  // --- spawn_codex (backward-compat wrapper) ---
   server.tool(
     "spawn_codex",
     "Spawn a Codex agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for autonomous `codex exec` mode (requires prompt).",
@@ -445,144 +500,13 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             isError: true,
           };
         }
-
-        // Resolve cwd: explicit > fromSession > process.cwd()
-        let effectiveCwd = params.cwd;
-        if (!effectiveCwd && params.fromSession) {
-          const sourceSession = manager.get(params.fromSession);
-          if (!sourceSession) {
-            return {
-              content: [{ type: "text" as const, text: `Error: fromSession "${params.fromSession}" not found` }],
-              isError: true,
-            };
-          }
-          effectiveCwd = sourceSession.getInfo().cwd;
-        }
-        let worktreePath: string | undefined;
-
-        // Create git worktree if requested
-        if (params.worktree) {
-          if (!params.branch) {
-            return {
-              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
-              isError: true,
-            };
-          }
-
-          const baseCwd = effectiveCwd ?? process.cwd();
-
-          let repoRoot: string;
-          try {
-            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
-          } catch {
-            return {
-              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
-              isError: true,
-            };
-          }
-
-          const repoName = path.basename(repoRoot);
-          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
-          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
-
-          try {
-            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
-              cwd: repoRoot,
-              encoding: "utf-8",
-              stdio: "pipe",
-            });
-          } catch (err) {
-            const msg = (err as Error).message;
-            if (msg.includes("already exists")) {
-              try {
-                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
-                  cwd: repoRoot,
-                  encoding: "utf-8",
-                  stdio: "pipe",
-                });
-              } catch (err2) {
-                return {
-                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
-                  isError: true,
-                };
-              }
-            } else {
-              return {
-                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
-                isError: true,
-              };
-            }
-          }
-
-          effectiveCwd = worktreePath;
-          ensureWorktreeMcpConfig(worktreePath);
-        }
-
-        const isOneShot = params.oneShot === true;
-        const args: string[] = [];
-
-        if (isOneShot) {
-          args.push("exec", params.prompt!);
-        }
-
-        const codexModel = params.model ?? getConfig().codexDefaultModel;
-        if (codexModel) {
-          args.push("--model", codexModel);
-        }
-
-        const autoName = params.name ?? (params.prompt ? `codex: ${params.prompt.slice(0, 60)}` : "codex: interactive");
-        const baseTags = ["codex-agent"];
-        if (params.worktree && params.branch) {
-          baseTags.push("worktree", `branch:${params.branch}`);
-        }
-        const mergedTags = params.tags
-          ? [...new Set([...baseTags, ...params.tags])]
-          : baseTags;
-
-        const session = manager.create({
-          command: getConfig().codexPath,
-          args,
-          cwd: effectiveCwd,
-          name: autoName,
-          tags: mergedTags,
-          bufferSize: params.bufferSize,
+        const agent = registry.getOrThrow("codex");
+        const prompt = params.prompt ?? "";
+        return spawnAgentSession(agent, {
+          ...params,
+          prompt,
+          name: params.name ?? (params.prompt ? `codex: ${params.prompt.slice(0, 60)}` : "codex: interactive"),
         });
-
-        // Keep session data readable after exit
-        session.preserveAfterExit();
-        session.enableRespawnOnExit(getConfig().shell);
-
-        // Interactive mode: send the prompt to stdin after Codex starts up.
-        // Text and Enter must be sent separately — Codex's paste burst detector
-        // treats rapid text+Enter as a paste (inserts newline) instead of submitting.
-        if (!isOneShot && params.prompt) {
-          setTimeout(() => {
-            try {
-              session.write(params.prompt!);
-              setTimeout(() => {
-                try { session.write("\r"); } catch { /* exited */ }
-              }, 500);
-            } catch {
-              // Session may have exited before we could write
-            }
-          }, 2000);
-        }
-
-        const info = session.getInfo();
-        const result: Record<string, unknown> = { ...info };
-        if (worktreePath) {
-          result.worktreePath = worktreePath;
-          result.branch = params.branch;
-        }
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
       } catch (err) {
         return {
           content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
@@ -592,7 +516,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     }
   );
 
-  // --- spawn_gemini ---
+  // --- spawn_gemini (backward-compat wrapper) ---
   server.tool(
     "spawn_gemini",
     "Spawn a Gemini CLI agent in a new terminal session. By default runs in interactive mode — the session stays alive and accepts follow-up messages via the dashboard. Use oneShot: true for headless mode (requires prompt). Use resume to continue a previous Gemini session.",
@@ -618,154 +542,15 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             isError: true,
           };
         }
-
-        // Resolve cwd: explicit > fromSession > process.cwd()
-        let effectiveCwd = params.cwd;
-        if (!effectiveCwd && params.fromSession) {
-          const sourceSession = manager.get(params.fromSession);
-          if (!sourceSession) {
-            return {
-              content: [{ type: "text" as const, text: `Error: fromSession "${params.fromSession}" not found` }],
-              isError: true,
-            };
-          }
-          effectiveCwd = sourceSession.getInfo().cwd;
-        }
-        let worktreePath: string | undefined;
-
-        // Create git worktree if requested
-        if (params.worktree) {
-          if (!params.branch) {
-            return {
-              content: [{ type: "text" as const, text: "Error: 'branch' is required when worktree is true" }],
-              isError: true,
-            };
-          }
-
-          const baseCwd = effectiveCwd ?? process.cwd();
-
-          let repoRoot: string;
-          try {
-            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
-          } catch {
-            return {
-              content: [{ type: "text" as const, text: "Error: not inside a git repository (required for worktree)" }],
-              isError: true,
-            };
-          }
-
-          const repoName = path.basename(repoRoot);
-          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
-          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
-
-          try {
-            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
-              cwd: repoRoot,
-              encoding: "utf-8",
-              stdio: "pipe",
-            });
-          } catch (err) {
-            const msg = (err as Error).message;
-            if (msg.includes("already exists")) {
-              try {
-                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
-                  cwd: repoRoot,
-                  encoding: "utf-8",
-                  stdio: "pipe",
-                });
-              } catch (err2) {
-                return {
-                  content: [{ type: "text" as const, text: `Error creating worktree: ${(err2 as Error).message}` }],
-                  isError: true,
-                };
-              }
-            } else {
-              return {
-                content: [{ type: "text" as const, text: `Error creating worktree: ${msg}` }],
-                isError: true,
-              };
-            }
-          }
-
-          effectiveCwd = worktreePath;
-          ensureWorktreeMcpConfig(worktreePath);
-        }
-
-        const isOneShot = params.oneShot === true;
-        const args: string[] = [];
-
-        if (isOneShot) {
-          args.push("-p", params.prompt!);
-        }
-
-        const geminiModel = params.model ?? getConfig().geminiDefaultModel;
-        if (geminiModel) {
-          args.push("--model", geminiModel);
-        }
-
-        if (params.sandbox) {
-          args.push("--sandbox");
-        }
-
-        if (params.resume) {
-          if (typeof params.resume === "string") {
-            args.push("--resume", params.resume);
-          } else {
-            args.push("--resume", "latest");
-          }
-        }
-
-        const autoName = params.name ?? (params.resume ? `gemini: resumed session` : params.prompt ? `gemini: ${params.prompt.slice(0, 60)}` : "gemini: interactive");
-        const baseTags = ["gemini-agent"];
-        if (params.worktree && params.branch) {
-          baseTags.push("worktree", `branch:${params.branch}`);
-        }
-        const mergedTags = params.tags
-          ? [...new Set([...baseTags, ...params.tags])]
-          : baseTags;
-
-        const session = manager.create({
-          command: getConfig().geminiPath,
-          args,
-          cwd: effectiveCwd,
+        const agent = registry.getOrThrow("gemini");
+        const prompt = params.prompt ?? "";
+        const autoName = params.name ?? (params.resume ? "gemini: resumed session" : params.prompt ? `gemini: ${params.prompt.slice(0, 60)}` : "gemini: interactive");
+        return spawnAgentSession(agent, {
+          ...params,
+          prompt,
           name: autoName,
-          tags: mergedTags,
-          bufferSize: params.bufferSize,
+          extra: { sandbox: params.sandbox, resume: params.resume },
         });
-
-        // Keep session data readable after exit
-        session.preserveAfterExit();
-        session.enableRespawnOnExit(getConfig().shell);
-
-        // Interactive mode: send the prompt to stdin after Gemini starts up.
-        if (!isOneShot && params.prompt) {
-          setTimeout(() => {
-            try {
-              session.write(params.prompt!);
-              setTimeout(() => {
-                try { session.write("\r"); } catch { /* exited */ }
-              }, 500);
-            } catch {
-              // Session may have exited before we could write
-            }
-          }, 2000);
-        }
-
-        const info = session.getInfo();
-        const result: Record<string, unknown> = { ...info };
-        if (worktreePath) {
-          result.worktreePath = worktreePath;
-          result.branch = params.branch;
-        }
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
       } catch (err) {
         return {
           content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
@@ -1683,10 +1468,13 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
   function waitForTurnCompletion(
     session: ReturnType<typeof manager.create>,
-    agentType: "claude" | "codex" | "gemini",
+    agentId: string,
     timeoutMs: number,
     quietPeriodMs = 5_000,
   ): Promise<{ reason: "turn_complete" | "exited" | "timeout"; exitCode?: number }> {
+    const agent = registry.get(agentId);
+    const turnPattern = agent?.turnCompletePattern;
+
     return new Promise((resolve) => {
       let settled = false;
       let hasOutput = false;
@@ -1720,8 +1508,8 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         if (settled) return;
         hasOutput = true;
 
-        // Codex explicit signal: turn.completed in JSONL stream
-        if (agentType === "codex" && data.includes('"turn.completed"')) {
+        // Agent-specific turn completion signal (e.g., Codex's "turn.completed")
+        if (turnPattern && turnPattern.test(data)) {
           cleanup();
           resolve({ reason: "turn_complete" });
           return;
@@ -1755,7 +1543,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     "For interactive multi-turn conversations, the first call spawns the agent and returns a sessionId. " +
     "Subsequent calls with that sessionId send follow-up messages. Use `from` to label which orchestrator is speaking.",
     {
-      agent: z.enum(["claude", "codex", "gemini"]).describe("Which agent to delegate to (required for first call, ignored on follow-ups)").optional(),
+      agent: z.string().describe(`Which agent to delegate to: ${registry.listIds().join(", ")} (required for first call, ignored on follow-ups)`).optional(),
       prompt: z.string().describe("The task prompt or follow-up message to send to the agent"),
       mode: z.enum(["oneshot", "interactive"]).optional().describe("Delegation mode: 'oneshot' (default) runs to completion, 'interactive' keeps agent alive for multi-turn conversation"),
       sessionId: z.string().optional().describe("Session ID from a previous interactive delegate_task call — sends a follow-up message to that agent"),
@@ -1826,21 +1614,19 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
           // Determine agent type from session tags
           const info = session.getInfo();
-          const agentType: "claude" | "codex" | "gemini" = info.tags?.includes("codex-agent") ? "codex" : info.tags?.includes("gemini-agent") ? "gemini" : "claude";
+          const agentType = registry.resolveAgentFromTags(info.tags) ?? "claude";
 
           // Record buffer position before sending, so we capture only the new output
           const bufferBefore = session.readFullBuffer();
 
           // Send the follow-up message to the agent's TUI input.
           // We send text first, then wait for the paste burst window to close (~300ms),
-          // then submit. Claude Code requires Escape+Enter; Codex uses plain Enter.
+          // then submit with agent-specific sequence (e.g., Escape+Enter for Claude).
+          const agentDef = registry.get(agentType);
+          const submitSeq = agentDef?.submitSequence ?? "\r";
           session.write(formattedPrompt);
           await new Promise<void>((resolve) => setTimeout(resolve, 500));
-          if (agentType === "claude") {
-            session.write("\x1B\r"); // Escape (exit multi-line mode) + Enter to submit
-          } else {
-            session.write("\r");
-          }
+          session.write(submitSeq);
 
           // Wait for the agent to finish its turn
           const followUpProgressInterval = startProgress();
@@ -1918,6 +1704,16 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           };
         }
 
+        // Resolve agent from registry
+        const agentDef = registry.get(params.agent);
+        if (!agentDef) {
+          const available = registry.listIds().join(", ");
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: `Unknown agent "${params.agent}". Available: ${available}` }) }],
+            isError: true,
+          };
+        }
+
         let session: ReturnType<typeof manager.create> | undefined;
         let effectiveCwd = params.cwd;
         let worktreePath: string | undefined;
@@ -1931,48 +1727,15 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             };
           }
 
-          const baseCwd = effectiveCwd ?? process.cwd();
-          let repoRoot: string;
-          try {
-            repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: baseCwd, encoding: "utf-8" }).trim();
-          } catch {
+          const wtResult = createWorktree(effectiveCwd, params.branch);
+          if (wtResult.error) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: "Not inside a git repository (required for worktree)" }) }],
+              content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: wtResult.error }) }],
               isError: true,
             };
           }
-
-          const repoName = path.basename(repoRoot);
-          const branchSuffix = params.branch.split("/").pop() ?? params.branch;
-          worktreePath = path.join(path.dirname(repoRoot), `${repoName}-${branchSuffix}`);
-
-          try {
-            execFileSync("git", ["worktree", "add", worktreePath, "-b", params.branch], {
-              cwd: repoRoot, encoding: "utf-8", stdio: "pipe",
-            });
-          } catch (err) {
-            const msg = (err as Error).message;
-            if (msg.includes("already exists")) {
-              try {
-                execFileSync("git", ["worktree", "add", worktreePath, params.branch], {
-                  cwd: repoRoot, encoding: "utf-8", stdio: "pipe",
-                });
-              } catch (err2) {
-                return {
-                  content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: `Creating worktree failed: ${(err2 as Error).message}` }) }],
-                  isError: true,
-                };
-              }
-            } else {
-              return {
-                content: [{ type: "text" as const, text: JSON.stringify({ status: "error", message: `Creating worktree failed: ${msg}` }) }],
-                isError: true,
-              };
-            }
-          }
-
+          worktreePath = wtResult.worktreePath;
           effectiveCwd = worktreePath;
-          ensureWorktreeMcpConfig(worktreePath);
         }
 
         // Capture base SHA for worktree diff (before agent makes changes)
@@ -1985,39 +1748,30 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           } catch { /* ignore */ }
         }
 
-        // Build agent command and args
-        const isClaude = params.agent === "claude";
-        const isGemini = params.agent === "gemini";
-        const command = isClaude ? getConfig().claudePath : isGemini ? getConfig().geminiPath : getConfig().codexPath;
+        // Build agent command and args using registry
+        const command = agentDef.command;
         const args: string[] = [];
-        const agentTag = isClaude ? "claude-agent" : isGemini ? "gemini-agent" : "codex-agent";
+        const agentTag = agentDef.tag;
+
+        // Build args using agent registry (handles agent-specific flags/patterns)
+        const delegateExtra: Record<string, unknown> = {};
+        if (params.maxBudget) delegateExtra.maxBudget = params.maxBudget;
 
         if (isInteractive) {
-          // Interactive mode: pass prompt as CLI arg.
-          // This avoids the TUI input submission issue — the agent starts with the prompt directly.
-          if (isClaude) {
-            if (params.model) args.push("--model", params.model);
-            if (params.maxBudget) args.push("--max-budget-usd", String(params.maxBudget));
-          } else if (isGemini) {
-            if (params.model) args.push("--model", params.model);
-          } else {
-            // Codex interactive: `codex "prompt"` starts interactive with initial prompt
-            if (params.model) args.push("--model", params.model);
-          }
+          // Interactive mode: build agent-specific interactive args + positional prompt
+          args.push(...agentDef.buildInteractiveArgs(formattedPrompt, params.model, delegateExtra));
           // Push prompt as positional argument — `claude "prompt"`, `codex "prompt"`, and `gemini "prompt"` all work
           args.push(formattedPrompt);
         } else {
-          // Oneshot mode: pass prompt as CLI argument
-          if (isClaude) {
+          // Oneshot mode: use agent-specific oneshot args
+          // For delegate_task oneshot, Claude uses --output-format text instead of stream-json
+          if (agentDef.id === "claude") {
             args.push("--print", "--output-format", "text", "--verbose", formattedPrompt);
-            if (params.model) args.push("--model", params.model);
+            const m = params.model ?? agentDef.defaultModel;
+            if (m) args.push("--model", m);
             if (params.maxBudget) args.push("--max-budget-usd", String(params.maxBudget));
-          } else if (isGemini) {
-            args.push("-p", formattedPrompt);
-            if (params.model) args.push("--model", params.model);
           } else {
-            args.push("exec", formattedPrompt);
-            if (params.model) args.push("--model", params.model);
+            args.push(...agentDef.buildOneshotArgs(formattedPrompt, params.model, delegateExtra));
           }
         }
 
@@ -2256,5 +2010,5 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     server.sendResourceListChanged();
   });
 
-  return { server, manager };
+  return { server, manager, registry };
 }

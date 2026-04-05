@@ -15,6 +15,7 @@ import { ClaudeChats } from "../core/claude-chats.js";
 import { CodexChats } from "../core/codex-chats.js";
 import { GeminiChats } from "../core/gemini-chats.js";
 import { createServer as createMcpServer } from "../server.js";
+import { AgentRegistry } from "../core/agent-registry.js";
 import { WsHandler } from "./ws-handler.js";
 import { DASHBOARD_HTML, DASHBOARD_HTML_LOCAL, LOGO_PNG_BASE64 } from "./dashboard-html.js";
 export { DASHBOARD_HTML, DASHBOARD_HTML_LOCAL, LOGO_PNG_BASE64 };
@@ -77,30 +78,19 @@ export class DashboardServer {
           const body = await this.readBody(req);
           const opts = body ? JSON.parse(body) : {};
 
-          // Resolve agent shorthand to configured binary + default tags
+          // Resolve agent shorthand to configured binary + default tags via registry
           let command = opts.command || this.getConfig()?.shell || "/bin/sh";
           let tags = opts.tags;
-          if (opts.agent === "claude") {
-            command = this.getConfig()?.claudePath || "claude";
-            tags = tags || ["claude-agent"];
-          } else if (opts.agent === "codex") {
-            command = this.getConfig()?.codexPath || "codex";
-            tags = tags || ["codex-agent"];
-          } else if (opts.agent === "gemini") {
-            command = this.getConfig()?.geminiPath || "gemini";
-            tags = tags || ["gemini-agent"];
-          } else if (opts.agent === "cursor") {
-            command = this.getConfig()?.cursorPath || "cursor";
-            tags = tags || ["cursor-agent"];
-          } else if (opts.agent === "windsurf") {
-            command = this.getConfig()?.windsurfPath || "windsurf";
-            tags = tags || ["windsurf-agent"];
-          } else if (opts.agent === "copilot") {
-            command = this.getConfig()?.copilotPath || "copilot";
-            tags = tags || ["copilot-agent"];
-          } else if (opts.agent === "deep-agents") {
-            command = this.getConfig()?.deepAgentsPath || "deep-agents";
-            tags = tags || ["deep-agents-agent"];
+          if (opts.agent) {
+            const agentDef = this.getRegistry()?.get(opts.agent);
+            if (agentDef) {
+              command = agentDef.command;
+              tags = tags || [agentDef.tag];
+            } else {
+              // Unknown agent — fall back to using agent name as command
+              command = opts.agent;
+              tags = tags || [`${opts.agent}-agent`];
+            }
           }
 
           const session = manager.create({
@@ -114,7 +104,7 @@ export class DashboardServer {
           });
 
           // Preserve agent sessions after exit (consistent with MCP spawn tools)
-          if (opts.agent && opts.agent !== undefined) {
+          if (opts.agent) {
             session.preserveAfterExit();
             session.enableRespawnOnExit(this.getConfig()?.shell || "/bin/sh");
           }
@@ -677,6 +667,18 @@ export class DashboardServer {
   private getConfig(): ForgeConfig | undefined {
     if (this.configManager) return this.configManager.config;
     return this.config as ForgeConfig | undefined;
+  }
+
+  /** Get agent registry — lazily created from config */
+  private _registry?: AgentRegistry;
+  private getRegistry(): AgentRegistry | undefined {
+    if (this._registry) return this._registry;
+    const cfg = this.getConfig();
+    if (cfg) {
+      this._registry = new AgentRegistry(cfg);
+      return this._registry;
+    }
+    return undefined;
   }
 
   private async handleMcp(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse): Promise<void> {
