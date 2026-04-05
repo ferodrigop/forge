@@ -190,8 +190,9 @@ function handleMessage(msg) {
 
 var pendingSubscribe = signal(null);
 
-function selectSession(id) {
+function selectSession(id, opts) {
   if (activeSessionId.value === id) return;
+  if (opts && opts.manual) autoFollow.value = false;
   if (activeSessionId.value) wsSend({ type: 'unsubscribe', sessionId: activeSessionId.value });
   jsonBuf = '';
   activeChatId.value = null;

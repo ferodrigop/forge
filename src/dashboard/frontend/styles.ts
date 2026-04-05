@@ -99,6 +99,27 @@ export const CSS_STYLES = `
     min-height: 0;
   }
 
+  .terminals-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 8px 0;
+  }
+  .auto-follow-btn {
+    background: none;
+    border: 1px solid #292e42;
+    border-radius: 4px;
+    color: #565f89;
+    cursor: pointer;
+    padding: 2px 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .auto-follow-btn:hover { color: #a9b1d6; border-color: #3b4261; }
+  .auto-follow-btn.active { color: #9ece6a; border-color: #9ece6a; }
+
   #session-list, #chat-list {
     flex: 1;
     overflow-y: auto;

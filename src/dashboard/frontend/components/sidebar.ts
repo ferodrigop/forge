@@ -95,7 +95,7 @@ function SessionItem(props) {
   return html\`
     <div
       class=\${'session-item' + (s.id === activeSessionId.value ? ' active' : '')}
-      onClick=\${function() { if (!isRenaming) selectSession(s.id); }}
+      onClick=\${function() { if (!isRenaming) selectSession(s.id, { manual: true }); }}
     >
       <span class=\${'status-dot ' + s.status}></span>
       <div class="session-info">
@@ -401,7 +401,9 @@ function Sidebar() {
     <div id="sidebar">
       <\${TabBar} />
       \${currentTab.value === 'terminals'
-        ? html\`<div id="terminals-panel"><div id="session-list"><\${SessionList} /></div></div>\`
+        ? html\`<div id="terminals-panel"><div class="terminals-toolbar"><button class=\${'auto-follow-btn' + (autoFollow.value ? ' active' : '')} title=\${autoFollow.value ? 'Auto-follow new sessions (on)' : 'Auto-follow new sessions (off)'} onClick=\${function() { autoFollow.value = !autoFollow.value; }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v10M8 13l3-3M8 13l-3-3"/></svg>
+          </button></div><div id="session-list"><\${SessionList} /></div></div>\`
         : html\`<\${ChatsPanel} />\`
       }
       <\${ConnectionStatus} />
