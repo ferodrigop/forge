@@ -116,6 +116,7 @@ export class DashboardServer {
           // Preserve agent sessions after exit (consistent with MCP spawn tools)
           if (opts.agent && opts.agent !== undefined) {
             session.preserveAfterExit();
+            session.enableRespawnOnExit(this.getConfig()?.shell || "/bin/sh");
           }
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(session.getInfo()));
@@ -442,6 +443,7 @@ export class DashboardServer {
             cwd: chatMeta.fullPath,
           });
           session.preserveAfterExit();
+          session.enableRespawnOnExit(this.getConfig()?.shell || "/bin/sh");
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(session.getInfo()));
         } catch (err) {
@@ -508,6 +510,7 @@ export class DashboardServer {
             cwd: chatMeta.fullPath || undefined,
           });
           session.preserveAfterExit();
+          session.enableRespawnOnExit(this.getConfig()?.shell || "/bin/sh");
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(session.getInfo()));
         } catch (err) {
@@ -567,6 +570,7 @@ export class DashboardServer {
             cwd: chatMeta.fullPath || undefined,
           });
           session.preserveAfterExit();
+          session.enableRespawnOnExit(this.getConfig()?.shell || "/bin/sh");
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(session.getInfo()));
         } catch (err) {

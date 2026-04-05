@@ -380,6 +380,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
         // Keep session data readable after exit so orchestrator can diagnose failures
         session.preserveAfterExit();
+        session.enableRespawnOnExit(getConfig().shell);
 
         // Interactive mode: send the prompt to stdin after Claude starts up.
         // Text and Enter are sent separately to avoid paste burst detection issues.
@@ -549,6 +550,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
         // Keep session data readable after exit
         session.preserveAfterExit();
+        session.enableRespawnOnExit(getConfig().shell);
 
         // Interactive mode: send the prompt to stdin after Codex starts up.
         // Text and Enter must be sent separately — Codex's paste burst detector
@@ -733,6 +735,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
         // Keep session data readable after exit
         session.preserveAfterExit();
+        session.enableRespawnOnExit(getConfig().shell);
 
         // Interactive mode: send the prompt to stdin after Gemini starts up.
         if (!isOneShot && params.prompt) {
@@ -2036,6 +2039,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         });
 
         session.preserveAfterExit();
+        session.enableRespawnOnExit(getConfig().shell);
         const sessionId = session.id;
 
         if (isInteractive) {
