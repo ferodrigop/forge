@@ -145,6 +145,7 @@ describe("spawn_gemini", () => {
     });
     const output = JSON.parse((readResult.content as Array<{ text: string }>)[0].text);
     expect(output.data).toContain("--resume");
+    expect(output.data).toContain("latest");
   }, 10_000);
 
   it("resume with session ID passes it to gemini", async () => {
