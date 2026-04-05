@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { discoverMcpJsonFiles } from "../../src/cli.js";
+import { discoverMcpJsonFiles, registerMcpJsonFile } from "../../src/cli.js";
 
 describe("discoverMcpJsonFiles", () => {
   let tempRoot: string;
@@ -52,5 +52,42 @@ describe("discoverMcpJsonFiles", () => {
     const result = discoverMcpJsonFiles(child);
     // Should find mid first (closer), then root
     expect(result).toEqual([midMcp, rootMcp]);
+  });
+});
+
+describe("registerMcpJsonFile", () => {
+  let tempRoot: string;
+
+  beforeEach(() => {
+    tempRoot = join(tmpdir(), `forge-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    mkdirSync(tempRoot, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  it("is idempotent — calling twice produces exactly one forge entry", () => {
+    const mcpFile = join(tempRoot, ".mcp.json");
+    writeFileSync(mcpFile, JSON.stringify({ mcpServers: {} }));
+
+    const url = "http://127.0.0.1:3141/mcp";
+    registerMcpJsonFile(mcpFile, url);
+    registerMcpJsonFile(mcpFile, url);
+
+    const config = JSON.parse(readFileSync(mcpFile, "utf-8"));
+    expect(Object.keys(config.mcpServers)).toEqual(["forge"]);
+    expect(config.mcpServers.forge).toEqual({ type: "http", url });
+  });
+
+  it("skips malformed files with a warning instead of overwriting", () => {
+    const mcpFile = join(tempRoot, ".mcp.json");
+    const garbage = "{not valid json!!!";
+    writeFileSync(mcpFile, garbage);
+
+    registerMcpJsonFile(mcpFile, "http://127.0.0.1:3141/mcp");
+
+    // File should be unchanged
+    expect(readFileSync(mcpFile, "utf-8")).toBe(garbage);
   });
 });

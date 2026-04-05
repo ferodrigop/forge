@@ -279,7 +279,8 @@ function mergeJsonConfig(filePath: string, rootKey: string, serverName: string, 
     try {
       config = JSON.parse(readFileSync(filePath, "utf-8"));
     } catch {
-      process.stderr.write(`Warning: could not parse ${filePath}, creating new file.\n`);
+      process.stderr.write(`Warning: could not parse ${filePath}, skipping.\n`);
+      return;
     }
   } else {
     const dir = filePath.substring(0, filePath.lastIndexOf("/"));
@@ -346,7 +347,7 @@ export function discoverMcpJsonFiles(startDir: string = process.cwd()): string[]
   return found;
 }
 
-function registerMcpJsonFile(filePath: string, mcpUrl: string): void {
+export function registerMcpJsonFile(filePath: string, mcpUrl: string): void {
   mergeJsonConfig(filePath, "mcpServers", "forge", { type: "http", url: mcpUrl });
 }
 
