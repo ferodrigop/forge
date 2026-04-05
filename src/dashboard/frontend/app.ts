@@ -29,30 +29,34 @@ var isDesktop = !!(window.forgeDesktop && window.forgeDesktop.isDesktop);
 
 function MainContent() {
   return html\`
-    <div style="display:flex;flex-direction:column;flex:1;min-width:0">
+    <main id="main-content" style="display:flex;flex-direction:column;flex:1;min-width:0">
       \${isDesktop ? html\`<div id="main-titlebar"></div>\` : null}
       <\${MainArea} />
-    </div>
+    </main>
   \`;
 }
 
 function TopBar() {
   return html\`
-    <div id="topbar">
+    <header id="topbar" role="banner">
       <button
         class="topbar-toggle"
+        aria-label=\${sidebarCollapsed.value ? 'Show sidebar' : 'Hide sidebar'}
         title=\${sidebarCollapsed.value ? 'Show sidebar (⌘B)' : 'Hide sidebar (⌘B)'}
+        aria-expanded=\${!sidebarCollapsed.value}
+        aria-controls="sidebar"
         onClick=\${function() { sidebarCollapsed.value = !sidebarCollapsed.value; }}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
           <rect x="1" y="2" width="14" height="12" rx="2" />
           <line x1="5.5" y1="2" x2="5.5" y2="14" />
         </svg>
       </button>
-      <img class="topbar-logo" src="/logo.png" alt="Forge" />
-      <span class="topbar-title">Forge</span>
+      <img class="topbar-logo" src="/logo.png" alt="" />
+      <span class="topbar-title" aria-hidden="true">Forge</span>
       <button
         id="new-terminal-btn"
+        aria-label="New terminal"
         title="New terminal"
         class=\${currentTab.value !== 'terminals' ? 'hidden' : ''}
         onClick=\${function() { activeModal.value = { type: 'newTerminal' }; }}
@@ -61,15 +65,18 @@ function TopBar() {
         id="auto-follow-btn"
         class=\${(autoFollow.value ? 'active' : '') + (currentTab.value !== 'terminals' ? ' hidden' : '')}
         title="Auto-follow new sessions"
+        aria-label="Auto-follow new sessions"
+        aria-pressed=\${autoFollow.value}
         onClick=\${function() { autoFollow.value = !autoFollow.value; }}
       >Follow</button>
       <span class="spacer"></span>
       <button
         class="topbar-toggle"
+        aria-label="Settings"
         title="Settings"
         onClick=\${function() { activeModal.value = { type: 'settings' }; }}
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="8" cy="8" r="2.5" />
           <path d="M8 1.5v1.2M8 13.3v1.2M3.4 3.4l.85.85M11.75 11.75l.85.85M1.5 8h1.2M13.3 8h1.2M3.4 12.6l.85-.85M11.75 4.25l.85-.85" />
         </svg>
@@ -77,16 +84,18 @@ function TopBar() {
       \${activeSessionId.value ? html\`
         <button
           class=\${'topbar-toggle topbar-toggle-right' + (codeReviewOpen.value ? ' active' : '')}
+          aria-label=\${codeReviewOpen.value ? 'Hide changes panel' : 'Show changes panel'}
           title=\${codeReviewOpen.value ? 'Hide changes (⌘⇧B)' : 'Show changes (⌘⇧B)'}
+          aria-expanded=\${codeReviewOpen.value}
           onClick=\${function() { codeReviewOpen.value = !codeReviewOpen.value; }}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
             <rect x="1" y="2" width="14" height="12" rx="2" />
             <line x1="10.5" y1="2" x2="10.5" y2="14" />
           </svg>
         </button>
       \` : null}
-    </div>
+    </header>
   \`;
 }
 
@@ -106,19 +115,20 @@ function FloatingAttentionIndicator() {
   }
 
   return html\`
-    <div class="floating-attention" onClick=\${onClick} title=\${'Go to: ' + (first.name || first.command || first.id)}>
-      <span class="floating-attention-icon">!</span>
+    <button class="floating-attention" onClick=\${onClick} title=\${'Go to: ' + (first.name || first.command || first.id)} aria-label=\${blockedSessions.length + ' session' + (blockedSessions.length !== 1 ? 's' : '') + ' need attention. Go to ' + label}>
+      <span class="floating-attention-icon" aria-hidden="true">!</span>
       <span>\${label}</span>
       \${blockedSessions.length > 1
-        ? html\`<span class="floating-attention-count">\${blockedSessions.length}</span>\`
+        ? html\`<span class="floating-attention-count" aria-hidden="true">\${blockedSessions.length}</span>\`
         : null}
-    </div>
+    </button>
   \`;
 }
 
 function App() {
   return html\`
     <div id="app-layout">
+      <a class="skip-link" href="#main-content">Skip to main content</a>
       <\${TopBar} />
       <div id="app-body">
         \${!sidebarCollapsed.value ? html\`<\${Sidebar} />\` : null}
@@ -127,6 +137,7 @@ function App() {
     </div>
     <\${ModalOverlay} />
     <\${FloatingAttentionIndicator} />
+    <div id="aria-live" class="aria-live-region" aria-live="polite" aria-atomic="true"></div>
   \`;
 }
 

@@ -4,13 +4,19 @@ function SystemBubble(props) {
   var summary = props.summary;
   var expanded = preactHooks.useState(false);
 
+  function toggle() { expanded[1](!expanded[0]); }
+
   return html\`
     <div
       class="chat-bubble system"
-      onClick=\${function() { expanded[1](!expanded[0]); }}
+      role="button"
+      tabindex="0"
+      aria-expanded=\${expanded[0]}
+      onClick=\${toggle}
+      onKeyDown=\${function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}
     >
       <div class="system-summary">
-        <span class=\${'system-chevron' + (expanded[0] ? ' open' : '')}>\u25b6</span>
+        <span class=\${'system-chevron' + (expanded[0] ? ' open' : '')} aria-hidden="true">\u25b6</span>
         \${' ' + summary}
       </div>
       \${expanded[0] ? html\`<div class="system-full visible">\${text}</div>\` : null}
@@ -90,14 +96,14 @@ function ChatMessages() {
   }, [messages]);
 
   if (chatLoading.value) {
-    return html\`<div id="chat-viewer" ref=\${viewerRef}><div style="color:#3b4261;text-align:center;">Loading...</div></div>\`;
+    return html\`<div id="chat-viewer" ref=\${viewerRef} role="log" aria-label="Chat messages"><div style="color:#6b7394;text-align:center;" role="status">Loading...</div></div>\`;
   }
   if (messages.length === 0) {
-    return html\`<div id="chat-viewer" ref=\${viewerRef}><div style="color:#3b4261;text-align:center;">Empty session</div></div>\`;
+    return html\`<div id="chat-viewer" ref=\${viewerRef} role="log" aria-label="Chat messages"><div style="color:#6b7394;text-align:center;">Empty session</div></div>\`;
   }
 
   return html\`
-    <div id="chat-viewer" ref=\${viewerRef}>
+    <div id="chat-viewer" ref=\${viewerRef} role="log" aria-label="Chat messages" aria-live="polite">
       \${messages.map(function(m, i) {
         return html\`<\${ChatBubble} key=\${i} message=\${m} />\`;
       })}
@@ -185,8 +191,8 @@ function ChatView() {
   return html\`
     <div id="main">
       <div class="chat-header-bar">
-        <span style="color:#565f89;font-size:13px;">\${sourceLabel}: <span style="color:#7aa2f7;font-weight:500;">\${chatId ? chatId.slice(0, 8) + '...' : ''}</span></span>
-        <button class="continue-btn" onClick=\${function() { continueChat(chatId, source); }}>\${resumeLabel}</button>
+        <span style="color:#737aa2;font-size:13px;"><h2 class="sr-only">Chat Session</h2>\${sourceLabel}: <span style="color:#7aa2f7;font-weight:500;">\${chatId ? chatId.slice(0, 8) + '...' : ''}</span></span>
+        <button class="continue-btn" aria-label=\${resumeLabel + ' ' + (chatId ? chatId.slice(0, 8) : '')} onClick=\${function() { continueChat(chatId, source); }}>\${resumeLabel}</button>
       </div>
       <\${(isCodex || isGemini) ? CodexChatMessages : ChatMessages} />
     </div>
@@ -202,14 +208,14 @@ function CodexChatMessages() {
   }, [messages]);
 
   if (chatLoading.value) {
-    return html\`<div id="chat-viewer" ref=\${viewerRef}><div style="color:#3b4261;text-align:center;">Loading...</div></div>\`;
+    return html\`<div id="chat-viewer" ref=\${viewerRef} role="log" aria-label="Chat messages"><div style="color:#6b7394;text-align:center;" role="status">Loading...</div></div>\`;
   }
   if (messages.length === 0) {
-    return html\`<div id="chat-viewer" ref=\${viewerRef}><div style="color:#3b4261;text-align:center;">Empty session</div></div>\`;
+    return html\`<div id="chat-viewer" ref=\${viewerRef} role="log" aria-label="Chat messages"><div style="color:#6b7394;text-align:center;">Empty session</div></div>\`;
   }
 
   return html\`
-    <div id="chat-viewer" ref=\${viewerRef}>
+    <div id="chat-viewer" ref=\${viewerRef} role="log" aria-label="Chat messages" aria-live="polite">
       \${messages.map(function(m, i) {
         return html\`<\${CodexChatBubble} key=\${i} message=\${m} />\`;
       })}

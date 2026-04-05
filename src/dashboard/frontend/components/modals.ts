@@ -56,19 +56,28 @@ function FolderTreeNode(props) {
   var chevronDown = html\`<svg class="ft-chevron open" width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 2.5L4 5.5L6.5 2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>\`;
   var chevronRight = html\`<svg class="ft-chevron" width="8" height="8" viewBox="0 0 8 8"><path d="M2.5 1.5L5.5 4L2.5 6.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>\`;
 
+  function onRowKeyDown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); handleRowDblClick(e); }
+    if (e.key === ' ') { e.preventDefault(); onSelect(path); }
+    if (e.key === 'ArrowRight' && !expanded[0]) { e.preventDefault(); toggleExpand(e); }
+    if (e.key === 'ArrowLeft' && expanded[0]) { e.preventDefault(); expanded[1](false); }
+  }
+
   return html\`
-    <div class="ft-node">
+    <div class="ft-node" role="treeitem" aria-expanded=\${expanded[0]} aria-selected=\${isSelected} aria-label=\${name}>
       <div class=\${'ft-row' + (isSelected ? ' ft-selected' : '')}
            style=\${'padding-left: ' + (8 + depth * 18) + 'px'}
-           onClick=\${handleRowClick}>
-        <span class="ft-chevron-wrap" onClick=\${toggleExpand} onDblClick=\${handleChevronDblClick}>\${expanded[0] ? chevronDown : chevronRight}</span>
+           tabindex="0"
+           onClick=\${handleRowClick}
+           onKeyDown=\${onRowKeyDown}>
+        <span class="ft-chevron-wrap" onClick=\${toggleExpand} onDblClick=\${handleChevronDblClick} aria-hidden="true">\${expanded[0] ? chevronDown : chevronRight}</span>
         <span class="ft-row-body" onDblClick=\${handleRowDblClick}>
-          <svg class="ft-folder-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.879a1.5 1.5 0 0 1 1.06.44l1.122 1.12A.5.5 0 0 0 8.914 4H13.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9z"/></svg>
+          <svg class="ft-folder-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.879a1.5 1.5 0 0 1 1.06.44l1.122 1.12A.5.5 0 0 0 8.914 4H13.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9z"/></svg>
           <span class="ft-name">\${name}</span>
         </span>
       </div>
       \${expanded[0] ? html\`
-        <div class="ft-children">
+        <div class="ft-children" role="group">
           \${loading[0] ? html\`<div class="ft-loading" style=\${'padding-left: ' + (8 + (depth+1) * 18) + 'px'}>Loading…</div>\` : null}
           \${!loading[0] && children[0] && children[0].length === 0 ? html\`<div class="ft-empty" style=\${'padding-left: ' + (8 + (depth+1) * 18) + 'px'}>No subfolders</div>\` : null}
           \${!loading[0] && children[0] ? children[0].map(function(c) {
@@ -174,32 +183,36 @@ function NewTerminalModal() {
 
   var homeIcon = html\`<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink:0"><path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5h.793l.853 5.117A1 1 0 0 0 4.133 13.5h7.734a1 1 0 0 0 .986-.883L13.707 7.5h.793a.5.5 0 0 0 .354-.854l-6-6z"/></svg>\`;
 
+  var nameId = 'nt-name-' + Date.now();
+  var cmdId = 'nt-cmd-' + Date.now();
+  var cwdId = 'nt-cwd-' + Date.now();
+
   return html\`
-    <div class="modal-box" onKeyDown=\${onKeyDown}>
-      <h3>New Terminal</h3>
-      <div class="modal-field"><label>Name</label><input type="text" ref=\${nameRef} placeholder="my-session" /></div>
-      <div class="modal-field"><label>Command</label><input type="text" ref=\${commandRef} placeholder="default shell" /></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-new-terminal-title" onKeyDown=\${onKeyDown}>
+      <h3 id="modal-new-terminal-title">New Terminal</h3>
+      <div class="modal-field"><label for=\${nameId}>Name</label><input id=\${nameId} type="text" ref=\${nameRef} placeholder="my-session" /></div>
+      <div class="modal-field"><label for=\${cmdId}>Command</label><input id=\${cmdId} type="text" ref=\${commandRef} placeholder="default shell" /></div>
       <div class="modal-field">
-        <label>Working Directory</label>
+        <label for=\${cwdId}>Working Directory</label>
         <div class="cwd-input-row">
-          <input type="text" ref=\${cwdRef} placeholder="current directory" onInput=\${function() { cwdError[1](''); }} />
-          <button class=\${'cwd-browse-btn' + (showBrowser[0] ? ' active' : '')} onClick=\${openBrowser} title="Browse folders">
+          <input id=\${cwdId} type="text" ref=\${cwdRef} placeholder="current directory" onInput=\${function() { cwdError[1](''); }} />
+          <button class=\${'cwd-browse-btn' + (showBrowser[0] ? ' active' : '')} onClick=\${openBrowser} aria-label="Browse folders" aria-expanded=\${showBrowser[0]} title="Browse folders">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.879a1.5 1.5 0 0 1 1.06.44l1.122 1.12A.5.5 0 0 0 8.914 4H13.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9z"/></svg>
           </button>
         </div>
         \${cwdError[0] ? html\`<div class="cwd-error">\${cwdError[0]}</div>\` : null}
       </div>
       \${showBrowser[0] ? html\`
-        <div class="folder-tree">
+        <div class="folder-tree" role="region" aria-label="Folder browser">
           <div class="ft-header">
-            <button class="ft-back-btn" onClick=\${navigateUp} disabled=\${rootPath[0] === '/'} title="Go up">
-              <svg width="10" height="10" viewBox="0 0 10 10"><path d="M6.5 1.5L3 5L6.5 8.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <button class="ft-back-btn" onClick=\${navigateUp} disabled=\${rootPath[0] === '/'} aria-label="Go up one directory" title="Go up">
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M6.5 1.5L3 5L6.5 8.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
             <span class="ft-header-icon">\${homeIcon}</span>
             <span class="ft-header-name">\${rootName[0]}</span>
             <span class="ft-header-count">\${rootDirs[0] ? rootDirs[0].length + ' folders' : ''}</span>
           </div>
-          <div class="ft-scroll">
+          <div class="ft-scroll" role="tree" aria-label="Folders">
             \${rootDirs[0] === null ? html\`<div class="ft-loading" style="padding-left: 8px">Loading…</div>\` : null}
             \${rootDirs[0] && rootDirs[0].length === 0 ? html\`<div class="ft-empty" style="padding-left: 8px">No subfolders</div>\` : null}
             \${rootDirs[0] ? rootDirs[0].map(function(d) {
@@ -222,8 +235,8 @@ function DeleteChatModal(props) {
   }
 
   return html\`
-    <div class="modal-box" onKeyDown=\${onKeyDown}>
-      <h3>Delete this chat session?</h3>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-delete-title" onKeyDown=\${onKeyDown}>
+      <h3 id="modal-delete-title">Delete this chat session?</h3>
       <p>This action cannot be undone. The session file will be permanently removed.</p>
       <div class="modal-actions">
         <button class="modal-cancel" onClick=\${function() { activeModal.value = null; }}>Cancel</button>
@@ -362,11 +375,11 @@ function SettingsModal() {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
   }
 
-  if (loading[0]) return html\`<div class="modal-box settings-modal" onKeyDown=\${onKeyDown}><h3>Settings</h3><div style="padding:16px 0;color:#565f89">Loading…</div></div>\`;
+  if (loading[0]) return html\`<div class="modal-box settings-modal" role="dialog" aria-modal="true" aria-label="Settings" onKeyDown=\${onKeyDown}><h3>Settings</h3><div style="padding:16px 0;color:#737aa2">Loading…</div></div>\`;
 
   return html\`
-    <div class="modal-box settings-modal" onKeyDown=\${onKeyDown}>
-      <h3>Settings</h3>
+    <div class="modal-box settings-modal" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title" onKeyDown=\${onKeyDown}>
+      <h3 id="modal-settings-title">Settings</h3>
       <p>Changes are saved to <code>~/.forge/settings.json</code> and apply immediately.</p>
 
       <div class="settings-section">
@@ -485,8 +498,48 @@ function ModalOverlay() {
   var modal = activeModal.value;
   if (!modal) return null;
 
+  var overlayRef = preact.createRef();
+  var previousFocusRef = preactHooks.useRef(null);
+
+  // Store the element that had focus before modal opened
+  preactHooks.useEffect(function() {
+    previousFocusRef.current = document.activeElement;
+
+    // Focus the modal dialog on open
+    setTimeout(function() {
+      var dialog = overlayRef.current && overlayRef.current.querySelector('[role="dialog"]');
+      if (dialog) {
+        var firstFocusable = dialog.querySelector('input, button, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) firstFocusable.focus();
+      }
+    }, 0);
+
+    return function() {
+      // Return focus to trigger element on close
+      if (previousFocusRef.current && previousFocusRef.current.focus) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, [modal.type]);
+
   function onOverlayClick(e) {
     if (e.target === e.currentTarget) activeModal.value = null;
+  }
+
+  // Focus trap: keep Tab within the modal
+  function onKeyDown(e) {
+    if (e.key !== 'Tab') return;
+    var dialog = overlayRef.current && overlayRef.current.querySelector('[role="dialog"]');
+    if (!dialog) return;
+    var focusable = dialog.querySelectorAll('input:not([disabled]), button:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (focusable.length === 0) return;
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
   }
 
   var content;
@@ -495,6 +548,6 @@ function ModalOverlay() {
   else if (modal.type === 'settings') content = html\`<\${SettingsModal} />\`;
   else return null;
 
-  return html\`<div class="modal-overlay" onClick=\${onOverlayClick}>\${content}</div>\`;
+  return html\`<div class="modal-overlay" ref=\${overlayRef} onClick=\${onOverlayClick} onKeyDown=\${onKeyDown}>\${content}</div>\`;
 }
 `;

@@ -112,8 +112,8 @@ function PaneTerminal(props) {
 }
 
 function PaneEmptyState() {
-  return html\`<div class="pane-empty">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#292e42" stroke-width="1.5" stroke-linecap="round">
+  return html\`<div class="pane-empty" role="region" aria-label="Empty pane">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#292e42" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="3"/>
       <line x1="9" y1="3" x2="9" y2="21"/>
     </svg>
@@ -133,16 +133,16 @@ function PaneTabBar(props) {
     label = s ? (s.name || s.id) : sessionId;
   }
 
-  return html\`<div class=\${'pane-tab-bar' + (isFocused ? ' pane-tab-focused' : '')} onClick=\${function() { focusPane(paneId); }}>
+  return html\`<div class=\${'pane-tab-bar' + (isFocused ? ' pane-tab-focused' : '')} role="toolbar" aria-label=\${'Pane: ' + (label || 'Empty')} onClick=\${function() { focusPane(paneId); }}>
     <span class="pane-tab-label" title=\${label || 'Empty'}>\${label || 'Empty'}</span>
     <div class="pane-tab-actions">
-      <button class="pane-tab-btn" title="Split right" onClick=\${function(e) { e.stopPropagation(); focusPane(paneId); splitPane('horizontal'); }}>
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1" y="1" width="10" height="10" rx="1.5"/><line x1="6" y1="1" x2="6" y2="11"/></svg>
+      <button class="pane-tab-btn" aria-label="Split right" title="Split right" onClick=\${function(e) { e.stopPropagation(); focusPane(paneId); splitPane('horizontal'); }}>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="1.5"/><line x1="6" y1="1" x2="6" y2="11"/></svg>
       </button>
-      <button class="pane-tab-btn" title="Split down" onClick=\${function(e) { e.stopPropagation(); focusPane(paneId); splitPane('vertical'); }}>
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1" y="1" width="10" height="10" rx="1.5"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+      <button class="pane-tab-btn" aria-label="Split down" title="Split down" onClick=\${function(e) { e.stopPropagation(); focusPane(paneId); splitPane('vertical'); }}>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="1.5"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
       </button>
-      <button class="pane-tab-btn pane-tab-close" title="Close pane" onClick=\${function(e) { e.stopPropagation(); closePane(paneId); }}>\u00d7</button>
+      <button class="pane-tab-btn pane-tab-close" aria-label="Close pane" title="Close pane" onClick=\${function(e) { e.stopPropagation(); closePane(paneId); }}>\u00d7</button>
     </div>
   </div>\`;
 }
@@ -214,7 +214,48 @@ function SplitDivider(props) {
     window.addEventListener('blur', onUp);
   }
 
-  return html\`<div class=\${'split-divider' + (isH ? ' split-divider-h' : ' split-divider-v')} onMouseDown=\${onMouseDown}></div>\`;
+  function onKeyDown(e) {
+    var step = e.shiftKey ? 50 : 10;
+    var delta = 0;
+    if (isH && e.key === 'ArrowRight') delta = step;
+    else if (isH && e.key === 'ArrowLeft') delta = -step;
+    else if (!isH && e.key === 'ArrowDown') delta = step;
+    else if (!isH && e.key === 'ArrowUp') delta = -step;
+    else return;
+    e.preventDefault();
+
+    var divider = e.currentTarget;
+    var parent = divider.parentElement;
+    var paneEls = [];
+    for (var i = 0; i < parent.children.length; i++) {
+      if (!parent.children[i].classList.contains('split-divider')) paneEls.push(parent.children[i]);
+    }
+    var prevEl = paneEls[idx - 1];
+    var nextEl = paneEls[idx];
+    if (!prevEl || !nextEl) return;
+    var prevSize = isH ? prevEl.offsetWidth : prevEl.offsetHeight;
+    var nextSize = isH ? nextEl.offsetWidth : nextEl.offsetHeight;
+    var newPrev = Math.max(80, prevSize + delta);
+    var newNext = Math.max(80, nextSize - delta);
+    prevEl.style.flex = newPrev + ' 0 0';
+    nextEl.style.flex = newNext + ' 0 0';
+
+    var total = 0;
+    var szs = [];
+    for (var j = 0; j < paneEls.length; j++) {
+      var sz = isH ? paneEls[j].offsetWidth : paneEls[j].offsetHeight;
+      szs.push(sz);
+      total += sz;
+    }
+    updateSplitSizes(splitId, szs.map(function(s) { return (s / total) * 100; }));
+    var keys = Object.keys(paneTerminals);
+    for (var k = 0; k < keys.length; k++) {
+      var pt = paneTerminals[keys[k]];
+      if (pt && pt.fitAddon) try { pt.fitAddon.fit(); } catch(ex) {}
+    }
+  }
+
+  return html\`<div class=\${'split-divider' + (isH ? ' split-divider-h' : ' split-divider-v')} role="separator" aria-orientation=\${isH ? 'vertical' : 'horizontal'} aria-label=\${isH ? 'Resize panes horizontally' : 'Resize panes vertically'} tabindex="0" onMouseDown=\${onMouseDown} onKeyDown=\${onKeyDown}></div>\`;
 }
 
 function renderSplitNode(node) {

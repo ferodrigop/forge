@@ -42,13 +42,13 @@ function ActivityLog() {
 
   return html\`
     <div>
-      <div id="activity-log-header" onClick=\${function() { activityLogOpen.value = !activityLogOpen.value; }}>
-        Activity Log <span>\${isOpen ? '\\u25bc' : '\\u25b6'}</span>
+      <div id="activity-log-header" role="button" tabindex="0" aria-expanded=\${isOpen} aria-controls="activity-log" onClick=\${function() { activityLogOpen.value = !activityLogOpen.value; }} onKeyDown=\${function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activityLogOpen.value = !activityLogOpen.value; } }}>
+        Activity Log <span aria-hidden="true">\${isOpen ? '\\u25bc' : '\\u25b6'}</span>
       </div>
       \${isOpen ? html\`
-        <div id="activity-log">
+        <div id="activity-log" role="log" aria-label="Activity log" aria-live="polite">
           \${items.length === 0
-            ? html\`<div style="padding:8px 12px;color:#3b4261;font-size:11px;">No tool calls yet</div>\`
+            ? html\`<div style="padding:8px 12px;color:#6b7394;font-size:11px;">No tool calls yet</div>\`
             : items
           }
         </div>
@@ -101,32 +101,34 @@ function TerminalStatusBar() {
   }
 
   return html\`
-    <div id="terminal-status-bar">
-      <span class="status-bar-item" title=\${cwd}>\u{1F4C2} \${home}</span>
-      \${ioText ? html\`<span class="status-bar-item" style="color:#7dcfff">\${ioText}</span>\` : null}
-      \${durationText ? html\`<span class="status-bar-item" style="color:#565f89">\u23f1 \${durationText}</span>\` : null}
-      \${activityText ? html\`<span class="status-bar-item \${'activity-' + (activityText === 'Active' ? 'active' : 'idle')}">\${activityText}</span>\` : null}
+    <div id="terminal-status-bar" role="toolbar" aria-label="Terminal status">
+      <span class="status-bar-item" title=\${cwd} aria-label=\${'Working directory: ' + home}>\u{1F4C2} \${home}</span>
+      \${ioText ? html\`<span class="status-bar-item" style="color:#7dcfff" aria-label=\${'I/O: ' + ioText}>\${ioText}</span>\` : null}
+      \${durationText ? html\`<span class="status-bar-item" style="color:#737aa2" aria-label=\${'Duration: ' + durationText}>\u23f1 \${durationText}</span>\` : null}
+      \${activityText ? html\`<span class="status-bar-item \${'activity-' + (activityText === 'Active' ? 'active' : 'idle')}" role="status">\${activityText}</span>\` : null}
       <span class="status-bar-spacer"></span>
-      <button class=\${'status-bar-btn' + (editorMode.value ? ' active' : '')} title="Toggle multi-line editor (editor mode)" onClick=\${function() { editorMode.value = !editorMode.value; }}>
+      <button class=\${'status-bar-btn' + (editorMode.value ? ' active' : '')} aria-label="Toggle multi-line editor" aria-pressed=\${editorMode.value} title="Toggle multi-line editor (editor mode)" onClick=\${function() { editorMode.value = !editorMode.value; }}>
         \u270e Editor
       </button>
-      \${voiceError.value ? html\`<span class="voice-error-msg">\${voiceError.value}</span>\` : null}
+      \${voiceError.value ? html\`<span class="voice-error-msg" role="alert">\${voiceError.value}</span>\` : null}
       \${voiceAvailable.value ? html\`
         <button
           class=\${'voice-btn' + (voiceState.value === 'recording' ? ' recording' : '') + (voiceState.value === 'transcribing' ? ' transcribing' : '')}
+          aria-label=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? 'Transcribing audio' : 'Start voice input'}
           title=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? 'Transcribing...' : 'Voice input'}
           disabled=\${voiceState.value === 'transcribing' || activeSession.status !== 'running'}
+          aria-busy=\${voiceState.value === 'transcribing'}
           onClick=\${function() { toggleVoiceRecording(); }}
         >
-          \${voiceState.value === 'recording' ? html\`<span class="voice-recording-dot"></span>\` : null}
+          \${voiceState.value === 'recording' ? html\`<span class="voice-recording-dot" aria-hidden="true"></span>\` : null}
           \${voiceState.value === 'transcribing'
-            ? html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>\`
-            : html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>\`
+            ? html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>\`
+            : html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>\`
           }
         </button>
       \` : null}
-      <span class="status-bar-item">\${activeSession.id}</span>
-      <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>
+      <span class="status-bar-item" aria-label=\${'Session ID: ' + activeSession.id}>\${activeSession.id}</span>
+      <span class="status-bar-item status-badge \${activeSession.status}" role="status">\${activeSession.status}</span>
     </div>
   \`;
 }
@@ -137,15 +139,15 @@ function ClaudeStatusBadge() {
   if (activeSession.status === 'exited') return null;
 
   if (activeSession.claudeState === 'blocked') {
-    return html\`<span class="claude-badge permission">Needs attention</span>\`;
+    return html\`<span class="claude-badge permission" role="status" aria-live="polite">Needs attention</span>\`;
   }
 
   var title = termTitle.value;
   if (!title || title.indexOf('Claude') < 0) return null;
   if (title.indexOf('\\u2733') >= 0) {
-    return html\`<span class="claude-badge waiting">Waiting for input</span>\`;
+    return html\`<span class="claude-badge waiting" role="status" aria-live="polite">Waiting for input</span>\`;
   }
-  return html\`<span class="claude-badge working"><span class="pulse-dot"></span> Working</span>\`;
+  return html\`<span class="claude-badge working" role="status" aria-live="polite"><span class="pulse-dot" aria-hidden="true"></span> Working</span>\`;
 }
 
 function DelegatePromptBanner() {
@@ -220,13 +222,15 @@ function MultilineEditor() {
   }, []);
 
   return html\`
-    <div class="multiline-editor">
+    <div class="multiline-editor" role="region" aria-label="Multi-line editor">
       <div class="multiline-editor-header">
-        <span class="multiline-editor-hint">Shift+Enter newline \u00b7 Enter submit \u00b7 Esc close</span>
+        <span class="multiline-editor-hint" id="editor-hint">Shift+Enter newline \u00b7 Enter submit \u00b7 Esc close</span>
       </div>
       <textarea
         ref=\${textareaRef}
         class="multiline-editor-textarea"
+        aria-label="Multi-line terminal input"
+        aria-describedby="editor-hint"
         placeholder="Type multi-line input..."
         onKeyDown=\${handleKeyDown}
         onInput=\${autoResize}
@@ -248,7 +252,7 @@ function TerminalView() {
   return html\`
     <div id="main">
       <div id="terminal-header">
-        <span>Session: <span class="session-label">\${headerLabel}</span> <\${ClaudeStatusBadge} /></span>
+        <span><h2 class="sr-only">Terminal Session</h2>Session: <span class="session-label">\${headerLabel}</span> <\${ClaudeStatusBadge} /></span>
         \${startedText ? html\`<span class="header-time">\${startedText}</span>\` : null}
       </div>
       <\${DelegatePromptBanner} />
