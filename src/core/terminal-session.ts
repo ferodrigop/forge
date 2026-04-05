@@ -73,7 +73,7 @@ export class TerminalSession {
       cols,
       rows,
       cwd: this.cwd,
-      env: (() => { const e: Record<string, string> = { ...process.env, ...opts.env } as Record<string, string>; delete e.CLAUDECODE; return e; })(),
+      env: this.buildPtyEnv(opts.env),
     });
 
     this.xterm.onTitleChange((title: string) => {
@@ -81,29 +81,7 @@ export class TerminalSession {
       this.autoDetectAgentTags(title);
     });
 
-    this.ptyProcess.onData((data: string) => {
-      this.lastActivityAt = new Date();
-      this.ringBuffer.write(data);
-      this.xterm.write(data);
-      this.resetIdleTimer();
-      for (const fn of this.dataListeners) fn(data);
-    });
-
-    this.ptyProcess.onExit(({ exitCode }) => {
-      if (this._respawnCommand) {
-        this.respawnShell(exitCode);
-        return;
-      }
-      this._status = "exited";
-      this._exitCode = exitCode;
-      this._exitedAt = new Date();
-      this.clearIdleTimer();
-      logger.info("Session exited", { id: this.id, exitCode });
-      this.onExitCallback?.(this.id, exitCode);
-      for (const fn of this.exitListeners) fn(this.id, exitCode);
-    });
-
-    this.resetIdleTimer();
+    this.wirePtyHandlers();
     logger.info("Session created", { id: this.id, command: opts.command, pid: this.ptyProcess.pid });
   }
 
@@ -346,10 +324,19 @@ export class TerminalSession {
       cols: this.xterm.cols,
       rows: this.xterm.rows,
       cwd: this.cwd,
-      env: (() => { const e: Record<string, string> = { ...process.env } as Record<string, string>; delete e.CLAUDECODE; return e; })(),
+      env: this.buildPtyEnv(),
     });
 
-    // Re-wire PTY data handler
+    this.wirePtyHandlers();
+  }
+
+  private buildPtyEnv(extra?: Record<string, string>): Record<string, string> {
+    const env: Record<string, string> = { ...process.env, ...extra } as Record<string, string>;
+    delete env.CLAUDECODE;
+    return env;
+  }
+
+  private wirePtyHandlers(): void {
     this.ptyProcess.onData((data: string) => {
       this.lastActivityAt = new Date();
       this.ringBuffer.write(data);
@@ -358,7 +345,6 @@ export class TerminalSession {
       for (const fn of this.dataListeners) fn(data);
     });
 
-    // Wire exit handler for the new shell
     this.ptyProcess.onExit(({ exitCode }) => {
       if (this._respawnCommand) {
         this.respawnShell(exitCode);
