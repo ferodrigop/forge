@@ -247,6 +247,12 @@ export class DashboardServer {
             res.end(JSON.stringify({ error: "Voice input not configured. Set whisperPath in ~/.forge/settings.json" }));
             return;
           }
+          const whisperModelPath = this.getConfig()?.whisperModelPath;
+          if (!whisperModelPath) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Whisper model path not configured. Set whisperModelPath in ~/.forge/settings.json" }));
+            return;
+          }
 
           // Read raw body as Buffer (up to 10MB for audio)
           const audioBuffer = await this.readBodyRaw(req, 10_485_760);
@@ -271,12 +277,6 @@ export class DashboardServer {
           writeFileSync(tempFile, audioData);
 
           // Run whisper.cpp
-          const whisperModelPath = this.getConfig()?.whisperModelPath;
-          if (!whisperModelPath) {
-            res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Whisper model path not configured. Set whisperModelPath in ~/.forge/settings.json" }));
-            return;
-          }
           const args = [
             "--model", whisperModelPath,
             "--file", tempFile,
