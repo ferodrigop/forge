@@ -175,7 +175,16 @@ async function cmdStatus(): Promise<void> {
 }
 
 async function cmdStdioProxy(args: string[]): Promise<void> {
-  // stdio proxy mode: bridge stdin/stdout <-> HTTP MCP transport
+  // Legacy stdio mode: creates a standalone MCP server (NOT connected to daemon).
+  // Sessions created here are isolated and won't appear in the dashboard.
+  // Prefer HTTP transport via `forge setup` for full integration.
+  process.stderr.write(
+    "\n⚠️  Forge stdio mode creates an isolated server — sessions won't appear in the dashboard.\n" +
+    "   For full dashboard integration, use HTTP transport instead:\n\n" +
+    "   1. Start daemon:  forge start -d\n" +
+    `   2. Configure MCP: claude mcp add --transport http forge http://127.0.0.1:${DEFAULT_PORT}/mcp\n\n` +
+    "   Or run: forge setup (configures everything automatically)\n\n"
+  );
   // Auto-start daemon if not running
   const status = await getDaemonStatus();
   if (!status.running) {
