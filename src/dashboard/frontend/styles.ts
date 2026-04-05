@@ -836,4 +836,41 @@ export const CSS_STYLES = `
   .settings-modal .modal-field input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none; margin: 0;
   }
+
+  /* Floating attention indicator */
+  .floating-attention {
+    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 20px;
+    background: #1a1f36; border: 1px solid #7aa2f7;
+    color: #c0caf5; cursor: pointer;
+    box-shadow: 0 0 12px #7aa2f744, 0 4px 16px #00000066;
+    animation: attention-glow 2s ease-in-out infinite;
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-size: 13px; font-weight: 500;
+    user-select: none;
+  }
+  .floating-attention:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px #7aa2f788, 0 6px 20px #00000088;
+  }
+  .floating-attention-icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #7aa2f7; color: #1a1b26;
+    font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .floating-attention-count {
+    position: absolute; top: -6px; right: -6px;
+    min-width: 18px; height: 18px; border-radius: 9px;
+    background: #f7768e; color: #fff;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+  }
+  @keyframes attention-glow {
+    0%, 100% { box-shadow: 0 0 12px #7aa2f744, 0 4px 16px #00000066; }
+    50% { box-shadow: 0 0 20px #7aa2f777, 0 4px 16px #00000066; }
+  }
 `;

@@ -89,6 +89,32 @@ function TopBar() {
   \`;
 }
 
+function FloatingAttentionIndicator() {
+  var blockedSessions = sessions.value.filter(function(s) {
+    return s.claudeState === 'blocked' && s.status === 'running' && s.id !== activeSessionId.value;
+  });
+  if (blockedSessions.length === 0) return null;
+
+  var first = blockedSessions[0];
+  var label = first.name || first.command || first.id;
+  if (label.length > 24) label = label.slice(0, 22) + '...';
+
+  function onClick() {
+    currentTab.value = 'terminals';
+    selectSession(first.id);
+  }
+
+  return html\`
+    <div class="floating-attention" onClick=\${onClick} title=\${'Go to: ' + (first.name || first.command || first.id)}>
+      <span class="floating-attention-icon">!</span>
+      <span>\${label}</span>
+      \${blockedSessions.length > 1
+        ? html\`<span class="floating-attention-count">\${blockedSessions.length}</span>\`
+        : null}
+    </div>
+  \`;
+}
+
 function App() {
   return html\`
     <div id="app-layout">
@@ -99,6 +125,7 @@ function App() {
       </div>
     </div>
     <\${ModalOverlay} />
+    <\${FloatingAttentionIndicator} />
   \`;
 }
 
