@@ -255,6 +255,8 @@ function SettingsModal() {
   var windsurfPath = preactHooks.useState('');
   var copilotPath = preactHooks.useState('');
   var deepAgentsPath = preactHooks.useState('');
+  var whisperPath = preactHooks.useState('');
+  var whisperModel = preactHooks.useState('');
 
   function loadSettings() {
     loading[1](true);
@@ -275,6 +277,8 @@ function SettingsModal() {
         windsurfPath[1](c.windsurfPath || '');
         copilotPath[1](c.copilotPath || '');
         deepAgentsPath[1](c.deepAgentsPath || '');
+        whisperPath[1](c.whisperPath || '');
+        whisperModel[1](c.whisperModel || '');
         loading[1](false);
       })
       .catch(function() { loading[1](false); });
@@ -333,6 +337,8 @@ function SettingsModal() {
     if (windsurfPath[0].trim()) updates.windsurfPath = windsurfPath[0].trim();
     if (copilotPath[0].trim()) updates.copilotPath = copilotPath[0].trim();
     if (deepAgentsPath[0].trim()) updates.deepAgentsPath = deepAgentsPath[0].trim();
+    if (whisperPath[0].trim()) updates.whisperPath = whisperPath[0].trim();
+    if (whisperModel[0].trim()) updates.whisperModel = whisperModel[0].trim();
 
     fetch(apiBase + '/api/settings', {
       method: 'PUT',
@@ -343,6 +349,7 @@ function SettingsModal() {
       settings[1](data);
       saveMsg[1]('Saved');
       saving[1](false);
+      checkVoiceAvailable();
       setTimeout(function() { saveMsg[1](''); }, 2000);
     }).catch(function(err) {
       saveMsg[1]('Save failed');
@@ -444,6 +451,24 @@ function SettingsModal() {
           <input type="text" value=\${deepAgentsPath[0]} disabled=\${isOverridden('deepAgentsPath')}
             onInput=\${function(e) { deepAgentsPath[1](e.target.value); }}
             placeholder="deep-agents" />
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Voice Input</div>
+        <div class="modal-field">
+          <label>Whisper Path \${sourceTag('whisperPath')}</label>
+          <input type="text" value=\${whisperPath[0]} disabled=\${isOverridden('whisperPath')}
+            onInput=\${function(e) { whisperPath[1](e.target.value); }}
+            placeholder="/path/to/whisper-cli" />
+          <div class="settings-hint">Path to whisper.cpp main binary. Required for voice input.</div>
+        </div>
+        <div class="modal-field">
+          <label>Whisper Model \${sourceTag('whisperModel')}</label>
+          <input type="text" value=\${whisperModel[0]} disabled=\${isOverridden('whisperModel')}
+            onInput=\${function(e) { whisperModel[1](e.target.value); }}
+            placeholder="/path/to/ggml-base.bin" />
+          <div class="settings-hint">Path to whisper.cpp model file (ggml format). Recommended: ggml-base.bin</div>
         </div>
       </div>
 

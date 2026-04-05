@@ -446,6 +446,24 @@ export const CSS_STYLES = `
   #terminal-status-bar .activity-active { color: #9ece6a; font-size: 11px; }
   #terminal-status-bar .activity-idle { color: #565f89; font-size: 11px; }
 
+  /* Voice input */
+  .voice-btn {
+    background: none; border: none; color: #565f89; cursor: pointer;
+    padding: 2px 4px; display: flex; align-items: center; border-radius: 3px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .voice-btn:hover { color: #7aa2f7; background: #292e42; }
+  .voice-btn.recording { color: #f7768e; background: #2d1b2e; }
+  .voice-btn.recording:hover { color: #f7768e; background: #3d2030; }
+  .voice-btn.transcribing { color: #e0af68; }
+  .voice-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .voice-btn.recording svg { animation: voice-pulse 1s ease-in-out infinite; }
+  .voice-recording-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #f7768e;
+    margin-right: 4px; animation: voice-pulse 1s ease-in-out infinite;
+  }
+
   #activity-log {
     max-height: 200px; overflow-y: auto; border-top: 1px solid #292e42;
     background: #16161e; font-size: 12px;

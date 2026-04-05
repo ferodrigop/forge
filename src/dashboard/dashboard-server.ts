@@ -1,6 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, unlinkSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve as resolvePath, sep as pathSep, join as joinPath, extname } from "node:path";
 import { homedir } from "node:os";
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
@@ -233,6 +234,96 @@ export class DashboardServer {
         const isDir = exists && statSync(targetPath).isDirectory();
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ path: targetPath, exists, isDirectory: isDir }));
+        return;
+      }
+
+      // ---- Voice transcription endpoint ----
+
+      if (req.method === "POST" && pathname === "/api/transcribe") {
+        try {
+          const whisperPath = this.getConfig()?.whisperPath;
+          if (!whisperPath) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Voice input not configured. Set whisperPath in ~/.forge/settings.json" }));
+            return;
+          }
+
+          // Read raw body as Buffer (up to 10MB for audio)
+          const audioBuffer = await this.readBodyRaw(req, 10_485_760);
+
+          // Extract audio from multipart form data
+          const contentType = req.headers["content-type"] || "";
+          let audioData: Buffer;
+
+          if (contentType.includes("multipart/form-data")) {
+            const boundary = contentType.split("boundary=")[1];
+            if (!boundary) throw new Error("Missing multipart boundary");
+            audioData = this.extractMultipartFile(audioBuffer, boundary);
+          } else {
+            // Raw audio body
+            audioData = audioBuffer;
+          }
+
+          // Write to temp file
+          const tempDir = joinPath(tmpdir(), "forge-voice");
+          mkdirSync(tempDir, { recursive: true });
+          const tempFile = joinPath(tempDir, `${randomUUID()}.webm`);
+          writeFileSync(tempFile, audioData);
+
+          // Run whisper.cpp
+          const whisperModel = this.getConfig()?.whisperModel;
+          const args = [
+            "--model", whisperModel || "base",
+            "--file", tempFile,
+            "--output-txt",
+            "--no-timestamps",
+            "--language", "auto",
+          ];
+
+          const text = await new Promise<string>((resolve, reject) => {
+            execFile(whisperPath, args, { timeout: 30_000 }, (err, stdout, stderr) => {
+              // Clean up temp file
+              try { unlinkSync(tempFile); } catch {}
+              try { unlinkSync(tempFile.replace(".webm", ".txt")); } catch {}
+
+              if (err) {
+                logger.error("Whisper transcription failed", { error: String(err), stderr });
+                reject(new Error(stderr || err.message));
+                return;
+              }
+
+              // whisper.cpp outputs to .txt file or stdout depending on version
+              let result = stdout.trim();
+              if (!result) {
+                try {
+                  result = readFileSync(tempFile.replace(".webm", ".txt"), "utf-8").trim();
+                  unlinkSync(tempFile.replace(".webm", ".txt"));
+                } catch {}
+              }
+              resolve(result);
+            });
+          });
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ text }));
+        } catch (err) {
+          const message = (err as Error).message;
+          if (message === "PAYLOAD_TOO_LARGE") {
+            res.writeHead(413, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Audio too large (max 10MB)" }));
+            return;
+          }
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: message }));
+        }
+        return;
+      }
+
+      // Voice input availability check
+      if (req.method === "GET" && pathname === "/api/transcribe") {
+        const whisperPath = this.getConfig()?.whisperPath;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ available: !!whisperPath }));
         return;
       }
 
@@ -863,6 +954,41 @@ export class DashboardServer {
     }
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: message }));
+  }
+
+  private async readBodyRaw(req: IncomingMessage, maxBytes: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      let total = 0;
+      req.on("data", (chunk: Buffer) => {
+        total += chunk.length;
+        if (total > maxBytes) {
+          reject(new Error("PAYLOAD_TOO_LARGE"));
+          req.destroy();
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on("end", () => resolve(Buffer.concat(chunks)));
+      req.on("error", reject);
+    });
+  }
+
+  private extractMultipartFile(body: Buffer, boundary: string): Buffer {
+    const boundaryBuf = Buffer.from(`--${boundary}`);
+    let start = body.indexOf(boundaryBuf);
+    if (start === -1) throw new Error("Invalid multipart body");
+
+    // Find the end of headers (double CRLF)
+    const headerEnd = body.indexOf("\r\n\r\n", start);
+    if (headerEnd === -1) throw new Error("Invalid multipart headers");
+
+    const dataStart = headerEnd + 4;
+    const nextBoundary = body.indexOf(boundaryBuf, dataStart);
+    if (nextBoundary === -1) throw new Error("Invalid multipart body");
+
+    // Remove trailing \r\n before boundary
+    return body.subarray(dataStart, nextBoundary - 2);
   }
 
   private async readBody(req: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<string> {

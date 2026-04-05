@@ -110,6 +110,20 @@ function TerminalStatusBar() {
       <button class=\${'status-bar-btn' + (editorMode.value ? ' active' : '')} title="Toggle multi-line editor (editor mode)" onClick=\${function() { editorMode.value = !editorMode.value; }}>
         \u270e Editor
       </button>
+      \${voiceAvailable.value ? html\`
+        <button
+          class=\${'voice-btn' + (voiceState.value === 'recording' ? ' recording' : '') + (voiceState.value === 'transcribing' ? ' transcribing' : '')}
+          title=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? 'Transcribing...' : 'Voice input'}
+          disabled=\${voiceState.value === 'transcribing' || activeSession.status !== 'running'}
+          onClick=\${function() { toggleVoiceRecording(); }}
+        >
+          \${voiceState.value === 'recording' ? html\`<span class="voice-recording-dot"></span>\` : null}
+          \${voiceState.value === 'transcribing'
+            ? html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>\`
+            : html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>\`
+          }
+        </button>
+      \` : null}
       <span class="status-bar-item">\${activeSession.id}</span>
       <span class="status-bar-item status-badge \${activeSession.status}">\${activeSession.status}</span>
     </div>

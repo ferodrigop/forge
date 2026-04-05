@@ -21,6 +21,8 @@ export interface ForgeConfig {
   exitedTtl: number;
   /** Custom agent definitions (merged with built-in agents). */
   agents?: Record<string, CustomAgentConfig>;
+  whisperPath?: string;
+  whisperModel?: string;
 }
 
 export interface SessionInfo {
@@ -71,4 +73,6 @@ export const DEFAULT_CONFIG: ForgeConfig = {
   deepAgentsPath: process.env.FORGE_DEEP_AGENTS_PATH || "deep-agents",
   authToken: process.env.FORGE_AUTH_TOKEN,
   exitedTtl: 3_600_000, // 1 hour
+  whisperPath: process.env.FORGE_WHISPER_PATH,
+  whisperModel: process.env.FORGE_WHISPER_MODEL,
 };
