@@ -271,21 +271,23 @@ export class DashboardServer {
           writeFileSync(tempFile, audioData);
 
           // Run whisper.cpp
-          const whisperModel = this.getConfig()?.whisperModel;
+          const whisperModelPath = this.getConfig()?.whisperModelPath;
+          if (!whisperModelPath) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Whisper model path not configured. Set whisperModelPath in ~/.forge/settings.json" }));
+            return;
+          }
           const args = [
-            "--model", whisperModel || "base",
+            "--model", whisperModelPath,
             "--file", tempFile,
             "--output-txt",
             "--no-timestamps",
             "--language", "auto",
           ];
 
+          const txtFile = tempFile.replace(".webm", ".txt");
           const text = await new Promise<string>((resolve, reject) => {
             execFile(whisperPath, args, { timeout: 30_000 }, (err, stdout, stderr) => {
-              // Clean up temp file
-              try { unlinkSync(tempFile); } catch {}
-              try { unlinkSync(tempFile.replace(".webm", ".txt")); } catch {}
-
               if (err) {
                 logger.error("Whisper transcription failed", { error: String(err), stderr });
                 reject(new Error(stderr || err.message));
@@ -296,12 +298,14 @@ export class DashboardServer {
               let result = stdout.trim();
               if (!result) {
                 try {
-                  result = readFileSync(tempFile.replace(".webm", ".txt"), "utf-8").trim();
-                  unlinkSync(tempFile.replace(".webm", ".txt"));
+                  result = readFileSync(txtFile, "utf-8").trim();
                 } catch {}
               }
               resolve(result);
             });
+          }).finally(() => {
+            try { unlinkSync(tempFile); } catch {}
+            try { unlinkSync(txtFile); } catch {}
           });
 
           res.writeHead(200, { "Content-Type": "application/json" });

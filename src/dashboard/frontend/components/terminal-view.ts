@@ -110,6 +110,7 @@ function TerminalStatusBar() {
       <button class=\${'status-bar-btn' + (editorMode.value ? ' active' : '')} title="Toggle multi-line editor (editor mode)" onClick=\${function() { editorMode.value = !editorMode.value; }}>
         \u270e Editor
       </button>
+      \${voiceError.value ? html\`<span class="voice-error-msg">\${voiceError.value}</span>\` : null}
       \${voiceAvailable.value ? html\`
         <button
           class=\${'voice-btn' + (voiceState.value === 'recording' ? ' recording' : '') + (voiceState.value === 'transcribing' ? ' transcribing' : '')}

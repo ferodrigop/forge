@@ -34,6 +34,7 @@ const renamingSessionId = signal(null);
 const chatMessages = signal([]);
 const voiceAvailable = signal(false);
 const voiceState = signal('idle'); // 'idle' | 'recording' | 'transcribing'
+const voiceError = signal(''); // brief error message shown in status bar
 var jsonBuf = '';
 
 // --- Split Pane State ---
@@ -578,9 +579,19 @@ function checkVoiceAvailable() {
     .catch(function() { voiceAvailable.value = false; });
 }
 
+function showVoiceError(msg) {
+  voiceError.value = msg;
+  setTimeout(function() { voiceError.value = ''; }, 4000);
+}
+
 function startVoiceRecording() {
   if (voiceState.value !== 'idle') return;
   if (!activeSessionId.value) return;
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showVoiceError('Microphone not available (requires HTTPS)');
+    return;
+  }
 
   navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
     _voiceStream = stream;
@@ -629,6 +640,7 @@ function startVoiceRecording() {
         }
       }).catch(function(err) {
         voiceState.value = 'idle';
+        showVoiceError('Transcription failed: ' + (err.message || err));
         console.error('Transcription error:', err);
       });
     };
@@ -636,6 +648,7 @@ function startVoiceRecording() {
     _voiceMediaRecorder.start();
     voiceState.value = 'recording';
   }).catch(function(err) {
+    showVoiceError('Microphone access denied');
     console.error('Microphone access denied:', err);
     voiceState.value = 'idle';
   });

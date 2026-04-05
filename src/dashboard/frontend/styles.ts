@@ -463,6 +463,11 @@ export const CSS_STYLES = `
     width: 6px; height: 6px; border-radius: 50%; background: #f7768e;
     margin-right: 4px; animation: voice-pulse 1s ease-in-out infinite;
   }
+  .voice-error-msg {
+    color: #f7768e; font-size: 11px; margin-right: 8px;
+    animation: voice-error-fade 4s ease-out forwards;
+  }
+  @keyframes voice-error-fade { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 
   #activity-log {
     max-height: 200px; overflow-y: auto; border-top: 1px solid #292e42;

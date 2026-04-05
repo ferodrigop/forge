@@ -256,7 +256,7 @@ function SettingsModal() {
   var copilotPath = preactHooks.useState('');
   var deepAgentsPath = preactHooks.useState('');
   var whisperPath = preactHooks.useState('');
-  var whisperModel = preactHooks.useState('');
+  var whisperModelPath = preactHooks.useState('');
 
   function loadSettings() {
     loading[1](true);
@@ -278,7 +278,7 @@ function SettingsModal() {
         copilotPath[1](c.copilotPath || '');
         deepAgentsPath[1](c.deepAgentsPath || '');
         whisperPath[1](c.whisperPath || '');
-        whisperModel[1](c.whisperModel || '');
+        whisperModelPath[1](c.whisperModelPath || '');
         loading[1](false);
       })
       .catch(function() { loading[1](false); });
@@ -338,7 +338,7 @@ function SettingsModal() {
     if (copilotPath[0].trim()) updates.copilotPath = copilotPath[0].trim();
     if (deepAgentsPath[0].trim()) updates.deepAgentsPath = deepAgentsPath[0].trim();
     if (whisperPath[0].trim()) updates.whisperPath = whisperPath[0].trim();
-    if (whisperModel[0].trim()) updates.whisperModel = whisperModel[0].trim();
+    if (whisperModelPath[0].trim()) updates.whisperModelPath = whisperModelPath[0].trim();
 
     fetch(apiBase + '/api/settings', {
       method: 'PUT',
@@ -464,9 +464,9 @@ function SettingsModal() {
           <div class="settings-hint">Path to whisper.cpp main binary. Required for voice input.</div>
         </div>
         <div class="modal-field">
-          <label>Whisper Model \${sourceTag('whisperModel')}</label>
-          <input type="text" value=\${whisperModel[0]} disabled=\${isOverridden('whisperModel')}
-            onInput=\${function(e) { whisperModel[1](e.target.value); }}
+          <label>Whisper Model Path \${sourceTag('whisperModelPath')}</label>
+          <input type="text" value=\${whisperModelPath[0]} disabled=\${isOverridden('whisperModelPath')}
+            onInput=\${function(e) { whisperModelPath[1](e.target.value); }}
             placeholder="/path/to/ggml-base.bin" />
           <div class="settings-hint">Path to whisper.cpp model file (ggml format). Recommended: ggml-base.bin</div>
         </div>
