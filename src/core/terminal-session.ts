@@ -347,6 +347,11 @@ export class TerminalSession {
 
     this.ptyProcess.onExit(({ exitCode }) => {
       if (this._respawnCommand) {
+        // Notify listeners of the agent's exit BEFORE respawning, so
+        // waitForExit / waitForTurnCompletion resolve with the agent's code.
+        this._exitCode = exitCode;
+        this.onExitCallback?.(this.id, exitCode);
+        for (const fn of [...this.exitListeners]) fn(this.id, exitCode);
         this.respawnShell(exitCode);
         return;
       }
