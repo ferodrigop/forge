@@ -6,6 +6,7 @@ import { z } from "zod";
 import { SessionManager } from "./core/session-manager.js";
 import { resolveControl, listControls } from "./utils/control-chars.js";
 import { getTemplate, listTemplates as listBuiltinTemplates } from "./core/templates.js";
+import { ensureMcpConfig } from "./utils/mcp-config.js";
 import type { ForgeConfig } from "./core/types.js";
 import type { ConfigManager } from "./utils/config.js";
 import type { Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
@@ -37,6 +38,12 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
   });
 
   const subscriptions = new Map<string, Subscription>();
+
+  /** Write MCP config files in a worktree so spawned agents can discover Forge. */
+  function ensureWorktreeMcpConfig(worktreePath: string): void {
+    const mcpUrl = `http://127.0.0.1:${getConfig().dashboardPort}/mcp`;
+    ensureMcpConfig(worktreePath, mcpUrl, getConfig().authToken);
+  }
 
   // --- create_terminal ---
   server.tool(
@@ -334,6 +341,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           }
 
           effectiveCwd = worktreePath;
+          ensureWorktreeMcpConfig(worktreePath);
         }
 
         const isOneShot = params.oneShot === true;
@@ -505,6 +513,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           }
 
           effectiveCwd = worktreePath;
+          ensureWorktreeMcpConfig(worktreePath);
         }
 
         const isOneShot = params.oneShot === true;
@@ -674,6 +683,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           }
 
           effectiveCwd = worktreePath;
+          ensureWorktreeMcpConfig(worktreePath);
         }
 
         const isOneShot = params.oneShot === true;
@@ -1889,6 +1899,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
           }
 
           effectiveCwd = worktreePath;
+          ensureWorktreeMcpConfig(worktreePath);
         }
 
         // Capture base SHA for worktree diff (before agent makes changes)
