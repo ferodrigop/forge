@@ -808,6 +808,62 @@ describe("MCP Tools E2E", () => {
     expect((waitResult.content as Array<{ type: string; text: string }>)[0].text).toContain("Either");
   });
 
+  // --- revive_terminal ---
+
+  it("revive_terminal recreates an exited session", async () => {
+    // Create a terminal that exits quickly
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/echo", args: ["hello"], name: "ephemeral", tags: ["revive-test"] },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    // Wait for exit
+    const waitResult = await client.callTool({
+      name: "wait_for",
+      arguments: { id: info.id, waitForExit: true, timeout: 5000 },
+    });
+    const waitParsed = JSON.parse((waitResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(waitParsed.matched).toBe(true);
+
+    // Revive
+    const reviveResult = await client.callTool({
+      name: "revive_terminal",
+      arguments: { sessionId: info.id },
+    });
+    const revived = JSON.parse((reviveResult.content as Array<{ type: string; text: string }>)[0].text);
+    expect(revived.revived).toBe(true);
+    expect(revived.oldId).toBe(info.id);
+    expect(revived.id).toBeDefined();
+    expect(revived.id).not.toBe(info.id);
+    expect(revived.name).toBe("ephemeral");
+    expect(revived.tags).toContain("revive-test");
+  }, 10_000);
+
+  it("revive_terminal on running session returns error", async () => {
+    const createResult = await client.callTool({
+      name: "create_terminal",
+      arguments: { command: "/bin/sh" },
+    });
+    const info = JSON.parse((createResult.content as Array<{ type: string; text: string }>)[0].text);
+
+    const result = await client.callTool({
+      name: "revive_terminal",
+      arguments: { sessionId: info.id },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("not found or still running");
+  });
+
+  it("revive_terminal on nonexistent session returns error", async () => {
+    const result = await client.callTool({
+      name: "revive_terminal",
+      arguments: { sessionId: "nonexistent-id" },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ type: string; text: string }>)[0].text).toContain("not found");
+  });
+
   // --- V0.5.0: Session Templates (#25) ---
 
   it("create_from_template with shell template", async () => {
