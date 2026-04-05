@@ -2039,7 +2039,8 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
         });
 
         session.preserveAfterExit();
-        session.enableRespawnOnExit(getConfig().shell);
+        // No respawn for delegate_task — these are programmatic agent sessions,
+        // not interactive terminals where a user needs a shell restored.
         const sessionId = session.id;
 
         if (isInteractive) {
