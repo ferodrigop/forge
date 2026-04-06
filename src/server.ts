@@ -896,10 +896,11 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
   // --- subscribe_events ---
   server.tool(
     "subscribe_events",
-    "Subscribe to session events (exit, pattern_match). Notifications are sent as MCP logging messages.",
+    "Subscribe to session events (exit, completed, pattern_match). Notifications are sent as MCP logging messages. " +
+    "The 'completed' event fires when a session's completionStatus changes to 'done' (via mark_complete or auto-completion of delegate_task).",
     {
       id: z.string().describe("Session ID"),
-      events: z.array(z.enum(["exit", "pattern_match"])).min(1).describe("Events to subscribe to"),
+      events: z.array(z.enum(["exit", "completed", "pattern_match"])).min(1).describe("Events to subscribe to"),
       pattern: z.string().max(500).optional().describe("Regex pattern (required if pattern_match is in events)"),
     },
     async (params) => {
@@ -937,6 +938,21 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
                 event: "exit",
                 sessionId: params.id,
                 exitCode,
+              }),
+            });
+          });
+          cleanups.push(unsub);
+        }
+
+        if (params.events.includes("completed")) {
+          const unsub = session.onComplete((_id, result) => {
+            server.server.sendLoggingMessage({
+              level: "info",
+              data: JSON.stringify({
+                subscriptionId,
+                event: "completed",
+                sessionId: params.id,
+                result: result ?? null,
               }),
             });
           });
@@ -1017,14 +1033,18 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
   // --- list_terminals ---
   server.tool(
     "list_terminals",
-    "List all terminal sessions with their status, PID, and activity time. Optionally filter by tag.",
+    "List all terminal sessions with their status, PID, and activity time. Optionally filter by tag and/or completionStatus.",
     {
       tag: z.string().optional().describe("Filter sessions by tag"),
+      completionStatus: z.enum(["working", "done"]).optional().describe("Filter by completion status: 'done' = finished tasks, 'working' = still in progress"),
     },
     async (params) => {
-      const sessions = params.tag
+      let sessions = params.tag
         ? manager.listByTag(params.tag)
         : manager.list();
+      if (params.completionStatus) {
+        sessions = sessions.filter((s) => s.completionStatus === params.completionStatus);
+      }
       return {
         content: [
           {
@@ -1072,6 +1092,38 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
       return {
         content: [{ type: "text" as const, text: `Closed ${count} sessions with tag '${params.tag}'` }],
       };
+    }
+  );
+
+  // --- mark_complete ---
+  server.tool(
+    "mark_complete",
+    "Mark a terminal session as 'done'. Used by child agents to signal task completion to their orchestrator. " +
+    "Triggers a 'completed' notification to any subscriber watching this session.",
+    {
+      id: z.string().describe("Session ID to mark as complete"),
+      result: z.string().max(10_000).optional().describe("Optional result summary or output to report back to the orchestrator"),
+    },
+    async (params) => {
+      try {
+        const session = manager.getOrThrow(params.id);
+        session.markComplete(params.result);
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              sessionId: params.id,
+              completionStatus: "done",
+              result: params.result ?? null,
+            }, null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
     }
   );
 
@@ -1656,6 +1708,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
             const followUpWorktree = info.tags?.includes("worktree") ? info.cwd : undefined;
             const followUpBaseSha = info.tags?.find(t => t.startsWith("base:"))?.slice(5);
             const filesChanged = followUpWorktree ? getFilesChanged(followUpWorktree, followUpBaseSha) : undefined;
+            session.markComplete(output.slice(-2000));
             return {
               content: [{
                 type: "text" as const,
@@ -1823,6 +1876,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
           if (turnResult.reason === "exited") {
             const filesChanged = worktreePath ? getFilesChanged(worktreePath, baseSha) : undefined;
+            session!.markComplete(output.slice(-2000));
             return {
               content: [{
                 type: "text" as const,
@@ -1939,6 +1993,7 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
 
         // Completed — keep session visible (preserveAfterExit already set)
         const filesChanged = worktreePath ? getFilesChanged(worktreePath, baseSha) : undefined;
+        session!.markComplete(output.slice(-2000));
         return {
           content: [{
             type: "text" as const,

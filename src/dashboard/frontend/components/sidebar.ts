@@ -212,6 +212,7 @@ function SessionItem(props) {
         </div>
         <div class="session-meta">\${metaText}</div>
       </div>
+      \${s.completionStatus === 'done' ? html\`<span class="done-icon" role="img" aria-label="Task complete" title="Task complete"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9ece6a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4 4 6-7"/></svg></span>\` : null}
       \${s.claudeState === 'blocked' && s.status === 'running' ? html\`<span class="blocked-icon" role="img" aria-label="Needs attention" title="Needs attention">!</span>\` : null}
       <div class="session-actions">
         <button class="session-dots-btn" aria-label="Session options" aria-haspopup="true" aria-expanded=\${menuOpen} title="Options" onClick=\${toggleMenu}>\u22ee</button>

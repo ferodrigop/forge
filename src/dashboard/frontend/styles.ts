@@ -302,6 +302,12 @@ export const CSS_STYLES = `
   .session-item .status-dot.running { background: #9ece6a; box-shadow: 0 0 4px #9ece6a88; }
   .session-item .status-dot.exited { background: #565f89; }
 
+  .session-item .done-icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; cursor: default;
+  }
+
   .session-item .blocked-icon {
     width: 18px; height: 18px; border-radius: 50%;
     background: #7aa2f7; color: #1a1b26;

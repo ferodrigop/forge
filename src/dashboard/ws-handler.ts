@@ -233,6 +233,7 @@ export class WsHandler {
         ...s,
         tokenUsage: session?.getStats() ?? null,
         claudeState: session?.claudeState ?? null,
+        completionStatus: session?.completionStatus ?? null,
       };
     });
     this.broadcast({

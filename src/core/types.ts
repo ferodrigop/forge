@@ -45,9 +45,12 @@ export interface SessionInfo {
     estimatedTokens: number;
   };
   claudeState?: "blocked";
+  completionStatus?: CompletionStatus;
+  completionResult?: string;
 }
 
 export type SessionStatus = "running" | "exited";
+export type CompletionStatus = "working" | "done";
 
 export interface ReadResult {
   data: string;

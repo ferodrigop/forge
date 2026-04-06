@@ -286,17 +286,25 @@ function handleMessage(msg) {
         }
         sessionMemory.value = mem;
         sessionTokens.value = tok;
-        // Merge claudeState into sessions for sidebar rendering (always update, including clearing)
+        // Merge claudeState and completionStatus into sessions for sidebar rendering
         var csMap = {};
+        var compMap = {};
         for (var k = 0; k < msg.sessions.length; k++) {
           csMap[msg.sessions[k].id] = msg.sessions[k].claudeState || null;
+          compMap[msg.sessions[k].id] = msg.sessions[k].completionStatus || null;
         }
         sessions.value = sessions.value.map(function(s) {
-          if (s.id in csMap) {
-            var newState = csMap[s.id];
-            if (s.claudeState !== newState) return Object.assign({}, s, { claudeState: newState });
+          var changed = false;
+          var updates = {};
+          if (s.id in csMap && s.claudeState !== csMap[s.id]) {
+            updates.claudeState = csMap[s.id];
+            changed = true;
           }
-          return s;
+          if (s.id in compMap && s.completionStatus !== compMap[s.id]) {
+            updates.completionStatus = compMap[s.id];
+            changed = true;
+          }
+          return changed ? Object.assign({}, s, updates) : s;
         });
       }
       break;

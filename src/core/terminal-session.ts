@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { Terminal } from "@xterm/headless";
 import { RingBuffer } from "./ring-buffer.js";
 import { logger } from "../utils/logger.js";
-import type { SessionInfo, SessionStatus } from "./types.js";
+import type { SessionInfo, SessionStatus, CompletionStatus } from "./types.js";
 import type { PtyProcess, PtySpawnFn } from "./pty-adapter.js";
 
 // Runtime adapter selection: Bun uses native TTY, Node uses node-pty
@@ -48,6 +48,9 @@ export class TerminalSession {
   private exitListeners: Array<(id: string, exitCode: number) => void> = [];
   private _termTitle: string = "";
   private _respawnCommand: string | undefined;
+  private _completionStatus: CompletionStatus | null = null;
+  private _completionResult: string | undefined;
+  private completionListeners: Array<(id: string, result?: string) => void> = [];
 
   constructor(opts: TerminalSessionOptions) {
     this.id = opts.id;
@@ -122,6 +125,38 @@ export class TerminalSession {
       return "blocked";
     }
     return null;
+  }
+
+  get completionStatus(): CompletionStatus | null {
+    return this._completionStatus;
+  }
+
+  get completionResult(): string | undefined {
+    return this._completionResult;
+  }
+
+  /** Mark this session as complete with an optional result summary. */
+  markComplete(result?: string): void {
+    if (this._completionStatus === "done") return;
+    this._completionStatus = "done";
+    this._completionResult = result;
+    logger.info("Session marked complete", { id: this.id, result: result?.slice(0, 100) });
+    for (const fn of this.completionListeners) fn(this.id, result);
+  }
+
+  /** Reset completion status back to working. */
+  markWorking(): void {
+    this._completionStatus = "working";
+    this._completionResult = undefined;
+  }
+
+  /** Register a listener for completion events. Returns unsubscribe function. */
+  onComplete(fn: (id: string, result?: string) => void): () => void {
+    this.completionListeners.push(fn);
+    return () => {
+      const idx = this.completionListeners.indexOf(fn);
+      if (idx >= 0) this.completionListeners.splice(idx, 1);
+    };
   }
 
   get pid(): number {
@@ -265,6 +300,8 @@ export class TerminalSession {
       memoryMB: this.getMemoryMB(),
       tokenUsage: this.getStats(),
       ...(this.claudeState && { claudeState: this.claudeState }),
+      ...(this._completionStatus && { completionStatus: this._completionStatus }),
+      ...(this._completionResult && { completionResult: this._completionResult }),
     };
   }
 
