@@ -1026,6 +1026,19 @@ export const CSS_STYLES = `
   }
   .pane-empty-text { font-size: 13px; color: #7982a9; }
   .pane-empty-hint { font-size: 11px; color: #7c849b; }
+  .pane-empty-dragover {
+    background: #7aa2f70a;
+    box-shadow: inset 0 0 0 2px #7aa2f744;
+  }
+  .pane-empty-dragover .pane-empty-text { color: #7aa2f7; }
+
+  /* Drag-to-split drop zone overlay */
+  .pane-drop-overlay {
+    background: #7aa2f718;
+    border: 2px solid #7aa2f766;
+    border-radius: 4px;
+    transition: opacity 0.1s;
+  }
 
   /* Split Dividers */
   .split-divider {

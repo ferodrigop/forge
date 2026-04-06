@@ -94,22 +94,28 @@ function _collectLeaves(node, acc) {
   for (var i = 0; i < node.children.length; i++) _collectLeaves(node.children[i], acc);
 }
 
-function splitPane(direction) {
-  var paneId = focusedPaneId.value;
+function splitPane(direction, targetPaneId, position) {
+  var paneId = targetPaneId || focusedPaneId.value;
   var oldNode = _findInTree(splitRoot.value, paneId);
-  if (!oldNode) return;
+  if (!oldNode) return null;
   var newId = _nextPaneId();
+  var first, second;
+  if (position === 'before') {
+    first = { type: 'leaf', id: newId, sessionId: null };
+    second = { type: 'leaf', id: paneId, sessionId: oldNode.sessionId };
+  } else {
+    first = { type: 'leaf', id: paneId, sessionId: oldNode.sessionId };
+    second = { type: 'leaf', id: newId, sessionId: null };
+  }
   var splitNode = {
     type: 'split', id: 'split-' + newId, direction: direction,
-    children: [
-      { type: 'leaf', id: paneId, sessionId: oldNode.sessionId },
-      { type: 'leaf', id: newId, sessionId: null }
-    ],
+    children: [first, second],
     sizes: [50, 50]
   };
   splitRoot.value = _replaceInTree(splitRoot.value, paneId, splitNode);
   focusedPaneId.value = newId;
   activeSessionId.value = null;
+  return newId;
 }
 
 function closePane(paneId) {

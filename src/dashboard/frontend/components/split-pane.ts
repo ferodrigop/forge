@@ -107,19 +107,94 @@ function PaneTerminal(props) {
     if (focusedPaneId.value !== paneId) focusPane(paneId);
   }
 
-  return html\`<div class="pane-terminal-wrap" onClick=\${handleClick}>
+  var dropZoneState = preactHooks.useState(null); // 'left'|'right'|'top'|'bottom'|null
+  var dropZone = dropZoneState[0];
+  var setDropZone = dropZoneState[1];
+
+  function getDropZone(e, el) {
+    var rect = el.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width;
+    var y = (e.clientY - rect.top) / rect.height;
+    var dLeft = x, dRight = 1 - x, dTop = y, dBottom = 1 - y;
+    var min = Math.min(dLeft, dRight, dTop, dBottom);
+    if (min === dLeft) return 'left';
+    if (min === dRight) return 'right';
+    if (min === dTop) return 'top';
+    return 'bottom';
+  }
+
+  function onPaneDragOver(e) {
+    if (!dragState.value || dragState.value.type !== 'session') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropZone(getDropZone(e, e.currentTarget));
+  }
+
+  function onPaneDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) setDropZone(null);
+  }
+
+  function onPaneDrop(e) {
+    e.preventDefault();
+    var zone = dropZone;
+    setDropZone(null);
+    if (!dragState.value || dragState.value.type !== 'session') return;
+    var draggedId = dragState.value.id;
+    dragState.value = null;
+    if (draggedId === sessionId) return;
+    var dir = (zone === 'left' || zone === 'right') ? 'horizontal' : 'vertical';
+    var pos = (zone === 'left' || zone === 'top') ? 'before' : 'after';
+    var newPaneId = splitPane(dir, paneId, pos);
+    if (newPaneId) {
+      setPaneSession(newPaneId, draggedId);
+      focusPane(newPaneId);
+    }
+  }
+
+  var overlayStyle = '';
+  if (dropZone) {
+    var styles = { left: 'right:50%;bottom:0', right: 'left:50%;bottom:0', top: 'bottom:50%;right:0', bottom: 'top:50%;right:0' };
+    overlayStyle = 'position:absolute;top:0;left:0;' + styles[dropZone] + ';pointer-events:none;z-index:20;';
+  }
+
+  return html\`<div class="pane-terminal-wrap" onClick=\${handleClick} onDragOver=\${onPaneDragOver} onDragLeave=\${onPaneDragLeave} onDrop=\${onPaneDrop} style="position:relative">
     <div class="pane-terminal-xterm" ref=\${containerRef}></div>
+    \${dropZone ? html\`<div class="pane-drop-overlay pane-drop-\${dropZone}" style=\${overlayStyle}></div>\` : null}
   </div>\`;
 }
 
-function PaneEmptyState() {
-  return html\`<div class="pane-empty" role="region" aria-label="Empty pane">
+function PaneEmptyState(props) {
+  var paneId = props.paneId;
+  var isDragOver = preactHooks.useState(false);
+  var dragOver = isDragOver[0];
+  var setDragOver = isDragOver[1];
+
+  function onEmptyDragOver(e) {
+    if (!dragState.value || dragState.value.type !== 'session') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOver(true);
+  }
+  function onEmptyDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false);
+  }
+  function onEmptyDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    if (!dragState.value || dragState.value.type !== 'session') return;
+    var draggedId = dragState.value.id;
+    dragState.value = null;
+    setPaneSession(paneId, draggedId);
+    focusPane(paneId);
+  }
+
+  return html\`<div class=\${'pane-empty' + (dragOver ? ' pane-empty-dragover' : '')} role="region" aria-label="Empty pane" onDragOver=\${onEmptyDragOver} onDragLeave=\${onEmptyDragLeave} onDrop=\${onEmptyDrop}>
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#292e42" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="3"/>
       <line x1="9" y1="3" x2="9" y2="21"/>
     </svg>
-    <div class="pane-empty-text">Select a session</div>
-    <div class="pane-empty-hint">Click a terminal in the sidebar</div>
+    <div class="pane-empty-text">\${dragOver ? 'Drop to open here' : 'Select a session'}</div>
+    <div class="pane-empty-hint">\${dragOver ? '' : 'Click a terminal in the sidebar'}</div>
   </div>\`;
 }
 
@@ -267,7 +342,7 @@ function renderSplitNode(node) {
       \${showTab ? html\`<\${PaneTabBar} paneId=\${node.id} sessionId=\${node.sessionId} />\` : null}
       \${node.sessionId
         ? html\`<\${PaneTerminal} paneId=\${node.id} sessionId=\${node.sessionId} key=\${node.id} />\`
-        : html\`<\${PaneEmptyState} />\`}
+        : html\`<\${PaneEmptyState} paneId=\${node.id} />\`}
     </div>\`;
   }
 
