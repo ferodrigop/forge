@@ -614,6 +614,7 @@ var _voiceChunkTimer = null;
 var _voiceChunkMime = 'audio/webm';
 var _voiceTranscribing = 0; // number of in-flight chunk transcriptions
 var _voiceUserStopped = false;
+var _voicePendingStop = false;
 
 function checkVoiceAvailable() {
   fetch(apiBase + '/api/transcribe', { headers: authHeaders() })
@@ -756,6 +757,15 @@ function _startRecorderOnStream(stream, mimeType, isRestart) {
     if (!_voiceUserStopped && _voiceStream) {
       _startRecorderOnStream(_voiceStream, mimeType, true);
     }
+    // If stop was requested, onstop has now fired — safe to check completion
+    if (_voicePendingStop) {
+      _voicePendingStop = false;
+      if (_voiceTranscribing > 0) {
+        voiceState.value = 'transcribing';
+      } else {
+        _checkVoiceDone();
+      }
+    }
   };
   recorder.start();
   _voiceMediaRecorder = recorder;
@@ -809,6 +819,7 @@ function startVoiceRecording() {
   }
 
   _voiceUserStopped = false;
+  _voicePendingStop = false;
   voicePartialText.value = '';
 
   navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
@@ -848,7 +859,15 @@ function stopVoiceRecording() {
 
   // Stop the recorder (fires onstop which processes final chunk)
   if (_voiceMediaRecorder && _voiceMediaRecorder.state === 'recording') {
+    _voicePendingStop = true;
     _voiceMediaRecorder.stop();
+  } else {
+    // No active recorder — check completion directly
+    if (_voiceTranscribing > 0) {
+      voiceState.value = 'transcribing';
+    } else {
+      _checkVoiceDone();
+    }
   }
   _voiceMediaRecorder = null;
 
@@ -856,14 +875,6 @@ function stopVoiceRecording() {
   if (_voiceStream) {
     _voiceStream.getTracks().forEach(function(t) { t.stop(); });
     _voiceStream = null;
-  }
-
-  // Show transcribing state while final chunks process
-  if (_voiceTranscribing > 0) {
-    voiceState.value = 'transcribing';
-  } else {
-    // All chunks already processed, finalize immediately
-    _checkVoiceDone();
   }
 }
 

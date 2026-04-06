@@ -37,6 +37,7 @@ async function getTranscriber(): Promise<any> {
       if (!cached) {
         downloadStatus.downloading = true;
         downloadStatus.progress = 0;
+        downloadStatus.totalFiles = 0;
         downloadStatus.completedFiles = 0;
         downloadStatus.error = null;
       }
