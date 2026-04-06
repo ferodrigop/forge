@@ -69,6 +69,7 @@ function PaneTerminal(props) {
       termInstance.value = term;
       fitAddonInstance.value = fa;
       term.focus();
+      fa.fit();
     }
 
     // macOS keybindings
