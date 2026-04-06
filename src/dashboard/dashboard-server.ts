@@ -346,6 +346,39 @@ export class DashboardServer {
         return;
       }
 
+      // Voice model download status + trigger download
+      if (pathname === "/api/voice/status") {
+        const whisperPath = this.getConfig()?.whisperPath;
+        if (whisperPath) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ modelReady: true, downloading: false, progress: 100, backend: "whisper.cpp" }));
+          return;
+        }
+        const { isModelCached, downloadStatus, ensureModelReady } = await import("../utils/voice-transcriber.js");
+        if (req.method === "POST") {
+          // Trigger model download/load (fire-and-forget)
+          if (!isModelCached() && !downloadStatus.downloading) {
+            ensureModelReady().catch(() => {});
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ started: true }));
+          return;
+        }
+        const modelReady = isModelCached() && !downloadStatus.downloading;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          modelReady,
+          downloading: downloadStatus.downloading,
+          progress: downloadStatus.progress,
+          file: downloadStatus.file,
+          totalFiles: downloadStatus.totalFiles,
+          completedFiles: downloadStatus.completedFiles,
+          error: downloadStatus.error,
+          backend: "transformers",
+        }));
+        return;
+      }
+
       // ---- Git API endpoints for Changes panel ----
 
       if (req.method === "GET" && pathname === "/api/git-status") {

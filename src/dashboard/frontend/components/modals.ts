@@ -665,6 +665,20 @@ function BroadcastModal() {
   \`;
 }
 
+function VoiceDownloadModal() {
+  var progress = voiceDownloadProgress.value;
+  return html\`
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="voice-dl-title">
+      <h3 id="voice-dl-title">Setting up voice</h3>
+      <p>Downloading speech recognition model (~250 MB).<br/>Runs entirely on your machine \u2014 no cloud needed.</p>
+      <div class="voice-progress-track">
+        <div class="voice-progress-bar" style=\${'width:' + Math.max(progress, 2) + '%'}></div>
+      </div>
+      <div class="voice-progress-label">\${progress}%</div>
+    </div>
+  \`;
+}
+
 function ModalOverlay() {
   var modal = activeModal.value;
   if (!modal) return null;
@@ -718,6 +732,7 @@ function ModalOverlay() {
   else if (modal.type === 'deleteChat') content = html\`<\${DeleteChatModal} chatId=\${modal.chatId} source=\${modal.source} />\`;
   else if (modal.type === 'settings') content = html\`<\${SettingsModal} />\`;
   else if (modal.type === 'broadcast') content = html\`<\${BroadcastModal} />\`;
+  else if (modal.type === 'voiceDownload') content = html\`<\${VoiceDownloadModal} />\`;
   else return null;
 
   return html\`<div class="modal-overlay" ref=\${overlayRef} onClick=\${onOverlayClick} onKeyDown=\${onKeyDown}>\${content}</div>\`;

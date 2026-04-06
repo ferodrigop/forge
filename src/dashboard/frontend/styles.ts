@@ -574,6 +574,25 @@ export const CSS_STYLES = `
     font-size: 10px; color: #e0af68; margin-left: 4px; white-space: nowrap;
   }
 
+  /* Voice download modal progress bar */
+  .voice-progress-track {
+    width: 100%; height: 6px; background: #292e42; border-radius: 3px;
+    overflow: hidden; margin-top: 4px;
+  }
+  .voice-progress-bar {
+    height: 100%; background: linear-gradient(90deg, #7aa2f7, #9ece6a);
+    border-radius: 3px; transition: width 0.3s ease;
+  }
+  .voice-progress-label {
+    font-size: 11px; color: #7982a9; margin-top: 6px; text-align: center;
+  }
+
+  /* Partial transcription preview during chunked recording */
+  .voice-partial-text {
+    font-size: 11px; color: #565f89; max-width: 200px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; margin-right: 6px;
+  }
+
   #activity-log {
     max-height: 200px; overflow-y: auto; border-top: 1px solid #292e42;
     background: #16161e; font-size: 12px;

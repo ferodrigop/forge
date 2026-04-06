@@ -37,6 +37,8 @@ const voiceState = signal('idle'); // 'idle' | 'recording' | 'transcribing'
 const voiceError = signal(''); // brief error message shown in status bar
 const voiceModelReady = signal(true); // whether the transformers model is cached
 const voiceBackend = signal(''); // 'whisper.cpp' | 'transformers'
+const voiceDownloadProgress = signal(0); // 0-100 download progress
+const voicePartialText = signal(''); // accumulated text from chunked transcription
 const broadcastResult = signal(null); // { sent, failed, results } — cleared by modal close
 var _broadcastResultTimer = null;
 const sessionOrder = signal([]); // custom session ordering within groups: [sessionId, ...]
@@ -608,6 +610,10 @@ function createDeepAgentsSession(cwd) {
 var _voiceMediaRecorder = null;
 var _voiceChunks = [];
 var _voiceStream = null;
+var _voiceChunkTimer = null;
+var _voiceChunkMime = 'audio/webm';
+var _voiceTranscribing = 0; // number of in-flight chunk transcriptions
+var _voiceUserStopped = false;
 
 function checkVoiceAvailable() {
   fetch(apiBase + '/api/transcribe', { headers: authHeaders() })
@@ -662,7 +668,6 @@ function convertToWav(blob) {
   return blob.arrayBuffer().then(function(arrayBuf) {
     var ctx = new AudioContext({ sampleRate: 16000 });
     return ctx.decodeAudioData(arrayBuf).then(function(audioBuf) {
-      // If already 16kHz, use directly; otherwise resample via OfflineAudioContext
       if (audioBuf.sampleRate === 16000) {
         return encodeWav(audioBuf.getChannelData(0), 16000);
       }
@@ -680,6 +685,107 @@ function convertToWav(blob) {
   });
 }
 
+/** Send a chunk of audio for transcription; appends result to partial text and terminal. */
+function _transcribeChunk(chunks, mimeType) {
+  if (chunks.length === 0) return;
+  _voiceTranscribing++;
+  var rawBlob = new Blob(chunks, { type: mimeType });
+  convertToWav(rawBlob).then(function(wavBlob) {
+    var form = new FormData();
+    form.append('file', wavBlob, 'recording.wav');
+    return fetch(apiBase + '/api/transcribe', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: form,
+    });
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Transcription failed'); });
+    return r.json();
+  }).then(function(data) {
+    _voiceTranscribing--;
+    voiceModelReady.value = true;
+    if (data.text) {
+      var trimmed = data.text.trim();
+      if (trimmed) {
+        voicePartialText.value = (voicePartialText.value ? voicePartialText.value + ' ' : '') + trimmed;
+      }
+    }
+    _checkVoiceDone();
+  }).catch(function(err) {
+    _voiceTranscribing--;
+    console.error('Chunk transcription error:', err);
+    _checkVoiceDone();
+  });
+}
+
+/** When user has stopped and all chunks are processed, finalize. */
+function _checkVoiceDone() {
+  if (_voiceUserStopped && _voiceTranscribing <= 0) {
+    // Send accumulated text to terminal
+    var fullText = voicePartialText.value.trim();
+    if (fullText && activeSessionId.value) {
+      wsSend({ type: 'input', sessionId: activeSessionId.value, data: fullText });
+    }
+    voicePartialText.value = '';
+    voiceState.value = 'idle';
+  }
+}
+
+/** Cycle the MediaRecorder: stop current, harvest chunks, start new one on the same stream. */
+function _cycleRecorder() {
+  if (!_voiceStream || voiceState.value !== 'recording') return;
+  if (_voiceMediaRecorder && _voiceMediaRecorder.state === 'recording') {
+    // Stopping fires onstop which will process the chunk and restart
+    _voiceMediaRecorder.stop();
+  }
+}
+
+function _startRecorderOnStream(stream, mimeType, isRestart) {
+  _voiceChunks = [];
+  var recorder = new MediaRecorder(stream, { mimeType: mimeType });
+  recorder.ondataavailable = function(e) {
+    if (e.data.size > 0) _voiceChunks.push(e.data);
+  };
+  recorder.onstop = function() {
+    var harvested = _voiceChunks.slice();
+    _voiceChunks = [];
+    if (harvested.length > 0) {
+      _transcribeChunk(harvested, mimeType);
+    }
+    // If user hasn't stopped, start a new recorder for the next chunk
+    if (!_voiceUserStopped && _voiceStream) {
+      _startRecorderOnStream(_voiceStream, mimeType, true);
+    }
+  };
+  recorder.start();
+  _voiceMediaRecorder = recorder;
+}
+
+/** Poll /api/voice/status during model download. */
+var _voiceDownloadPollTimer = null;
+function _pollVoiceDownload(onReady) {
+  _voiceDownloadPollTimer = setInterval(function() {
+    fetch(apiBase + '/api/voice/status', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        voiceDownloadProgress.value = data.progress || 0;
+        if (data.modelReady && !data.downloading) {
+          clearInterval(_voiceDownloadPollTimer);
+          _voiceDownloadPollTimer = null;
+          voiceModelReady.value = true;
+          activeModal.value = null;
+          if (onReady) onReady();
+        }
+        if (data.error) {
+          clearInterval(_voiceDownloadPollTimer);
+          _voiceDownloadPollTimer = null;
+          activeModal.value = null;
+          showVoiceError('Model download failed');
+        }
+      }).catch(function() {});
+  }, 500);
+}
+
 function startVoiceRecording() {
   if (voiceState.value !== 'idle') return;
   if (!activeSessionId.value) return;
@@ -689,64 +795,40 @@ function startVoiceRecording() {
     return;
   }
 
+  // Check model readiness first (for Transformers.js backend)
+  if (voiceBackend.value !== 'whisper.cpp' && !voiceModelReady.value) {
+    // Show download modal and trigger download
+    voiceDownloadProgress.value = 0;
+    activeModal.value = { type: 'voiceDownload' };
+    fetch(apiBase + '/api/voice/status', { method: 'POST', headers: authHeaders() }).catch(function() {});
+    _pollVoiceDownload(function() {
+      // Model ready — now start recording
+      startVoiceRecording();
+    });
+    return;
+  }
+
+  _voiceUserStopped = false;
+  voicePartialText.value = '';
+
   navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
     _voiceStream = stream;
-    _voiceChunks = [];
 
-    // Pick a supported mime type
     var mimeType = 'audio/webm';
     if (typeof MediaRecorder.isTypeSupported === 'function') {
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
       else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mimeType = 'audio/ogg;codecs=opus';
       else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
     }
+    _voiceChunkMime = mimeType;
 
-    _voiceMediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-    _voiceMediaRecorder.ondataavailable = function(e) {
-      if (e.data.size > 0) _voiceChunks.push(e.data);
-    };
-    _voiceMediaRecorder.onstop = function() {
-      // Stop microphone
-      _voiceStream.getTracks().forEach(function(t) { t.stop(); });
-      _voiceStream = null;
-
-      if (_voiceChunks.length === 0) {
-        voiceState.value = 'idle';
-        return;
-      }
-
-      voiceState.value = 'transcribing';
-      var rawBlob = new Blob(_voiceChunks, { type: mimeType });
-      _voiceChunks = [];
-
-      // Convert to 16kHz mono WAV for both whisper.cpp and Transformers.js
-      convertToWav(rawBlob).then(function(wavBlob) {
-        var form = new FormData();
-        form.append('file', wavBlob, 'recording.wav');
-
-        return fetch(apiBase + '/api/transcribe', {
-          method: 'POST',
-          headers: authHeaders(),
-          body: form,
-        });
-      }).then(function(r) {
-        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Transcription failed'); });
-        return r.json();
-      }).then(function(data) {
-        voiceState.value = 'idle';
-        voiceModelReady.value = true;
-        if (data.text && activeSessionId.value) {
-          wsSend({ type: 'input', sessionId: activeSessionId.value, data: data.text });
-        }
-      }).catch(function(err) {
-        voiceState.value = 'idle';
-        showVoiceError('Transcription failed: ' + (err.message || err));
-        console.error('Transcription error:', err);
-      });
-    };
-
-    _voiceMediaRecorder.start();
+    _startRecorderOnStream(stream, mimeType, false);
     voiceState.value = 'recording';
+
+    // Every 3 seconds, cycle the recorder to harvest and transcribe a chunk
+    _voiceChunkTimer = setInterval(function() {
+      _cycleRecorder();
+    }, 3000);
   }).catch(function(err) {
     showVoiceError('Microphone access denied');
     console.error('Microphone access denied:', err);
@@ -755,9 +837,34 @@ function startVoiceRecording() {
 }
 
 function stopVoiceRecording() {
-  if (voiceState.value !== 'recording' || !_voiceMediaRecorder) return;
-  _voiceMediaRecorder.stop();
+  if (voiceState.value !== 'recording') return;
+  _voiceUserStopped = true;
+
+  // Clear the chunk timer
+  if (_voiceChunkTimer) {
+    clearInterval(_voiceChunkTimer);
+    _voiceChunkTimer = null;
+  }
+
+  // Stop the recorder (fires onstop which processes final chunk)
+  if (_voiceMediaRecorder && _voiceMediaRecorder.state === 'recording') {
+    _voiceMediaRecorder.stop();
+  }
   _voiceMediaRecorder = null;
+
+  // Stop microphone
+  if (_voiceStream) {
+    _voiceStream.getTracks().forEach(function(t) { t.stop(); });
+    _voiceStream = null;
+  }
+
+  // Show transcribing state while final chunks process
+  if (_voiceTranscribing > 0) {
+    voiceState.value = 'transcribing';
+  } else {
+    // All chunks already processed, finalize immediately
+    _checkVoiceDone();
+  }
 }
 
 function toggleVoiceRecording() {

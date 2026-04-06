@@ -1,6 +1,6 @@
 /**
  * Voice transcription using @huggingface/transformers (Whisper ONNX).
- * Lazy-loads the pipeline and auto-downloads onnx-community/whisper-tiny
+ * Lazy-loads the pipeline and auto-downloads onnx-community/whisper-small
  * to ~/.forge/models/ on first use.
  */
 import { homedir } from "node:os";
@@ -8,11 +8,21 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { logger } from "./logger.js";
 
-const MODEL_ID = "onnx-community/whisper-tiny";
+const MODEL_ID = "onnx-community/whisper-small";
 const CACHE_DIR = join(homedir(), ".forge", "models");
 
 let pipelineInstance: any = null;
 let pipelineLoading: Promise<any> | null = null;
+
+/** Download progress state exposed to the API layer. */
+export const downloadStatus = {
+  downloading: false,
+  progress: 0,       // 0–100 overall
+  file: "",           // current file name
+  totalFiles: 0,
+  completedFiles: 0,
+  error: null as string | null,
+};
 
 async function getTranscriber(): Promise<any> {
   if (pipelineInstance) return pipelineInstance;
@@ -22,14 +32,50 @@ async function getTranscriber(): Promise<any> {
     try {
       const { pipeline, env } = await import("@huggingface/transformers");
       env.cacheDir = CACHE_DIR;
+
+      const cached = isModelCached();
+      if (!cached) {
+        downloadStatus.downloading = true;
+        downloadStatus.progress = 0;
+        downloadStatus.completedFiles = 0;
+        downloadStatus.error = null;
+      }
+
       logger.info("Loading Whisper model via Transformers.js", { model: MODEL_ID, cacheDir: CACHE_DIR });
+
+      const fileProgressMap = new Map<string, number>();
+
       const transcriber = await pipeline("automatic-speech-recognition", MODEL_ID, {
         dtype: "q8",
+        progress_callback: (event: any) => {
+          if (!event || cached) return;
+          if (event.status === "initiate") {
+            downloadStatus.totalFiles = (downloadStatus.totalFiles || 0) + 1;
+            downloadStatus.file = event.file || "";
+          } else if (event.status === "progress" && typeof event.progress === "number") {
+            downloadStatus.file = event.file || downloadStatus.file;
+            fileProgressMap.set(event.file || "", event.progress);
+            // Average progress across all tracked files
+            const values = [...fileProgressMap.values()];
+            downloadStatus.progress = Math.round(values.reduce((a, b) => a + b, 0) / Math.max(downloadStatus.totalFiles, values.length));
+          } else if (event.status === "done") {
+            downloadStatus.completedFiles++;
+            if (event.file) fileProgressMap.set(event.file, 100);
+          } else if (event.status === "ready") {
+            downloadStatus.downloading = false;
+            downloadStatus.progress = 100;
+          }
+        },
       });
+
+      downloadStatus.downloading = false;
+      downloadStatus.progress = 100;
       pipelineInstance = transcriber;
       logger.info("Whisper model loaded successfully");
       return transcriber;
     } catch (err) {
+      downloadStatus.downloading = false;
+      downloadStatus.error = (err as Error).message;
       pipelineLoading = null;
       throw err;
     }
@@ -85,6 +131,14 @@ export async function transcribe(wavBuffer: Buffer): Promise<string> {
  * Check whether the model files are already cached locally.
  */
 export function isModelCached(): boolean {
-  const modelDir = join(CACHE_DIR, "onnx-community", "whisper-tiny");
+  const modelDir = join(CACHE_DIR, "onnx-community", "whisper-small");
   return existsSync(modelDir);
+}
+
+/**
+ * Pre-load the model (triggers download if not cached).
+ * Returns a promise that resolves when the model is ready.
+ */
+export async function ensureModelReady(): Promise<void> {
+  await getTranscriber();
 }
