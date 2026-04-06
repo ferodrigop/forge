@@ -194,7 +194,7 @@ function MultilineEditor() {
   }
 
   function handleKeyDown(ev) {
-    if (ev.key === 'Enter' && !ev.shiftKey) {
+    if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) {
       ev.preventDefault();
       var ta = textareaRef.current;
       if (!ta) return;
@@ -225,7 +225,7 @@ function MultilineEditor() {
   return html\`
     <div class="multiline-editor" role="region" aria-label="Multi-line editor">
       <div class="multiline-editor-header">
-        <span class="multiline-editor-hint" id="editor-hint">Shift+Enter newline \u00b7 Enter submit \u00b7 Esc close</span>
+        <span class="multiline-editor-hint" id="editor-hint">Cmd+Enter to send \u00b7 Esc close</span>
       </div>
       <textarea
         ref=\${textareaRef}
