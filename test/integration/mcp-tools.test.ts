@@ -10,6 +10,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 function cliExists(bin: string): boolean {
   try { execFileSync("which", [bin], { stdio: "ignore" }); return true; } catch { return false; }
 }
+const hasClaude = cliExists("claude");
 const hasCodex = cliExists("codex");
 
 describe("MCP Tools E2E", () => {
@@ -193,7 +194,7 @@ describe("MCP Tools E2E", () => {
 
   // --- spawn_claude tests ---
 
-  it("spawn_claude creates session with auto-name and claude-agent tag", async () => {
+  it.skipIf(!hasClaude)("spawn_claude creates session with auto-name and claude-agent tag", async () => {
     const result = await client.callTool({
       name: "spawn_claude",
       arguments: { prompt: "say hello world" },
@@ -204,7 +205,7 @@ describe("MCP Tools E2E", () => {
     expect(info.command).toMatch(/claude$/);
   });
 
-  it("spawn_claude accepts name/tags overrides", async () => {
+  it.skipIf(!hasClaude)("spawn_claude accepts name/tags overrides", async () => {
     const result = await client.callTool({
       name: "spawn_claude",
       arguments: {
