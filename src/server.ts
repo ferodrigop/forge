@@ -144,6 +144,16 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
       effectiveCwd = worktreePath;
     }
 
+    // Verify the agent CLI binary exists before spawning
+    try {
+      execFileSync("which", [agent.command], { stdio: "ignore" });
+    } catch {
+      return {
+        content: [{ type: "text" as const, text: `Error: '${agent.command}' CLI not found. Install ${agent.name} before spawning this agent.` }],
+        isError: true,
+      };
+    }
+
     const isOneShot = params.oneShot === true;
     const args = isOneShot
       ? agent.buildOneshotArgs(params.prompt, params.model, params.extra)

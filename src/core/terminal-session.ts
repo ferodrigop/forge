@@ -313,7 +313,14 @@ export class TerminalSession {
     logger.info("Agent exited, respawning shell", { id: this.id, agentExitCode, shell });
 
     // Write a visual separator so the user knows the agent exited
-    const exitMsg = `\r\n\x1b[90m[agent exited with code ${agentExitCode} — shell restored]\x1b[0m\r\n`;
+    const ranForMs = Date.now() - this.createdAt.getTime();
+    const quickExit = ranForMs < 3000;
+    let exitMsg: string;
+    if (quickExit && (agentExitCode === 1 || agentExitCode === 127)) {
+      exitMsg = `\r\n\x1b[31m[agent exited with code ${agentExitCode} — CLI not found or failed to start. Is the agent installed and in PATH?]\x1b[0m\r\n`;
+    } else {
+      exitMsg = `\r\n\x1b[90m[agent exited with code ${agentExitCode} — shell restored]\x1b[0m\r\n`;
+    }
     this.ringBuffer.write(exitMsg);
     this.xterm.write(exitMsg);
     for (const fn of this.dataListeners) fn(exitMsg);

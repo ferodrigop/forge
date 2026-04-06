@@ -92,6 +92,17 @@ export class DashboardServer {
               command = opts.agent;
               tags = tags || [`${opts.agent}-agent`];
             }
+
+            // Verify the agent CLI binary exists before spawning
+            const agentCmd = command;
+            try {
+              execFileSync("which", [agentCmd], { stdio: "ignore" });
+            } catch {
+              const agentName = agentDef?.name ?? opts.agent;
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: `'${agentCmd}' CLI not found. Install ${agentName} before spawning this agent.` }));
+              return;
+            }
           }
 
           const session = manager.create({
