@@ -138,6 +138,7 @@ function PaneTerminal(props) {
     e.preventDefault();
     var zone = dropZone;
     setDropZone(null);
+    if (!zone) return;
     if (!dragState.value || dragState.value.type !== 'session') return;
     var draggedId = dragState.value.id;
     dragState.value = null;
@@ -157,7 +158,11 @@ function PaneTerminal(props) {
     overlayStyle = 'position:absolute;top:0;left:0;' + styles[dropZone] + ';pointer-events:none;z-index:20;';
   }
 
-  return html\`<div class="pane-terminal-wrap" onClick=\${handleClick} onDragOver=\${onPaneDragOver} onDragLeave=\${onPaneDragLeave} onDrop=\${onPaneDrop} style="position:relative">
+  function onPaneDragEnd() {
+    setDropZone(null);
+  }
+
+  return html\`<div class="pane-terminal-wrap" onClick=\${handleClick} onDragOver=\${onPaneDragOver} onDragLeave=\${onPaneDragLeave} onDrop=\${onPaneDrop} onDragEnd=\${onPaneDragEnd} style="position:relative">
     <div class="pane-terminal-xterm" ref=\${containerRef}></div>
     \${dropZone ? html\`<div class="pane-drop-overlay pane-drop-\${dropZone}" style=\${overlayStyle}></div>\` : null}
   </div>\`;
