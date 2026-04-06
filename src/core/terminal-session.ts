@@ -152,6 +152,10 @@ export class TerminalSession {
 
   /** Register a listener for completion events. Returns unsubscribe function. */
   onComplete(fn: (id: string, result?: string) => void): () => void {
+    // Fire immediately if session is already done (Fix C: late subscribers)
+    if (this._completionStatus === "done") {
+      fn(this.id, this._completionResult);
+    }
     this.completionListeners.push(fn);
     return () => {
       const idx = this.completionListeners.indexOf(fn);

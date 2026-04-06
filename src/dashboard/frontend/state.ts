@@ -289,9 +289,11 @@ function handleMessage(msg) {
         // Merge claudeState and completionStatus into sessions for sidebar rendering
         var csMap = {};
         var compMap = {};
+        var compResultMap = {};
         for (var k = 0; k < msg.sessions.length; k++) {
           csMap[msg.sessions[k].id] = msg.sessions[k].claudeState || null;
           compMap[msg.sessions[k].id] = msg.sessions[k].completionStatus || null;
+          compResultMap[msg.sessions[k].id] = msg.sessions[k].completionResult || null;
         }
         sessions.value = sessions.value.map(function(s) {
           var changed = false;
@@ -302,6 +304,10 @@ function handleMessage(msg) {
           }
           if (s.id in compMap && s.completionStatus !== compMap[s.id]) {
             updates.completionStatus = compMap[s.id];
+            changed = true;
+          }
+          if (s.id in compResultMap && s.completionResult !== compResultMap[s.id]) {
+            updates.completionResult = compResultMap[s.id];
             changed = true;
           }
           return changed ? Object.assign({}, s, updates) : s;

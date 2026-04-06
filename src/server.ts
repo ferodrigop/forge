@@ -583,6 +583,10 @@ export function createServer(configSource: ConfigSource, existingManager?: Sessi
     async (params) => {
       try {
         const session = manager.getOrThrow(params.id);
+        // Reset completion status so this turn can fire completion again (Fix E)
+        if (session.completionStatus === "done") {
+          session.markWorking();
+        }
         let data: string;
         if (params.submit) {
           // Claude Code multi-line input: Escape exits multi-line mode, Enter submits
