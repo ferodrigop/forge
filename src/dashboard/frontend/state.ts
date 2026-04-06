@@ -35,6 +35,8 @@ const chatMessages = signal([]);
 const voiceAvailable = signal(false);
 const voiceState = signal('idle'); // 'idle' | 'recording' | 'transcribing'
 const voiceError = signal(''); // brief error message shown in status bar
+const voiceModelReady = signal(true); // whether the transformers model is cached
+const voiceBackend = signal(''); // 'whisper.cpp' | 'transformers'
 const sessionOrder = signal([]); // custom session ordering within groups: [sessionId, ...]
 const groupOrder = signal([]); // custom group ordering: [groupLabel, ...]
 const dragState = signal(null); // { type: 'session'|'group', id: string, sourceGroup?: string }
@@ -578,13 +580,72 @@ var _voiceStream = null;
 function checkVoiceAvailable() {
   fetch(apiBase + '/api/transcribe', { headers: authHeaders() })
     .then(function(r) { return r.json(); })
-    .then(function(data) { voiceAvailable.value = !!data.available; })
+    .then(function(data) {
+      voiceAvailable.value = !!data.available;
+      voiceBackend.value = data.backend || '';
+      voiceModelReady.value = data.modelReady !== false;
+    })
     .catch(function() { voiceAvailable.value = false; });
 }
 
 function showVoiceError(msg) {
   voiceError.value = msg;
   setTimeout(function() { voiceError.value = ''; }, 4000);
+}
+
+function encodeWav(float32Data, sampleRate) {
+  var numChannels = 1;
+  var bitsPerSample = 16;
+  var byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  var blockAlign = numChannels * bitsPerSample / 8;
+  var dataLength = float32Data.length * (bitsPerSample / 8);
+  var buffer = new ArrayBuffer(44 + dataLength);
+  var view = new DataView(buffer);
+
+  function writeStr(offset, str) { for (var i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeStr(36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  var offset = 44;
+  for (var i = 0; i < float32Data.length; i++) {
+    var s = Math.max(-1, Math.min(1, float32Data[i]));
+    view.setInt16(offset, s * 0x7FFF, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function convertToWav(blob) {
+  return blob.arrayBuffer().then(function(arrayBuf) {
+    var ctx = new AudioContext({ sampleRate: 16000 });
+    return ctx.decodeAudioData(arrayBuf).then(function(audioBuf) {
+      return ctx.close().then(function() {
+        // If already 16kHz, use directly; otherwise resample via OfflineAudioContext
+        if (audioBuf.sampleRate === 16000) {
+          return encodeWav(audioBuf.getChannelData(0), 16000);
+        }
+        var offCtx = new OfflineAudioContext(1, Math.ceil(audioBuf.duration * 16000), 16000);
+        var src = offCtx.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(offCtx.destination);
+        src.start(0);
+        return offCtx.startRendering().then(function(rendered) {
+          return encodeWav(rendered.getChannelData(0), 16000);
+        });
+      });
+    });
+  });
 }
 
 function startVoiceRecording() {
@@ -623,21 +684,25 @@ function startVoiceRecording() {
       }
 
       voiceState.value = 'transcribing';
-      var blob = new Blob(_voiceChunks, { type: mimeType });
+      var rawBlob = new Blob(_voiceChunks, { type: mimeType });
       _voiceChunks = [];
 
-      var form = new FormData();
-      form.append('file', blob, 'recording.webm');
+      // Convert to 16kHz mono WAV for both whisper.cpp and Transformers.js
+      convertToWav(rawBlob).then(function(wavBlob) {
+        var form = new FormData();
+        form.append('file', wavBlob, 'recording.wav');
 
-      fetch(apiBase + '/api/transcribe', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: form,
+        return fetch(apiBase + '/api/transcribe', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: form,
+        });
       }).then(function(r) {
         if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Transcription failed'); });
         return r.json();
       }).then(function(data) {
         voiceState.value = 'idle';
+        voiceModelReady.value = true;
         if (data.text && activeSessionId.value) {
           wsSend({ type: 'input', sessionId: activeSessionId.value, data: data.text });
         }

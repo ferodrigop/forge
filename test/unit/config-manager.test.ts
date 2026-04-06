@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, beforeAll, afterAll, vi } from "vitest";
 import { writeFileSync, mkdirSync, unlinkSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { ConfigManager, loadSettingsFile, saveSettingsFile } from "../../src/utils/config.js";
+import { ConfigManager, loadSettingsFile, saveSettingsFile, _setSettingsPath, _resetSettingsPath } from "../../src/utils/config.js";
 
 // Use a temp dir for settings file tests to avoid polluting ~/.forge
 const TEMP_DIR = join(tmpdir(), "forge-config-test-" + process.pid);
@@ -20,6 +20,10 @@ describe("loadSettingsFile", () => {
 
 describe("ConfigManager", () => {
   const originalEnv = { ...process.env };
+
+  // Use a non-existent settings file so user's config doesn't affect tests
+  beforeAll(() => { _setSettingsPath("/tmp/forge-test-nonexistent/settings.json"); });
+  afterAll(() => { _resetSettingsPath(); });
 
   afterEach(() => {
     for (const key of Object.keys(process.env)) {

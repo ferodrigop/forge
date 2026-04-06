@@ -5,7 +5,12 @@ import { EventEmitter } from "node:events";
 import { DEFAULT_CONFIG, type ForgeConfig } from "../core/types.js";
 import { logger } from "./logger.js";
 
-const SETTINGS_FILE = join(homedir(), ".forge", "settings.json");
+let SETTINGS_FILE = join(homedir(), ".forge", "settings.json");
+
+/** Override the settings file path (for testing). */
+export function _setSettingsPath(p: string): void { SETTINGS_FILE = p; }
+/** Reset to the default settings file path (for testing). */
+export function _resetSettingsPath(): void { SETTINGS_FILE = join(homedir(), ".forge", "settings.json"); }
 
 // ─── Arg/env helpers ────────────────────────────────────────
 

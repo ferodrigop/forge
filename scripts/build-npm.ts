@@ -24,7 +24,7 @@ const result = await Bun.build({
   target: "node",
   format: "esm",
   sourcemap: "external",
-  external: ["node-pty"],
+  external: ["node-pty", "@huggingface/transformers"],
   splitting: true,
 });
 

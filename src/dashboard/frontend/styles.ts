@@ -564,6 +564,9 @@ export const CSS_STYLES = `
     animation: voice-error-fade 4s ease-out forwards;
   }
   @keyframes voice-error-fade { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+  .voice-download-label {
+    font-size: 10px; color: #e0af68; margin-left: 4px; white-space: nowrap;
+  }
 
   #activity-log {
     max-height: 200px; overflow-y: auto; border-top: 1px solid #292e42;

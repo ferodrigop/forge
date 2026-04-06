@@ -50,6 +50,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.5.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@xterm/headless": "^5.5.0",
     "node-pty": "^1.0.0",

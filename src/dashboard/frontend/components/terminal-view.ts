@@ -114,8 +114,8 @@ function TerminalStatusBar() {
       \${voiceAvailable.value ? html\`
         <button
           class=\${'voice-btn' + (voiceState.value === 'recording' ? ' recording' : '') + (voiceState.value === 'transcribing' ? ' transcribing' : '')}
-          aria-label=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? 'Transcribing audio' : 'Start voice input'}
-          title=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? 'Transcribing...' : 'Voice input'}
+          aria-label=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? (voiceModelReady.value ? 'Transcribing audio' : 'Downloading model') : 'Start voice input'}
+          title=\${voiceState.value === 'recording' ? 'Stop recording' : voiceState.value === 'transcribing' ? (voiceModelReady.value ? 'Transcribing...' : 'Downloading model...') : 'Voice input'}
           disabled=\${voiceState.value === 'transcribing' || activeSession.status !== 'running'}
           aria-busy=\${voiceState.value === 'transcribing'}
           onClick=\${function() { toggleVoiceRecording(); }}
@@ -125,6 +125,7 @@ function TerminalStatusBar() {
             ? html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" class="voice-spinner-svg"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>\`
             : html\`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>\`
           }
+          \${voiceState.value === 'transcribing' && !voiceModelReady.value ? html\`<span class="voice-download-label">Downloading model\u2026</span>\` : null}
         </button>
       \` : null}
       <span class="status-bar-item" aria-label=\${'Session ID: ' + activeSession.id}>\${activeSession.id}</span>

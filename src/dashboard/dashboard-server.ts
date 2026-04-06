@@ -242,17 +242,7 @@ export class DashboardServer {
       if (req.method === "POST" && pathname === "/api/transcribe") {
         try {
           const whisperPath = this.getConfig()?.whisperPath;
-          if (!whisperPath) {
-            res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Voice input not configured. Set whisperPath in ~/.forge/settings.json" }));
-            return;
-          }
           const whisperModelPath = this.getConfig()?.whisperModelPath;
-          if (!whisperModelPath) {
-            res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Whisper model path not configured. Set whisperModelPath in ~/.forge/settings.json" }));
-            return;
-          }
 
           // Read raw body as Buffer (up to 10MB for audio)
           const audioBuffer = await this.readBodyRaw(req, 10_485_760);
@@ -266,47 +256,51 @@ export class DashboardServer {
             if (!boundary) throw new Error("Missing multipart boundary");
             audioData = this.extractMultipartFile(audioBuffer, boundary);
           } else {
-            // Raw audio body
             audioData = audioBuffer;
           }
 
-          // Write to temp file
-          const tempDir = joinPath(tmpdir(), "forge-voice");
-          mkdirSync(tempDir, { recursive: true });
-          const tempFile = joinPath(tempDir, `${randomUUID()}.webm`);
-          writeFileSync(tempFile, audioData);
+          let text: string;
 
-          // Run whisper.cpp
-          const args = [
-            "--model", whisperModelPath,
-            "--file", tempFile,
-            "--output-txt",
-            "--no-timestamps",
-            "--language", "auto",
-          ];
+          if (whisperPath && whisperModelPath) {
+            // Fast path: whisper.cpp
+            const tempDir = joinPath(tmpdir(), "forge-voice");
+            mkdirSync(tempDir, { recursive: true });
+            const tempFile = joinPath(tempDir, `${randomUUID()}.wav`);
+            writeFileSync(tempFile, audioData);
 
-          const txtFile = tempFile.replace(".webm", ".txt");
-          const text = await new Promise<string>((resolve, reject) => {
-            execFile(whisperPath, args, { timeout: 30_000 }, (err, stdout, stderr) => {
-              if (err) {
-                logger.error("Whisper transcription failed", { error: String(err), stderr });
-                reject(new Error(stderr || err.message));
-                return;
-              }
+            const args = [
+              "--model", whisperModelPath,
+              "--file", tempFile,
+              "--output-txt",
+              "--no-timestamps",
+              "--language", "auto",
+            ];
 
-              // whisper.cpp outputs to .txt file or stdout depending on version
-              let result = stdout.trim();
-              if (!result) {
-                try {
-                  result = readFileSync(txtFile, "utf-8").trim();
-                } catch {}
-              }
-              resolve(result);
+            const txtFile = tempFile.replace(".wav", ".txt");
+            text = await new Promise<string>((resolve, reject) => {
+              execFile(whisperPath, args, { timeout: 30_000 }, (err, stdout, stderr) => {
+                if (err) {
+                  logger.error("Whisper transcription failed", { error: String(err), stderr });
+                  reject(new Error(stderr || err.message));
+                  return;
+                }
+                let result = stdout.trim();
+                if (!result) {
+                  try {
+                    result = readFileSync(txtFile, "utf-8").trim();
+                  } catch {}
+                }
+                resolve(result);
+              });
+            }).finally(() => {
+              try { unlinkSync(tempFile); } catch {}
+              try { unlinkSync(txtFile); } catch {}
             });
-          }).finally(() => {
-            try { unlinkSync(tempFile); } catch {}
-            try { unlinkSync(txtFile); } catch {}
-          });
+          } else {
+            // Default path: Transformers.js (zero-setup)
+            const { transcribe } = await import("../utils/voice-transcriber.js");
+            text = await transcribe(audioData);
+          }
 
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ text }));
@@ -326,8 +320,14 @@ export class DashboardServer {
       // Voice input availability check
       if (req.method === "GET" && pathname === "/api/transcribe") {
         const whisperPath = this.getConfig()?.whisperPath;
+        const backend = whisperPath ? "whisper.cpp" : "transformers";
+        let modelReady = true;
+        if (!whisperPath) {
+          const { isModelCached } = await import("../utils/voice-transcriber.js");
+          modelReady = isModelCached();
+        }
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ available: !!whisperPath }));
+        res.end(JSON.stringify({ available: true, backend, modelReady }));
         return;
       }
 

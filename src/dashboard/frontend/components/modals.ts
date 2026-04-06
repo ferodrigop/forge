@@ -469,19 +469,20 @@ function SettingsModal() {
 
       <div class="settings-section">
         <div class="settings-section-title">Voice Input</div>
+        <div class="settings-hint" style="margin-bottom:8px">Voice input works out of the box using built-in transcription. Set whisper.cpp paths below for faster local inference.</div>
         <div class="modal-field">
           <label>Whisper Path \${sourceTag('whisperPath')}</label>
           <input type="text" value=\${whisperPath[0]} disabled=\${isOverridden('whisperPath')}
             onInput=\${function(e) { whisperPath[1](e.target.value); }}
             placeholder="/path/to/whisper-cli" />
-          <div class="settings-hint">Path to whisper.cpp main binary. Required for voice input.</div>
+          <div class="settings-hint">Leave empty for built-in transcription (auto-downloads model on first use).</div>
         </div>
         <div class="modal-field">
           <label>Whisper Model Path \${sourceTag('whisperModelPath')}</label>
           <input type="text" value=\${whisperModelPath[0]} disabled=\${isOverridden('whisperModelPath')}
             onInput=\${function(e) { whisperModelPath[1](e.target.value); }}
             placeholder="/path/to/ggml-base.bin" />
-          <div class="settings-hint">Path to whisper.cpp model file (ggml format). Recommended: ggml-base.bin</div>
+          <div class="settings-hint">Path to whisper.cpp model file (ggml format). Only needed when Whisper Path is set.</div>
         </div>
       </div>
 

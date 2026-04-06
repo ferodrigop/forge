@@ -1,8 +1,12 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { parseConfig } from "../../src/utils/config.js";
+import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest";
+import { parseConfig, _setSettingsPath, _resetSettingsPath } from "../../src/utils/config.js";
 
 describe("parseConfig", () => {
   const originalEnv = { ...process.env };
+
+  // Use a non-existent settings file so user's config doesn't affect tests
+  beforeAll(() => { _setSettingsPath("/tmp/forge-test-nonexistent/settings.json"); });
+  afterAll(() => { _resetSettingsPath(); });
 
   afterEach(() => {
     // Restore env
