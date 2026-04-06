@@ -310,17 +310,20 @@ function handleMessage(msg) {
       for (var _pi = 0; _pi < _ptKeys.length; _pi++) {
         var _pt = paneTerminals[_ptKeys[_pi]];
         if (_pt && _pt.sessionId === msg.sessionId && _pt.term) {
-          var vp = _pt.term.buffer.active;
-          var wasAtBottom = vp.baseY + _pt.term.rows >= vp.length - 1;
-          var prevBaseY = vp.baseY;
-          _pt.term.write(msg.data);
-          if (wasAtBottom) {
-            _pt.term.scrollToBottom();
-          } else {
-            var newBaseY = _pt.term.buffer.active.baseY;
-            var drift = newBaseY - prevBaseY;
-            if (drift > 0) _pt.term.scrollLines(-drift);
-          }
+          (function(pt) {
+            var vp = pt.term.buffer.active;
+            var wasAtBottom = vp.baseY + pt.term.rows >= vp.length - 1;
+            var prevBaseY = vp.baseY;
+            pt.term.write(msg.data, function() {
+              if (wasAtBottom) {
+                pt.term.scrollToBottom();
+              } else {
+                var newBaseY = pt.term.buffer.active.baseY;
+                var drift = newBaseY - prevBaseY;
+                if (drift > 0) pt.term.scrollLines(-drift);
+              }
+            });
+          })(_pt);
         }
       }
       break;
