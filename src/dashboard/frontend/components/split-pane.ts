@@ -158,11 +158,13 @@ function PaneTerminal(props) {
     overlayStyle = 'position:absolute;top:0;left:0;' + styles[dropZone] + ';pointer-events:none;z-index:20;';
   }
 
-  function onPaneDragEnd() {
-    setDropZone(null);
-  }
+  preactHooks.useEffect(function() {
+    function onGlobalDragEnd() { setDropZone(null); }
+    document.addEventListener('dragend', onGlobalDragEnd);
+    return function() { document.removeEventListener('dragend', onGlobalDragEnd); };
+  }, []);
 
-  return html\`<div class="pane-terminal-wrap" onClick=\${handleClick} onDragOver=\${onPaneDragOver} onDragLeave=\${onPaneDragLeave} onDrop=\${onPaneDrop} onDragEnd=\${onPaneDragEnd} style="position:relative">
+  return html\`<div class="pane-terminal-wrap" onClick=\${handleClick} onDragOver=\${onPaneDragOver} onDragLeave=\${onPaneDragLeave} onDrop=\${onPaneDrop} style="position:relative">
     <div class="pane-terminal-xterm" ref=\${containerRef}></div>
     \${dropZone ? html\`<div class="pane-drop-overlay pane-drop-\${dropZone}" style=\${overlayStyle}></div>\` : null}
   </div>\`;
