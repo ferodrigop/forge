@@ -630,20 +630,20 @@ function convertToWav(blob) {
   return blob.arrayBuffer().then(function(arrayBuf) {
     var ctx = new AudioContext({ sampleRate: 16000 });
     return ctx.decodeAudioData(arrayBuf).then(function(audioBuf) {
-      return ctx.close().then(function() {
-        // If already 16kHz, use directly; otherwise resample via OfflineAudioContext
-        if (audioBuf.sampleRate === 16000) {
-          return encodeWav(audioBuf.getChannelData(0), 16000);
-        }
-        var offCtx = new OfflineAudioContext(1, Math.ceil(audioBuf.duration * 16000), 16000);
-        var src = offCtx.createBufferSource();
-        src.buffer = audioBuf;
-        src.connect(offCtx.destination);
-        src.start(0);
-        return offCtx.startRendering().then(function(rendered) {
-          return encodeWav(rendered.getChannelData(0), 16000);
-        });
+      // If already 16kHz, use directly; otherwise resample via OfflineAudioContext
+      if (audioBuf.sampleRate === 16000) {
+        return encodeWav(audioBuf.getChannelData(0), 16000);
+      }
+      var offCtx = new OfflineAudioContext(1, Math.ceil(audioBuf.duration * 16000), 16000);
+      var src = offCtx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(offCtx.destination);
+      src.start(0);
+      return offCtx.startRendering().then(function(rendered) {
+        return encodeWav(rendered.getChannelData(0), 16000);
       });
+    }).finally(function() {
+      ctx.close();
     });
   });
 }

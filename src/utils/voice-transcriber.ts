@@ -19,16 +19,20 @@ async function getTranscriber(): Promise<any> {
   if (pipelineLoading) return pipelineLoading;
 
   pipelineLoading = (async () => {
-    const { pipeline, env } = await import("@huggingface/transformers");
-    env.cacheDir = CACHE_DIR;
-    logger.info("Loading Whisper model via Transformers.js", { model: MODEL_ID, cacheDir: CACHE_DIR });
-    const transcriber = await pipeline("automatic-speech-recognition", MODEL_ID, {
-      dtype: "q8",
-    });
-    pipelineInstance = transcriber;
-    pipelineLoading = null;
-    logger.info("Whisper model loaded successfully");
-    return transcriber;
+    try {
+      const { pipeline, env } = await import("@huggingface/transformers");
+      env.cacheDir = CACHE_DIR;
+      logger.info("Loading Whisper model via Transformers.js", { model: MODEL_ID, cacheDir: CACHE_DIR });
+      const transcriber = await pipeline("automatic-speech-recognition", MODEL_ID, {
+        dtype: "q8",
+      });
+      pipelineInstance = transcriber;
+      logger.info("Whisper model loaded successfully");
+      return transcriber;
+    } catch (err) {
+      pipelineLoading = null;
+      throw err;
+    }
   })();
 
   return pipelineLoading;
@@ -72,7 +76,6 @@ export async function transcribe(wavBuffer: Buffer): Promise<string> {
   const transcriber = await getTranscriber();
   const audioData = parseWavToFloat32(wavBuffer);
   const result = await transcriber(audioData, {
-    language: "en",
     return_timestamps: false,
   });
   return (result as any).text?.trim() ?? "";

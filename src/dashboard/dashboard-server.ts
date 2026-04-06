@@ -261,6 +261,10 @@ export class DashboardServer {
 
           let text: string;
 
+          if (whisperPath && !whisperModelPath) {
+            logger.warn("whisperPath is set but whisperModelPath is missing — falling back to Transformers.js");
+          }
+
           if (whisperPath && whisperModelPath) {
             // Fast path: whisper.cpp
             const tempDir = joinPath(tmpdir(), "forge-voice");
