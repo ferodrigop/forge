@@ -495,6 +495,157 @@ function SettingsModal() {
   \`;
 }
 
+function BroadcastModal() {
+  var textRef = preactHooks.useRef(null);
+  var selectMode = preactHooks.useState('all'); // 'all' | 'tag' | 'pick'
+  var tagFilter = preactHooks.useState('');
+  var selectedIds = preactHooks.useState({});
+  var appendNewline = preactHooks.useState(true);
+  var sent = preactHooks.useState(false);
+
+  var runningSessions = sessions.value.filter(function(s) { return s.status === 'running'; });
+
+  // Collect unique tags from running sessions
+  var allTags = {};
+  runningSessions.forEach(function(s) {
+    if (s.tags) s.tags.forEach(function(t) { allTags[t] = true; });
+  });
+  var tagList = Object.keys(allTags).sort();
+
+  // Compute target sessions based on mode
+  var targets = [];
+  if (selectMode[0] === 'all') {
+    targets = runningSessions;
+  } else if (selectMode[0] === 'tag' && tagFilter[0]) {
+    targets = runningSessions.filter(function(s) {
+      return s.tags && s.tags.indexOf(tagFilter[0]) >= 0;
+    });
+  } else if (selectMode[0] === 'pick') {
+    targets = runningSessions.filter(function(s) { return selectedIds[0][s.id]; });
+  }
+
+  function toggleSession(id) {
+    var next = Object.assign({}, selectedIds[0]);
+    if (next[id]) delete next[id];
+    else next[id] = true;
+    selectedIds[1](next);
+  }
+
+  function sendBroadcast() {
+    var ta = textRef.current;
+    if (!ta || !ta.value.trim()) return;
+    var msg = { type: 'broadcast', input: ta.value, newline: appendNewline[0] };
+    if (selectMode[0] === 'tag' && tagFilter[0]) {
+      msg.tag = tagFilter[0];
+    } else {
+      msg.ids = targets.map(function(s) { return s.id; });
+    }
+    wsSend(msg);
+    sent[1](true);
+    setTimeout(function() { activeModal.value = null; sent[1](false); }, 1500);
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Escape') activeModal.value = null;
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendBroadcast(); }
+  }
+
+  preactHooks.useEffect(function() {
+    if (textRef.current) textRef.current.focus();
+  }, []);
+
+  if (sent[0]) {
+    return html\`
+      <div class="modal-box broadcast-modal" role="dialog" aria-modal="true" aria-label="Broadcast sent">
+        <div class="broadcast-sent">
+          <span class="broadcast-sent-icon">\u2713</span>
+          <span>Sent to \${targets.length} terminal\${targets.length !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    \`;
+  }
+
+  return html\`
+    <div class="modal-box broadcast-modal" role="dialog" aria-modal="true" aria-labelledby="modal-broadcast-title" onKeyDown=\${onKeyDown}>
+      <h3 id="modal-broadcast-title">Broadcast Input</h3>
+      <p>Send the same input to multiple terminals at once.</p>
+
+      <div class="modal-field">
+        <label>Message</label>
+        <textarea
+          ref=\${textRef}
+          class="broadcast-textarea"
+          aria-label="Broadcast message"
+          placeholder="Type command or text to broadcast..."
+          rows="3"
+        />
+      </div>
+
+      <div class="modal-field">
+        <label>Append newline</label>
+        <label class="broadcast-checkbox-label">
+          <input type="checkbox" checked=\${appendNewline[0]} onChange=\${function(e) { appendNewline[1](e.target.checked); }} />
+          Send Enter after message
+        </label>
+      </div>
+
+      <div class="modal-field">
+        <label>Target selection</label>
+        <div class="broadcast-mode-tabs">
+          <button class=\${'broadcast-mode-btn' + (selectMode[0] === 'all' ? ' active' : '')} onClick=\${function() { selectMode[1]('all'); }}>All running (\${runningSessions.length})</button>
+          <button class=\${'broadcast-mode-btn' + (selectMode[0] === 'tag' ? ' active' : '')} onClick=\${function() { selectMode[1]('tag'); }}>By tag</button>
+          <button class=\${'broadcast-mode-btn' + (selectMode[0] === 'pick' ? ' active' : '')} onClick=\${function() { selectMode[1]('pick'); }}>Pick</button>
+        </div>
+      </div>
+
+      \${selectMode[0] === 'tag' ? html\`
+        <div class="modal-field">
+          <label>Tag</label>
+          \${tagList.length > 0 ? html\`
+            <div class="broadcast-tag-list">
+              \${tagList.map(function(t) {
+                var isActive = tagFilter[0] === t;
+                return html\`<button class=\${'broadcast-tag' + (isActive ? ' active' : '')} onClick=\${function() { tagFilter[1](isActive ? '' : t); }}>\${t}</button>\`;
+              })}
+            </div>
+          \` : html\`<div class="broadcast-hint">No tags found on running sessions</div>\`}
+        </div>
+      \` : null}
+
+      \${selectMode[0] === 'pick' ? html\`
+        <div class="modal-field">
+          <label>Sessions</label>
+          <div class="broadcast-session-list">
+            \${runningSessions.length === 0 ? html\`<div class="broadcast-hint">No running sessions</div>\` : null}
+            \${runningSessions.map(function(s) {
+              var checked = !!selectedIds[0][s.id];
+              return html\`
+                <label class="broadcast-session-row" key=\${s.id}>
+                  <input type="checkbox" checked=\${checked} onChange=\${function() { toggleSession(s.id); }} />
+                  <span class=\${'status-dot ' + s.status}></span>
+                  <span class="broadcast-session-name">\${s.name || s.command}</span>
+                  <span class="broadcast-session-id">\${s.id}</span>
+                </label>
+              \`;
+            })}
+          </div>
+        </div>
+      \` : null}
+
+      <div class="broadcast-target-summary" role="status" aria-live="polite">
+        \${targets.length} terminal\${targets.length !== 1 ? 's' : ''} will receive this message
+      </div>
+
+      <div class="modal-actions">
+        <button class="modal-cancel" onClick=\${function() { activeModal.value = null; }}>Cancel</button>
+        <button class="modal-create" disabled=\${targets.length === 0} onClick=\${sendBroadcast}>
+          Send to \${targets.length} terminal\${targets.length !== 1 ? 's' : ''}
+        </button>
+      </div>
+    </div>
+  \`;
+}
+
 function ModalOverlay() {
   var modal = activeModal.value;
   if (!modal) return null;
@@ -547,6 +698,7 @@ function ModalOverlay() {
   if (modal.type === 'newTerminal') content = html\`<\${NewTerminalModal} />\`;
   else if (modal.type === 'deleteChat') content = html\`<\${DeleteChatModal} chatId=\${modal.chatId} source=\${modal.source} />\`;
   else if (modal.type === 'settings') content = html\`<\${SettingsModal} />\`;
+  else if (modal.type === 'broadcast') content = html\`<\${BroadcastModal} />\`;
   else return null;
 
   return html\`<div class="modal-overlay" ref=\${overlayRef} onClick=\${onOverlayClick} onKeyDown=\${onKeyDown}>\${content}</div>\`;

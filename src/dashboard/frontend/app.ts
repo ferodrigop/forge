@@ -69,6 +69,20 @@ function TopBar() {
         aria-pressed=\${autoFollow.value}
         onClick=\${function() { autoFollow.value = !autoFollow.value; }}
       >Follow</button>
+      <button
+        class=\${'topbar-toggle' + (currentTab.value !== 'terminals' ? ' hidden' : '')}
+        aria-label="Broadcast input to multiple terminals"
+        title="Broadcast input"
+        onClick=\${function() { activeModal.value = { type: 'broadcast' }; }}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="2" />
+          <path d="M4.5 4.5a5 5 0 0 0 0 7" />
+          <path d="M11.5 4.5a5 5 0 0 1 0 7" />
+          <path d="M2.5 2.5a8 8 0 0 0 0 11" />
+          <path d="M13.5 2.5a8 8 0 0 1 0 11" />
+        </svg>
+      </button>
       <span class="spacer"></span>
       <button
         class="topbar-toggle"

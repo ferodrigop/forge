@@ -887,6 +887,70 @@ export const CSS_STYLES = `
   .cwd-browse-btn:hover, .cwd-browse-btn.active { background: #343b58; border-color: #7aa2f7; }
   .cwd-error { color: #f7768e; font-size: 11px; margin-top: 4px; }
 
+  /* Broadcast modal */
+  .broadcast-modal { max-width: 500px; }
+  .broadcast-textarea {
+    width: 100%; background: #1a1b26; border: 1px solid #292e42;
+    border-radius: 4px; padding: 8px 10px; color: #c0caf5;
+    font-size: 12px; font-family: monospace; outline: none;
+    resize: vertical; min-height: 60px;
+  }
+  .broadcast-textarea:focus { border-color: #7aa2f7; }
+  .broadcast-textarea::placeholder { color: #7c849b; }
+  .broadcast-checkbox-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #a9b1d6; cursor: pointer;
+  }
+  .broadcast-checkbox-label input[type="checkbox"] {
+    accent-color: #7aa2f7;
+  }
+  .broadcast-mode-tabs {
+    display: flex; gap: 0; border: 1px solid #292e42; border-radius: 4px; overflow: hidden;
+  }
+  .broadcast-mode-btn {
+    flex: 1; padding: 5px 8px; background: #1a1b26; border: none;
+    color: #7982a9; font-size: 11px; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .broadcast-mode-btn:not(:last-child) { border-right: 1px solid #292e42; }
+  .broadcast-mode-btn:hover { background: #292e42; color: #c0caf5; }
+  .broadcast-mode-btn.active { background: #292e42; color: #7aa2f7; font-weight: 600; }
+  .broadcast-tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .broadcast-tag {
+    padding: 3px 8px; border-radius: 4px; font-size: 11px;
+    background: #1a1b26; border: 1px solid #292e42; color: #a9b1d6;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .broadcast-tag:hover { border-color: #7aa2f7; color: #7aa2f7; }
+  .broadcast-tag.active { background: #7aa2f722; border-color: #7aa2f7; color: #7aa2f7; }
+  .broadcast-session-list {
+    max-height: 180px; overflow-y: auto; border: 1px solid #292e42;
+    border-radius: 4px; background: #1a1b26;
+  }
+  .broadcast-session-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; cursor: pointer; font-size: 12px;
+    transition: background 0.1s;
+  }
+  .broadcast-session-row:hover { background: #292e42; }
+  .broadcast-session-row input[type="checkbox"] { accent-color: #7aa2f7; flex-shrink: 0; }
+  .broadcast-session-name { color: #c0caf5; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .broadcast-session-id { color: #7c849b; font-size: 10px; font-family: monospace; }
+  .broadcast-target-summary {
+    padding: 6px 0; font-size: 11px; color: #7982a9;
+  }
+  .broadcast-hint { font-size: 11px; color: #7c849b; padding: 4px 0; }
+  .broadcast-sent {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 24px 0; font-size: 14px; color: #9ece6a;
+  }
+  .broadcast-sent-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #9ece6a22; font-size: 16px; font-weight: bold;
+  }
+  .topbar-toggle.hidden { display: none; }
+
   /* Folder tree browser (ForkLift-style) */
   .folder-tree {
     background: #13141c; border: 1px solid #292e42; border-radius: 6px;

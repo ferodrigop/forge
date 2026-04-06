@@ -160,6 +160,53 @@ export class WsHandler {
         break;
       }
 
+      case "broadcast": {
+        const ids = msg.ids as string[] | undefined;
+        const tag = msg.tag as string | undefined;
+        const input = String(msg.input || "");
+        const newline = msg.newline !== false;
+
+        if (!ids && !tag) {
+          this.send(client.ws, { type: "broadcast_result", success: false, error: "Must provide ids or tag" });
+          break;
+        }
+
+        let targetIds: string[];
+        if (ids && Array.isArray(ids)) {
+          targetIds = ids;
+        } else {
+          const sessions = this.manager.listByTag(tag!);
+          targetIds = sessions.map((s) => s.id);
+        }
+
+        if (targetIds.length === 0) {
+          this.send(client.ws, { type: "broadcast_result", success: true, sent: 0, failed: 0, results: [] });
+          break;
+        }
+
+        const data = newline ? input + "\n" : input;
+        const results: Array<{ id: string; success: boolean; error?: string }> = [];
+        for (const id of targetIds) {
+          try {
+            const session = this.manager.get(id);
+            if (session && session.status === "running") {
+              session.write(data);
+              results.push({ id, success: true });
+            } else {
+              results.push({ id, success: false, error: "Not running" });
+            }
+          } catch (err) {
+            results.push({ id, success: false, error: (err as Error).message });
+          }
+        }
+
+        const sent = results.filter((r) => r.success).length;
+        const failed = results.filter((r) => !r.success).length;
+        this.send(client.ws, { type: "broadcast_result", success: true, sent, failed, results });
+        logger.info("Broadcast sent via dashboard", { targets: targetIds.length, sent, failed });
+        break;
+      }
+
       default:
         this.send(client.ws, { type: "error", message: `Unknown message type: ${msg.type}` });
     }
