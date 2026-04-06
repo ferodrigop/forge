@@ -495,6 +495,8 @@ function SettingsModal() {
   \`;
 }
 
+var _broadcastCloseTimer = null;
+
 function BroadcastModal() {
   var textRef = preactHooks.useRef(null);
   var selectMode = preactHooks.useState('all'); // 'all' | 'tag' | 'pick'
@@ -502,6 +504,13 @@ function BroadcastModal() {
   var selectedIds = preactHooks.useState({});
   var appendNewline = preactHooks.useState(true);
   var sent = preactHooks.useState(false);
+
+  // Clear auto-close timer when modal unmounts
+  preactHooks.useEffect(function() {
+    return function() {
+      if (_broadcastCloseTimer) { clearTimeout(_broadcastCloseTimer); _broadcastCloseTimer = null; }
+    };
+  }, []);
 
   var runningSessions = sessions.value.filter(function(s) { return s.status === 'running'; });
 
@@ -532,8 +541,10 @@ function BroadcastModal() {
   }
 
   function sendBroadcast() {
+    if (targets.length === 0) return;
     var ta = textRef.current;
     if (!ta || !ta.value.trim()) return;
+    if (_broadcastCloseTimer) { clearTimeout(_broadcastCloseTimer); _broadcastCloseTimer = null; }
     var msg = { type: 'broadcast', input: ta.value, newline: appendNewline[0] };
     if (selectMode[0] === 'tag' && tagFilter[0]) {
       msg.tag = tagFilter[0];
@@ -542,7 +553,12 @@ function BroadcastModal() {
     }
     wsSend(msg);
     sent[1](true);
-    setTimeout(function() { activeModal.value = null; sent[1](false); }, 1500);
+    _broadcastCloseTimer = setTimeout(function() {
+      _broadcastCloseTimer = null;
+      activeModal.value = null;
+      sent[1](false);
+      broadcastResult.value = null;
+    }, 2500);
   }
 
   function onKeyDown(e) {
@@ -555,11 +571,14 @@ function BroadcastModal() {
   }, []);
 
   if (sent[0]) {
+    var br = broadcastResult.value;
+    var sentCount = br ? br.sent : targets.length;
+    var failedCount = br ? br.failed : 0;
     return html\`
       <div class="modal-box broadcast-modal" role="dialog" aria-modal="true" aria-label="Broadcast sent">
         <div class="broadcast-sent">
           <span class="broadcast-sent-icon">\u2713</span>
-          <span>Sent to \${targets.length} terminal\${targets.length !== 1 ? 's' : ''}</span>
+          <span>Sent to \${sentCount} terminal\${sentCount !== 1 ? 's' : ''}\${failedCount > 0 ? ', ' + failedCount + ' failed' : ''}</span>
         </div>
       </div>
     \`;

@@ -37,7 +37,8 @@ const voiceState = signal('idle'); // 'idle' | 'recording' | 'transcribing'
 const voiceError = signal(''); // brief error message shown in status bar
 const voiceModelReady = signal(true); // whether the transformers model is cached
 const voiceBackend = signal(''); // 'whisper.cpp' | 'transformers'
-const broadcastResult = signal(null); // { sent, failed, results } — cleared after 3s
+const broadcastResult = signal(null); // { sent, failed, results } — cleared by modal close
+var _broadcastResultTimer = null;
 const sessionOrder = signal([]); // custom session ordering within groups: [sessionId, ...]
 const groupOrder = signal([]); // custom group ordering: [groupLabel, ...]
 const dragState = signal(null); // { type: 'session'|'group', id: string, sourceGroup?: string }
@@ -345,8 +346,9 @@ function handleMessage(msg) {
       }
       break;
     case 'broadcast_result':
+      if (_broadcastResultTimer) clearTimeout(_broadcastResultTimer);
       broadcastResult.value = msg;
-      setTimeout(function() { broadcastResult.value = null; }, 4000);
+      _broadcastResultTimer = setTimeout(function() { _broadcastResultTimer = null; broadcastResult.value = null; }, 10000);
       break;
     case 'error':
       console.error('Server error:', msg.message);
