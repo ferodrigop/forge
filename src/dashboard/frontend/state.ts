@@ -170,6 +170,7 @@ function focusPane(paneId) {
   if (pt) {
     termInstance.value = pt.term;
     fitAddonInstance.value = pt.fitAddon;
+    pt.term.focus();
   }
 }
 
