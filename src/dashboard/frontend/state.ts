@@ -49,6 +49,7 @@ var splitRoot = signal({ type: 'leaf', id: 'pane-1', sessionId: null });
 var focusedPaneId = signal('pane-1');
 var _paneCounter = 1;
 var paneTerminals = {}; // paneId -> { term, fitAddon, sessionId }
+var splitGeneration = signal(0);
 
 function _nextPaneId() { return 'pane-' + (++_paneCounter); }
 
@@ -115,6 +116,7 @@ function splitPane(direction, targetPaneId, position) {
     sizes: [50, 50]
   };
   splitRoot.value = _replaceInTree(splitRoot.value, paneId, splitNode);
+  splitGeneration.value++;
   focusedPaneId.value = newId;
   activeSessionId.value = null;
   return newId;
@@ -129,6 +131,7 @@ function closePane(paneId) {
   delete paneTerminals[paneId];
   var newRoot = _removeFromTree(splitRoot.value, paneId);
   splitRoot.value = newRoot;
+  splitGeneration.value++;
   var fl = _firstLeaf(newRoot);
   focusedPaneId.value = fl.id;
   activeSessionId.value = fl.sessionId;

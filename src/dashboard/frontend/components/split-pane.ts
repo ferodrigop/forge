@@ -349,7 +349,7 @@ function renderSplitNode(node) {
     return html\`<div class=\${'split-pane' + (isFocused ? ' split-pane-focused' : '')} style="flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden">
       \${showTab ? html\`<\${PaneTabBar} paneId=\${node.id} sessionId=\${node.sessionId} />\` : null}
       \${node.sessionId
-        ? html\`<\${PaneTerminal} paneId=\${node.id} sessionId=\${node.sessionId} key=\${node.id} />\`
+        ? html\`<\${PaneTerminal} paneId=\${node.id} sessionId=\${node.sessionId} key=\${node.id + '-' + splitGeneration.value} />\`
         : html\`<\${PaneEmptyState} paneId=\${node.id} />\`}
     </div>\`;
   }
