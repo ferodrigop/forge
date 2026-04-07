@@ -132,7 +132,7 @@ url = "http://127.0.0.1:3141/mcp"
 npx forge-terminal-mcp start -d --dashboard --port 3141
 
 # Add Forge as HTTP MCP server
-gemini mcp add forge --url http://127.0.0.1:3141/mcp
+gemini mcp add --transport http forge http://127.0.0.1:3141/mcp
 ```
 
 </details>
