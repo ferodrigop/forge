@@ -577,9 +577,9 @@
             <p class="text-sm text-muted mb-3">Add Forge as an MCP server to Claude Code, Codex, Gemini CLI, or any MCP client.</p>
             <div class="code-block p-4 font-mono text-sm flex items-center justify-between">
               <div>
-                <span class="text-glow select-none">$ </span><span class="text-bright">claude mcp add forge -- npx forge-terminal-mcp</span>
+                <span class="text-glow select-none">$ </span><span class="text-bright">claude mcp add --transport http forge http://127.0.0.1:3141/mcp</span>
               </div>
-              <button onclick="copyText('claude mcp add forge -- npx forge-terminal-mcp', this)" class="copy-btn text-muted opacity-60" title="Copy">
+              <button onclick="copyText('claude mcp add --transport http forge http://127.0.0.1:3141/mcp', this)" class="copy-btn text-muted opacity-60" title="Copy">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
               </button>
             </div>
@@ -739,24 +739,24 @@
         <div id="tab-claude" class="tab-panel active">
           <div class="code-block rounded-t-none p-6 font-mono text-sm space-y-4">
             <div>
-              <p class="text-muted text-xs mb-2"># Add Forge as an MCP server (stdio)</p>
+              <p class="text-muted text-xs mb-2"># Add Forge as an MCP server (HTTP)</p>
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-glow select-none">$ </span><span class="text-bright">claude mcp add forge -- npx forge-terminal-mcp</span>
+                  <span class="text-glow select-none">$ </span><span class="text-bright">claude mcp add --transport http forge http://127.0.0.1:3141/mcp</span>
                 </div>
-                <button onclick="copyText('claude mcp add forge -- npx forge-terminal-mcp', this)" class="copy-btn text-muted opacity-60" title="Copy">
+                <button onclick="copyText('claude mcp add --transport http forge http://127.0.0.1:3141/mcp', this)" class="copy-btn text-muted opacity-60" title="Copy">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>
               </div>
             </div>
             <div class="line-accent"></div>
             <div>
-              <p class="text-muted text-xs mb-2"># With web dashboard</p>
+              <p class="text-muted text-xs mb-2"># Or use forge setup (auto-starts daemon)</p>
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-glow select-none">$ </span><span class="text-bright">claude mcp add forge -- npx forge-terminal-mcp --dashboard --port 3141</span>
+                  <span class="text-glow select-none">$ </span><span class="text-bright">forge setup --agent claude-code</span>
                 </div>
-                <button onclick="copyText('claude mcp add forge -- npx forge-terminal-mcp --dashboard --port 3141', this)" class="copy-btn text-muted opacity-60" title="Copy">
+                <button onclick="copyText('forge setup --agent claude-code', this)" class="copy-btn text-muted opacity-60" title="Copy">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>
               </div>
@@ -767,8 +767,8 @@
               <pre class="text-bright"><span class="text-muted">{</span>
   <span class="text-accent">"mcpServers"</span><span class="text-muted">:</span> <span class="text-muted">{</span>
     <span class="text-accent">"forge"</span><span class="text-muted">:</span> <span class="text-muted">{</span>
-      <span class="text-accent">"command"</span><span class="text-muted">:</span> <span class="text-glow">"npx"</span><span class="text-muted">,</span>
-      <span class="text-accent">"args"</span><span class="text-muted">:</span> <span class="text-muted">[</span><span class="text-glow">"forge-terminal-mcp"</span><span class="text-muted">]</span>
+      <span class="text-accent">"type"</span><span class="text-muted">:</span> <span class="text-glow">"http"</span><span class="text-muted">,</span>
+      <span class="text-accent">"url"</span><span class="text-muted">:</span> <span class="text-glow">"http://127.0.0.1:3141/mcp"</span>
     <span class="text-muted">}</span>
   <span class="text-muted">}</span>
 <span class="text-muted">}</span></pre>
@@ -824,9 +824,9 @@
               <p class="text-muted text-xs mb-2"># Add Forge as HTTP MCP server</p>
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-glow select-none">$ </span><span class="text-bright">gemini mcp add forge --url http://127.0.0.1:3141/mcp</span>
+                  <span class="text-glow select-none">$ </span><span class="text-bright">gemini mcp add --transport http forge http://127.0.0.1:3141/mcp</span>
                 </div>
-                <button onclick="copyText('gemini mcp add forge --url http://127.0.0.1:3141/mcp', this)" class="copy-btn text-muted opacity-60" title="Copy">
+                <button onclick="copyText('gemini mcp add --transport http forge http://127.0.0.1:3141/mcp', this)" class="copy-btn text-muted opacity-60" title="Copy">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>
               </div>
