@@ -182,7 +182,7 @@ async function cmdStatus(): Promise<void> {
 type AgentDef = {
   name: string;
   description: string;
-  register: (mcpUrl: string) => void;
+  register: (mcpUrl: string, force?: boolean) => void;
 };
 
 function cliIsAvailable(bin: string): boolean {
@@ -194,7 +194,7 @@ function cliIsAvailable(bin: string): boolean {
   }
 }
 
-function mergeJsonConfig(filePath: string, rootKey: string, serverName: string, entry: Record<string, unknown>): void {
+function mergeJsonConfig(filePath: string, rootKey: string, serverName: string, entry: Record<string, unknown>, force = false): void {
   let config: Record<string, unknown> = {};
   if (existsSync(filePath)) {
     try {
@@ -209,7 +209,7 @@ function mergeJsonConfig(filePath: string, rootKey: string, serverName: string, 
   }
 
   const servers = (config[rootKey] ?? {}) as Record<string, unknown>;
-  if (servers[serverName]) {
+  if (servers[serverName] && !force) {
     process.stderr.write(`Forge already registered in ${filePath}\n`);
     return;
   }
@@ -220,16 +220,18 @@ function mergeJsonConfig(filePath: string, rootKey: string, serverName: string, 
   process.stderr.write(`Wrote forge config to ${filePath}\n`);
 }
 
-function registerViaCli(bin: string, listArgs: string[], addArgs: string[], notFoundUrl: string): void {
-  // Check if already registered
-  try {
-    const listing = execFileSync(bin, listArgs, { encoding: "utf-8" });
-    if (listing.includes("forge")) {
-      process.stderr.write(`Forge already registered with ${bin}.\n`);
-      return;
+function registerViaCli(bin: string, listArgs: string[], addArgs: string[], notFoundUrl: string, force = false): void {
+  // Check if already registered (skip when --force)
+  if (!force) {
+    try {
+      const listing = execFileSync(bin, listArgs, { encoding: "utf-8" });
+      if (listing.includes("forge")) {
+        process.stderr.write(`Forge already registered with ${bin}.\n`);
+        return;
+      }
+    } catch {
+      // list failed — will be caught below in add
     }
-  } catch {
-    // list failed — will be caught below in add
   }
 
   try {
@@ -238,7 +240,12 @@ function registerViaCli(bin: string, listArgs: string[], addArgs: string[], notF
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       process.stderr.write(`Error: '${bin}' CLI not found. Install it first:\n  ${notFoundUrl}\n`);
     } else {
-      process.stderr.write(`Error registering Forge with ${bin}: ${err}\n`);
+      process.stderr.write(
+        `Error registering Forge with ${bin}.\n` +
+        `  Command: ${bin} ${addArgs.join(" ")}\n` +
+        `  This may indicate a CLI version mismatch. Check: ${bin} --version\n` +
+        `  ${err}\n`,
+      );
     }
     process.exit(1);
   }
@@ -276,84 +283,91 @@ const AGENTS: AgentDef[] = [
   {
     name: "claude-code",
     description: "Claude Code",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       registerViaCli(
         "claude",
         ["mcp", "list"],
         ["mcp", "add", "--transport", "http", "forge", mcpUrl],
         "https://docs.anthropic.com/en/docs/claude-code",
+        force,
       );
     },
   },
   {
     name: "gemini-cli",
     description: "Gemini CLI",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       registerViaCli(
         "gemini",
         ["mcp", "list"],
         ["mcp", "add", "--transport", "http", "forge", mcpUrl],
         "https://github.com/google-gemini/gemini-cli",
+        force,
       );
     },
   },
   {
     name: "codex-cli",
     description: "Codex CLI (OpenAI)",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       registerViaCli(
         "codex",
         ["mcp", "list"],
         ["mcp", "add", "forge", "--url", mcpUrl],
         "https://github.com/openai/codex",
+        force,
       );
     },
   },
   {
     name: "cursor",
     description: "Cursor",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       mergeJsonConfig(
         join(homedir(), ".cursor", "mcp.json"),
         "mcpServers",
         "forge",
         { url: mcpUrl },
+        force,
       );
     },
   },
   {
     name: "windsurf",
     description: "Windsurf",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       mergeJsonConfig(
         join(homedir(), ".codeium", "windsurf", "mcp_config.json"),
         "mcpServers",
         "forge",
         { serverUrl: mcpUrl },
+        force,
       );
     },
   },
   {
     name: "copilot",
     description: "GitHub Copilot CLI",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       mergeJsonConfig(
         join(homedir(), ".copilot", "mcp-config.json"),
         "mcpServers",
         "forge",
         { type: "http", url: mcpUrl },
+        force,
       );
     },
   },
   {
     name: "deep-agents",
     description: "Deep Agents (LangChain)",
-    register(mcpUrl) {
+    register(mcpUrl, force) {
       mergeJsonConfig(
         join(homedir(), ".deepagents", ".mcp.json"),
         "mcpServers",
         "forge",
         { type: "http", url: mcpUrl },
+        force,
       );
     },
   },
@@ -392,9 +406,10 @@ async function ensureDaemonRunning(): Promise<void> {
 }
 
 async function cmdSetup(args: string[]): Promise<void> {
-  // Parse --agent flag
+  // Parse flags
   const agentIdx = args.indexOf("--agent");
   const agentName = agentIdx !== -1 ? args[agentIdx + 1] : undefined;
+  const force = args.includes("--force");
 
   if (args.includes("--list-agents")) {
     process.stderr.write("Supported agents:\n");
@@ -443,7 +458,7 @@ async function cmdSetup(args: string[]): Promise<void> {
   process.stderr.write(`Setting up Forge with ${agent.description}...\n`);
 
   await ensureDaemonRunning();
-  agent.register(mcpUrl);
+  agent.register(mcpUrl, force);
 
   process.stderr.write(`\nForge is ready! MCP server registered at ${mcpUrl}\n`);
 }
