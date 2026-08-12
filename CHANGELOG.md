@@ -2,6 +2,11 @@
 
 All notable changes to Forge are documented in this file.
 
+## [Unreleased]
+
+### Added
+- `forge restart` — stop the daemon and start it again in one command. Detached by default so it hands the shell back; pass `--foreground` for a blocking start.
+
 ## [0.8.0] — 2026-03-11
 
 ### Added
