@@ -2,6 +2,11 @@
 
 All notable changes to Forge are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- CLI produced no output and exited 0 when invoked through its installed `bin` symlink. The entrypoint check compared `import.meta.url` to `process.argv[1]` as strings; npm and bun install the CLI as a symlink, so the two never matched and `main()` never ran. Both sides are now compared as resolved real paths.
+
 ## [0.8.0] — 2026-03-11
 
 ### Added
