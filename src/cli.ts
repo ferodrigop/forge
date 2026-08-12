@@ -14,6 +14,7 @@ import {
   getPortPid,
   getDaemonStatus,
 } from "./utils/daemon.js";
+import { isDirectExecution } from "./utils/direct-execution.js";
 
 // ─── Subcommands ───────────────────────────────────────────────
 
@@ -535,12 +536,7 @@ Custom agents (add to ~/.forge/settings.json):
 }
 
 // Only run when executed directly (not when imported by tests)
-const isDirectExecution =
-  process.argv[1] &&
-  (import.meta.url === `file://${process.argv[1]}` ||
-    import.meta.url === `file://${resolve(process.argv[1])}`);
-
-if (isDirectExecution) {
+if (isDirectExecution(import.meta.url)) {
   main().catch((err) => {
     logger.error("Fatal error", { error: String(err) });
     process.exit(1);

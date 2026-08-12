@@ -32,6 +32,11 @@ jobs:
       - run: npm ci
       - run: bun run scripts/build-npm.ts
       - run: node dist/cli.js --help
+      - name: CLI works when invoked through a bin symlink
+        run: |
+          ln -s "$PWD/dist/cli.js" /tmp/forge-bin
+          output=$(node /tmp/forge-bin --help 2>&1)
+          test -n "$output"
 
   build-binary:
     runs-on: ubuntu-latest
