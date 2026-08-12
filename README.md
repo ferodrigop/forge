@@ -70,6 +70,20 @@ forge restart            # Stop then start (detached by default)
 forge restart --foreground   # Stop then start, blocking
 ```
 
+### Autostart (macOS)
+
+Install a LaunchAgent so the daemon starts at login and is respawned if it crashes:
+
+```bash
+forge load               # install the LaunchAgent and start the daemon
+forge load --port 4200   # use a non-default port
+forge unload             # remove it and stop starting at login
+```
+
+Once loaded, `forge status` reports `Autostart: loaded`, `forge start` hands off to
+launchd instead of spawning its own process, and `forge stop` stays stopped until the
+next `forge start` or login. Daemon logs go to `~/Library/Logs/forge/`.
+
 ### Update
 
 ```bash
