@@ -110,7 +110,16 @@ async function cmdStart(args: string[]): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
-async function cmdStop(): Promise<void> {
+interface StopResult {
+  wasRunning: boolean;
+}
+
+/**
+ * Stop the daemon and report whether one was running. `stop` exits when there
+ * was nothing to stop; `restart` has to carry on and start one, so that exit
+ * decision belongs to the caller rather than in here.
+ */
+async function stopDaemon(): Promise<StopResult> {
   let status = await getDaemonStatus();
   // Fallback: check port if no PID file (e.g. old stdio-mode Forge)
   if (!status.running) {
@@ -120,8 +129,7 @@ async function cmdStop(): Promise<void> {
     }
   }
   if (!status.running || !status.pid) {
-    process.stderr.write("Forge daemon is not running.\n");
-    process.exit(0);
+    return { wasRunning: false };
   }
 
   process.stderr.write(`Stopping forge daemon (PID ${status.pid})...\n`);
@@ -130,7 +138,7 @@ async function cmdStop(): Promise<void> {
   } catch {
     process.stderr.write("Process already dead.\n");
     await cleanDaemonFiles();
-    return;
+    return { wasRunning: true };
   }
 
   // Wait up to 5s for graceful shutdown
@@ -139,7 +147,7 @@ async function cmdStop(): Promise<void> {
     if (!isProcessAlive(status.pid)) {
       process.stderr.write("Forge daemon stopped.\n");
       await cleanDaemonFiles();
-      return;
+      return { wasRunning: true };
     }
     await new Promise((r) => setTimeout(r, 200));
   }
@@ -152,6 +160,37 @@ async function cmdStop(): Promise<void> {
   }
   await cleanDaemonFiles();
   process.stderr.write("Forge daemon force-killed.\n");
+  return { wasRunning: true };
+}
+
+async function cmdStop(): Promise<void> {
+  const { wasRunning } = await stopDaemon();
+  if (!wasRunning) {
+    process.stderr.write("Forge daemon is not running.\n");
+    process.exit(0);
+  }
+}
+
+/**
+ * `restart` hands the shell back rather than blocking on the server, so it
+ * defaults to detached. `--foreground` opts back into a blocking start.
+ */
+export function restartStartArgs(args: string[]): string[] {
+  if (args.includes("--foreground")) {
+    return args.filter((a) => a !== "--foreground");
+  }
+  if (args.includes("-d") || args.includes("--detach")) {
+    return args;
+  }
+  return ["-d", ...args];
+}
+
+async function cmdRestart(args: string[]): Promise<void> {
+  const { wasRunning } = await stopDaemon();
+  if (!wasRunning) {
+    process.stderr.write("Forge daemon was not running — starting it.\n");
+  }
+  await cmdStart(restartStartArgs(args));
 }
 
 async function cmdStatus(): Promise<void> {
@@ -479,6 +518,7 @@ Usage:
   forge setup                Auto-discover .mcp.json files and register Forge
   forge start [-d]           Start daemon (foreground, or -d for detached/background)
   forge stop                 Stop daemon, kill all sessions
+  forge restart              Stop then start (detached by default; --foreground to block)
   forge status               Show daemon status, PID, session count
 
 Daemon options (forge start):
@@ -514,6 +554,9 @@ Custom agents (add to ~/.forge/settings.json):
     case "stop":
       await cmdStop();
       break;
+    case "restart":
+      await cmdRestart(args.slice(1));
+      break;
     case "status":
       await cmdStatus();
       break;
@@ -528,6 +571,7 @@ Custom agents (add to ~/.forge/settings.json):
         "  forge setup --agent <name> Configure an AI agent to use Forge\n" +
         "  forge status               Show daemon status\n" +
         "  forge stop                 Stop the daemon\n" +
+        "  forge restart              Restart the daemon\n" +
         "  forge --help               Full usage\n",
       );
       process.exit(1);

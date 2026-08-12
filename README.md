@@ -66,6 +66,8 @@ After install, the `forge` command is available globally:
 forge start              # Start the server
 forge start -d           # Start as background daemon
 forge start -d --dashboard --port 3141   # With web dashboard
+forge restart            # Stop then start (detached by default)
+forge restart --foreground   # Stop then start, blocking
 ```
 
 ### Update
