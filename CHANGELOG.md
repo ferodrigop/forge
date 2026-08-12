@@ -2,6 +2,12 @@
 
 All notable changes to Forge are documented in this file.
 
+## [Unreleased]
+
+### Added
+- `forge restart` — stop the daemon and start it again in one command. Detached by default so it hands the shell back; pass `--foreground` for a blocking start.
+- `forge load` / `forge unload` (macOS) — install or remove a LaunchAgent so the daemon starts at login and is respawned after a crash. `forge status` gains an `Autostart:` line, and once loaded `forge start` hands off to launchd rather than spawning its own process.
+
 ## [0.8.0] — 2026-03-11
 
 ### Added

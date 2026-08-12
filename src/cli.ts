@@ -14,6 +14,7 @@ import {
   getPortPid,
   getDaemonStatus,
 } from "./utils/daemon.js";
+import * as launchd from "./utils/launchd.js";
 
 // ─── Subcommands ───────────────────────────────────────────────
 
@@ -29,6 +30,29 @@ async function cmdStart(args: string[]): Promise<void> {
   if (status.running) {
     process.stderr.write(`Forge daemon already running (PID ${status.pid}) at http://127.0.0.1:${DEFAULT_PORT}\n`);
     process.exit(0);
+  }
+
+  // When a LaunchAgent owns the daemon, hand the start to launchd. Spawning
+  // here would leave an orphan that KeepAlive races against. FORGE_LAUNCHD is
+  // set by the plist to mark launchd's own invocation, which must fall through
+  // to the foreground server below.
+  if (!process.env.FORGE_LAUNCHD && launchd.isSupported() && launchd.isLoaded()) {
+    launchd.kickstart();
+    for (let i = 0; i < 25; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const s = await getDaemonStatus();
+      if (s.running) {
+        process.stderr.write(
+          `Forge daemon started by launchd (PID ${s.pid}) at http://127.0.0.1:${DEFAULT_PORT}\n`,
+        );
+        return;
+      }
+    }
+    process.stderr.write(
+      `launchd did not bring the daemon up within 5s.\n` +
+      `Check logs: ${join(launchd.logDir(), "daemon.err.log")}\n`,
+    );
+    process.exit(1);
   }
 
   // Parse config early to get the actual port
@@ -110,7 +134,16 @@ async function cmdStart(args: string[]): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
-async function cmdStop(): Promise<void> {
+interface StopResult {
+  wasRunning: boolean;
+}
+
+/**
+ * Stop the daemon and report what happened. Callers that go on to start it
+ * again (`restart`, `load`) pass `hints: false` to suppress the "it stays
+ * down" advice, which would be wrong in their flow.
+ */
+async function stopDaemon({ hints = true }: { hints?: boolean } = {}): Promise<StopResult> {
   let status = await getDaemonStatus();
   // Fallback: check port if no PID file (e.g. old stdio-mode Forge)
   if (!status.running) {
@@ -120,9 +153,12 @@ async function cmdStop(): Promise<void> {
     }
   }
   if (!status.running || !status.pid) {
-    process.stderr.write("Forge daemon is not running.\n");
-    process.exit(0);
+    return { wasRunning: false };
   }
+
+  // A launchd-owned daemon stays down only if it exits cleanly: KeepAlive is
+  // SuccessfulExit=false, so SIGTERM (handler exits 0) sticks but SIGKILL does not.
+  const managed = launchd.isSupported() && launchd.isLoaded();
 
   process.stderr.write(`Stopping forge daemon (PID ${status.pid})...\n`);
   try {
@@ -130,7 +166,7 @@ async function cmdStop(): Promise<void> {
   } catch {
     process.stderr.write("Process already dead.\n");
     await cleanDaemonFiles();
-    return;
+    return { wasRunning: true };
   }
 
   // Wait up to 5s for graceful shutdown
@@ -138,8 +174,11 @@ async function cmdStop(): Promise<void> {
   while (Date.now() < deadline) {
     if (!isProcessAlive(status.pid)) {
       process.stderr.write("Forge daemon stopped.\n");
+      if (managed && hints) {
+        process.stderr.write("launchd will not restart it (clean exit). Run `forge start` to bring it back.\n");
+      }
       await cleanDaemonFiles();
-      return;
+      return { wasRunning: true };
     }
     await new Promise((r) => setTimeout(r, 200));
   }
@@ -152,12 +191,133 @@ async function cmdStop(): Promise<void> {
   }
   await cleanDaemonFiles();
   process.stderr.write("Forge daemon force-killed.\n");
+  if (managed && hints) {
+    process.stderr.write(
+      "It did not exit cleanly, so launchd will respawn it within ~10s.\n" +
+      "Run `forge unload` to stop it for good.\n",
+    );
+  }
+  return { wasRunning: true };
+}
+
+async function cmdStop(): Promise<void> {
+  const { wasRunning } = await stopDaemon();
+  if (!wasRunning) {
+    process.stderr.write("Forge daemon is not running.\n");
+    process.exit(0);
+  }
+}
+
+/**
+ * `restart` hands the shell back rather than blocking on the server, so it
+ * defaults to detached. Under launchd the flag is moot — cmdStart kickstarts
+ * the job instead of spawning anything.
+ */
+export function restartStartArgs(args: string[]): string[] {
+  if (args.includes("--foreground")) {
+    return args.filter((a) => a !== "--foreground");
+  }
+  if (args.includes("-d") || args.includes("--detach")) {
+    return args;
+  }
+  return ["-d", ...args];
+}
+
+async function cmdRestart(args: string[]): Promise<void> {
+  const { wasRunning } = await stopDaemon({ hints: false });
+  if (!wasRunning) {
+    process.stderr.write("Forge daemon was not running — starting it.\n");
+  }
+  await cmdStart(restartStartArgs(args));
+}
+
+/** One line describing whether a LaunchAgent owns the daemon. */
+function launchdStatusLine(): string {
+  if (!launchd.isSupported()) return "";
+  return launchd.isLoaded()
+    ? "  Autostart: loaded (launchd, starts at login)\n"
+    : "  Autostart: not loaded — run `forge load`\n";
+}
+
+async function cmdLoad(args: string[]): Promise<void> {
+  if (!launchd.isSupported()) {
+    process.stderr.write(
+      `\`forge load\` needs launchd; this platform is ${process.platform}.\n` +
+      "Run `forge start -d` from your session manager instead.\n",
+    );
+    process.exit(1);
+  }
+
+  const portIdx = args.indexOf("--port");
+  const port = portIdx >= 0 ? parseInt(args[portIdx + 1], 10) : DEFAULT_PORT;
+  if (Number.isNaN(port)) {
+    process.stderr.write("Invalid --port value.\n");
+    process.exit(1);
+  }
+
+  // launchd's RunAtLoad starts it; a daemon already on the port would make
+  // that fail to bind, so clear the way first.
+  const existing = await getDaemonStatus();
+  if (existing.running) {
+    const alreadyManaged = launchd.isLoaded();
+    process.stderr.write(
+      alreadyManaged
+        ? `Stopping the running daemon (PID ${existing.pid}) to reload the LaunchAgent...\n`
+        : `Stopping unmanaged daemon (PID ${existing.pid}) so launchd can take over...\n`,
+    );
+    await stopDaemon({ hints: false });
+  }
+
+  let result: { path: string; reloaded: boolean };
+  try {
+    result = launchd.load(port);
+  } catch (err) {
+    process.stderr.write(`Failed to load LaunchAgent: ${String(err)}\n`);
+    process.exit(1);
+  }
+
+  process.stderr.write(`${result.reloaded ? "Reloaded" : "Loaded"} LaunchAgent ${launchd.LAUNCHD_LABEL}\n`);
+  process.stderr.write(`  Plist: ${result.path}\n  Logs:  ${launchd.logDir()}\n`);
+
+  for (let i = 0; i < 25; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    const s = await getDaemonStatus();
+    if (s.running) {
+      process.stderr.write(
+        `Forge daemon running (PID ${s.pid}) at http://127.0.0.1:${port} — survives reboot.\n`,
+      );
+      return;
+    }
+  }
+  process.stderr.write(
+    `LaunchAgent loaded, but the daemon did not come up within 5s.\n` +
+    `Check ${join(launchd.logDir(), "daemon.err.log")}\n`,
+  );
+  process.exit(1);
+}
+
+async function cmdUnload(): Promise<void> {
+  if (!launchd.isSupported()) {
+    process.stderr.write(`\`forge unload\` needs launchd; this platform is ${process.platform}.\n`);
+    process.exit(1);
+  }
+
+  const { wasLoaded, removedPlist } = launchd.unload();
+  if (!wasLoaded && !removedPlist) {
+    process.stderr.write("No LaunchAgent installed — nothing to unload.\n");
+    return;
+  }
+  process.stderr.write(
+    `Unloaded LaunchAgent ${launchd.LAUNCHD_LABEL}${removedPlist ? " and removed its plist" : ""}.\n` +
+    "The daemon no longer starts at login. Re-enable with `forge load`.\n",
+  );
+  await cleanDaemonFiles();
 }
 
 async function cmdStatus(): Promise<void> {
   const status = await getDaemonStatus();
   if (!status.running) {
-    process.stderr.write("Forge daemon: stopped\n");
+    process.stderr.write(`Forge daemon: stopped\n${launchdStatusLine()}`);
     process.exit(1);
   }
 
@@ -170,10 +330,14 @@ async function cmdStatus(): Promise<void> {
     process.stderr.write(
       `Forge daemon: running (PID ${status.pid})\n` +
         `  URL: http://127.0.0.1:${DEFAULT_PORT}\n` +
-        `  Sessions: ${running} running, ${exited} exited\n`,
+        `  Sessions: ${running} running, ${exited} exited\n` +
+        launchdStatusLine(),
     );
   } catch {
-    process.stderr.write(`Forge daemon: running (PID ${status.pid})\n  URL: http://127.0.0.1:${DEFAULT_PORT}\n`);
+    process.stderr.write(
+      `Forge daemon: running (PID ${status.pid})\n  URL: http://127.0.0.1:${DEFAULT_PORT}\n` +
+        launchdStatusLine(),
+    );
   }
 }
 
@@ -479,7 +643,16 @@ Usage:
   forge setup                Auto-discover .mcp.json files and register Forge
   forge start [-d]           Start daemon (foreground, or -d for detached/background)
   forge stop                 Stop daemon, kill all sessions
+  forge restart              Stop then start (detached by default; --foreground to block)
   forge status               Show daemon status, PID, session count
+  forge load [--port <n>]    Install LaunchAgent: start at login, restart on crash (macOS)
+  forge unload               Remove the LaunchAgent and stop starting at login (macOS)
+
+Autostart (macOS):
+  \`forge load\` writes ~/Library/LaunchAgents/dev.forgemcp.daemon.plist and
+  bootstraps it, so the daemon survives reboots and crashes. Once loaded,
+  \`forge start\` hands off to launchd and \`forge stop\` stays stopped until the
+  next \`forge start\` or login. Daemon logs land in ~/Library/Logs/forge/.
 
 Daemon options (forge start):
   --max-sessions <n>   Max concurrent sessions (default: 10)
@@ -514,8 +687,17 @@ Custom agents (add to ~/.forge/settings.json):
     case "stop":
       await cmdStop();
       break;
+    case "restart":
+      await cmdRestart(args.slice(1));
+      break;
     case "status":
       await cmdStatus();
+      break;
+    case "load":
+      await cmdLoad(args.slice(1));
+      break;
+    case "unload":
+      await cmdUnload();
       break;
     case "setup":
       await cmdSetup(args.slice(1));
@@ -528,6 +710,9 @@ Custom agents (add to ~/.forge/settings.json):
         "  forge setup --agent <name> Configure an AI agent to use Forge\n" +
         "  forge status               Show daemon status\n" +
         "  forge stop                 Stop the daemon\n" +
+        "  forge restart              Restart the daemon\n" +
+        "  forge load                 Start at login via launchd (macOS)\n" +
+        "  forge unload               Stop starting at login (macOS)\n" +
         "  forge --help               Full usage\n",
       );
       process.exit(1);
